@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TalkingMaps</title>
+    <link rel="icon" type="image/png" href="img/logo.png">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+
+    <!-- MapLibre GL JS -->
+    <link href="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.css" rel="stylesheet">
+
+    <!-- Cesium -->
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+
+    <!-- App CSS -->
+    <link href="css/style.css" rel="stylesheet">
+    <link href="css/viewer.css" rel="stylesheet">
+    <link href="css/editor.css" rel="stylesheet">
+    <link href="css/dashboard.css" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="d-none">
+        <div class="login-container">
+            <div class="login-logo">
+                <img src="img/logo_big.png" alt="TalkingMaps" class="login-logo-img">
+                <h1>TalkingMaps</h1>
+                <p>Racconta storie attraverso le mappe</p>
+            </div>
+            <form id="login-form">
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="login-username" placeholder="Username" required>
+                </div>
+                <div class="mb-3">
+                    <input type="password" class="form-control" id="login-password" placeholder="Password" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Accedi</button>
+                <div id="login-error" class="text-danger mt-2 d-none" style="font-size:13px"></div>
+            </form>
+            <div class="login-footer">
+                <a href="#" id="btn-explore-public">Esplora le storie pubbliche <i class="bi bi-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="d-none">
+        <nav class="navbar navbar-dark" id="main-navbar">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#" id="btn-home">
+                    <img src="img/logo.png" alt="TM" class="navbar-logo"> TalkingMaps
+                </a>
+                <div class="navbar-actions">
+                    <button class="btn btn-sm btn-outline-light" id="btn-new-story">
+                        <i class="bi bi-plus-lg"></i> <span class="d-none d-sm-inline">Nuova storia</span>
+                    </button>
+
+                    <!-- Language selector -->
+                    <select class="form-select form-select-sm" id="btn-lang"
+                        style="width:auto;padding:4px 28px 4px 8px;font-size:12px;background:var(--tm-surface);border-color:var(--tm-border);color:var(--tm-text-muted)">
+                        <option value="it">IT</option>
+                        <option value="en">EN</option>
+                        <option value="es">ES</option>
+                    </select>
+
+                    <div class="dropdown d-inline-block">
+                        <button class="btn btn-sm btn-outline-light dropdown-toggle" data-bs-toggle="dropdown" id="user-menu-btn">
+                            <i class="bi bi-person-circle"></i> <span id="current-user-name" class="d-none d-md-inline"></span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" id="btn-dashboard"><i class="bi bi-grid-1x2 me-2"></i>Dashboard</a></li>
+                            <li><a class="dropdown-item" href="#" id="btn-layers-catalog"><i class="bi bi-layers me-2"></i>Catalogo Layer</a></li>
+                            <li><a class="dropdown-item" href="#" id="btn-media-library"><i class="bi bi-image me-2"></i>Libreria Media</a></li>
+                            <li><a class="dropdown-item admin-only" href="#" id="btn-users-admin"><i class="bi bi-people me-2"></i>Utenti</a></li>
+                            <li><a class="dropdown-item admin-only" href="#" id="btn-basemaps-admin"><i class="bi bi-map me-2"></i>Basemap</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" id="btn-logout"><i class="bi bi-box-arrow-right me-2"></i>Esci</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div id="app-content">
+            <div id="panel-dashboard" class="app-panel d-none"></div>
+            <div id="panel-editor" class="app-panel d-none"></div>
+            <div id="panel-layers" class="app-panel d-none"></div>
+            <div id="panel-media" class="app-panel d-none"></div>
+            <div id="panel-users" class="app-panel d-none"></div>
+            <div id="panel-basemaps" class="app-panel d-none"></div>
+        </div>
+    </div>
+
+    <!-- Story Viewer (full-screen) -->
+    <div id="story-viewer" class="d-none">
+        <div id="viewer-toolbar">
+            <button class="btn btn-sm btn-light" id="viewer-close" title="Chiudi">
+                <i class="bi bi-x-lg"></i>
+            </button>
+            <span id="viewer-title"></span>
+            <div class="viewer-toolbar-right">
+                <button class="btn btn-sm btn-light" id="viewer-toggle-3d" title="Vista 3D">
+                    <i class="bi bi-badge-3d"></i>
+                </button>
+                <button class="btn btn-sm btn-light" id="viewer-basemap-btn" title="Cambia basemap">
+                    <i class="bi bi-map"></i>
+                </button>
+                <span id="viewer-progress">1 / 1</span>
+            </div>
+        </div>
+
+        <div id="viewer-map-container">
+            <div id="viewer-map"></div>
+            <div id="viewer-cesium" class="d-none"></div>
+        </div>
+
+        <div id="viewer-narrative"></div>
+
+        <div id="viewer-nav">
+            <button class="btn btn-light" id="viewer-prev"><i class="bi bi-chevron-up"></i></button>
+            <button class="btn btn-light" id="viewer-next"><i class="bi bi-chevron-down"></i></button>
+        </div>
+
+        <div id="viewer-basemap-selector" class="d-none"></div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.js"></script>
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Cesium.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+
+    <!-- App modules (order matters: i18n first) -->
+    <script src="js/i18n.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/cesium3d.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/viewer.js"></script>
+    <script src="js/editor.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/media-library.js"></script>
+    <script src="js/potree-viewer.js"></script>
+
+    <script>
+        // Sync language selector on load
+        document.addEventListener('DOMContentLoaded', () => {
+            const lang = localStorage.getItem('tm_lang') || 'it';
+            const sel = document.getElementById('btn-lang');
+            if (sel) sel.value = lang;
+        });
+    </script>
+</body>
+</html>

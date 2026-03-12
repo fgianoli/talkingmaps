@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+_old/
+*.dump
+*.backup
+*.sql.gz
+db_data/
+node_modules/
+.claude/

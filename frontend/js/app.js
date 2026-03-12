@@ -1,0 +1,358 @@
+/**
+ * TalkingMaps – Main Application Controller
+ * Modal system, i18n, navigation, toast
+ */
+const App = {
+    currentPanel: null,
+
+    async init() {
+        I18n.init();
+        Api.init();
+
+        window.addEventListener('session-expired', () => {
+            this.showLogin();
+            this.toast(I18n.t('app.session_expired'), 'warning');
+        });
+
+        this._setupRouting();
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('story')) { this._viewPublicStory(params.get('story')); return; }
+        if (params.has('share')) { this._viewSharedStory(params.get('share')); return; }
+
+        if (Api.isLoggedIn()) {
+            this.showApp();
+        } else {
+            this.showLogin();
+        }
+
+        this._bindEvents();
+    },
+
+    // ── Navigation ───────────────────────
+    showLogin() {
+        document.getElementById('login-screen').classList.remove('d-none');
+        document.getElementById('app').classList.add('d-none');
+        document.getElementById('story-viewer').classList.add('d-none');
+        document.body.classList.remove('is-admin');
+    },
+
+    showApp() {
+        document.getElementById('login-screen').classList.add('d-none');
+        document.getElementById('app').classList.remove('d-none');
+        document.getElementById('story-viewer').classList.add('d-none');
+
+        const user = Api.getUser();
+        document.getElementById('current-user-name').textContent = user?.display_name || user?.username || '';
+        if (user?.role === 'admin') document.body.classList.add('is-admin');
+
+        document.querySelectorAll('.admin-only').forEach(el => {
+            el.style.display = user?.role === 'admin' ? '' : 'none';
+        });
+
+        this.showPanel('dashboard');
+    },
+
+    showPanel(name) {
+        document.querySelectorAll('.app-panel').forEach(p => p.classList.add('d-none'));
+        const panel = document.getElementById(`panel-${name}`);
+        if (panel) {
+            panel.classList.remove('d-none');
+            this.currentPanel = name;
+        }
+
+        switch (name) {
+            case 'dashboard': Dashboard.load(); break;
+            case 'layers': Dashboard.loadLayers(); break;
+            case 'media': MediaLibrary.load(); break;
+            case 'users': Dashboard.loadUsers(); break;
+            case 'basemaps': Dashboard.loadBasemaps(); break;
+        }
+    },
+
+    // ── Events ───────────────────────────
+    _bindEvents() {
+        // Login
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            const errorEl = document.getElementById('login-error');
+            try {
+                errorEl.classList.add('d-none');
+                const result = await Api.login(username, password);
+                Api.setSession(result.access_token, result.user);
+                this.showApp();
+            } catch (err) {
+                errorEl.textContent = err.message;
+                errorEl.classList.remove('d-none');
+            }
+        });
+
+        // Navbar
+        document.getElementById('btn-home')?.addEventListener('click', (e) => { e.preventDefault(); this.showPanel('dashboard'); });
+        document.getElementById('btn-dashboard')?.addEventListener('click', (e) => { e.preventDefault(); this.showPanel('dashboard'); });
+        document.getElementById('btn-layers-catalog')?.addEventListener('click', (e) => { e.preventDefault(); this.showPanel('layers'); });
+        document.getElementById('btn-media-library')?.addEventListener('click', (e) => { e.preventDefault(); this.showPanel('media'); });
+        document.getElementById('btn-users-admin')?.addEventListener('click', (e) => { e.preventDefault(); this.showPanel('users'); });
+        document.getElementById('btn-basemaps-admin')?.addEventListener('click', (e) => { e.preventDefault(); this.showPanel('basemaps'); });
+
+        document.getElementById('btn-logout')?.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try { await Api.logout(); } catch { /* ok */ }
+            Api.clearSession();
+            this.showLogin();
+        });
+
+        document.getElementById('btn-new-story')?.addEventListener('click', () => this.createNewStory());
+
+        // Language selector
+        document.getElementById('btn-lang')?.addEventListener('change', (e) => {
+            I18n.setLang(e.target.value);
+            if (this.currentPanel) this.showPanel(this.currentPanel);
+        });
+
+        // Public stories
+        document.getElementById('btn-explore-public')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this._viewPublicList();
+        });
+
+        // Viewer close
+        document.getElementById('viewer-close')?.addEventListener('click', () => {
+            document.getElementById('story-viewer').classList.add('d-none');
+            if (Api.isLoggedIn()) {
+                document.getElementById('app').classList.remove('d-none');
+            } else {
+                this.showLogin();
+            }
+            StoryViewer.destroy();
+        });
+    },
+
+    _setupRouting() {
+        window.addEventListener('hashchange', () => this._handleHash());
+        this._handleHash();
+    },
+
+    _handleHash() {
+        const hash = window.location.hash;
+        if (hash.startsWith('#/edit/')) {
+            const id = parseInt(hash.replace('#/edit/', ''));
+            if (id) StoryEditor.load(id);
+        } else if (hash.startsWith('#/view/')) {
+            const id = parseInt(hash.replace('#/view/', ''));
+            if (id) this._viewPublicStory(id);
+        }
+    },
+
+    // ── Create Story (modal) ─────────────
+    async createNewStory() {
+        const result = await this.modal({
+            title: I18n.t('story.new_title'),
+            body: `
+                <div class="mb-3">
+                    <label class="form-label">${I18n.t('story.title_label')}</label>
+                    <input type="text" class="form-control" id="modal-story-title"
+                           placeholder="${I18n.t('story.title_placeholder')}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">${I18n.t('story.desc_label')}</label>
+                    <textarea class="form-control" id="modal-story-desc" rows="2"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">${I18n.t('story.visibility')}</label>
+                    <select class="form-select" id="modal-story-visibility">
+                        <option value="private">${I18n.t('story.visibility_private')}</option>
+                        <option value="public">${I18n.t('story.visibility_public')}</option>
+                        <option value="unlisted">${I18n.t('story.visibility_unlisted')}</option>
+                    </select>
+                </div>
+            `,
+            confirmText: I18n.t('action.confirm'),
+            onConfirm: () => ({
+                title: document.getElementById('modal-story-title')?.value,
+                description: document.getElementById('modal-story-desc')?.value || null,
+                visibility: document.getElementById('modal-story-visibility')?.value || 'private',
+            }),
+        });
+        if (!result || !result.title) return;
+        try {
+            const story = await Api.createStory(result);
+            this.toast(I18n.t('story.created'), 'success');
+            StoryEditor.load(story.id);
+        } catch (err) {
+            this.toast(err.message, 'danger');
+        }
+    },
+
+    async _viewPublicStory(storyId) {
+        try {
+            const data = await Api.getStoryFull(storyId);
+            document.getElementById('login-screen').classList.add('d-none');
+            document.getElementById('app').classList.add('d-none');
+            StoryViewer.load(data);
+        } catch (err) {
+            this.toast(I18n.t('story.not_found'), 'danger');
+        }
+    },
+
+    async _viewSharedStory(token) {
+        try {
+            const story = await Api.getSharedStory(token);
+            const data = await Api.getStoryFull(story.id);
+            document.getElementById('login-screen').classList.add('d-none');
+            document.getElementById('app').classList.add('d-none');
+            StoryViewer.load(data);
+        } catch (err) {
+            this.toast(I18n.t('story.share_invalid'), 'danger');
+        }
+    },
+
+    async _viewPublicList() {
+        document.getElementById('login-screen').classList.add('d-none');
+        document.getElementById('app').classList.remove('d-none');
+        document.getElementById('main-navbar').classList.add('d-none');
+        this.showPanel('dashboard');
+        Dashboard.loadPublic();
+    },
+
+    // ══ Modal System ══════════════════════
+    /**
+     * Show modal dialog. Replaces prompt/confirm.
+     * @returns {Promise<*>} result from onConfirm(), or null if cancelled
+     */
+    modal(opts) {
+        return new Promise((resolve) => {
+            const id = 'tm-modal-' + Date.now();
+            const btnClass = opts.danger ? 'btn-danger' : 'btn-primary';
+            const html = `
+                <div class="modal fade" id="${id}" tabindex="-1" data-bs-backdrop="static">
+                    <div class="modal-dialog ${opts.size === 'lg' ? 'modal-lg' : opts.size === 'sm' ? 'modal-sm' : ''}">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">${opts.title || ''}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">${opts.body || ''}</div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-sm btn-outline-light" data-bs-dismiss="modal">
+                                    ${opts.cancelText || I18n.t('action.cancel')}
+                                </button>
+                                <button type="button" class="btn btn-sm ${btnClass}" id="${id}-confirm">
+                                    ${opts.confirmText || I18n.t('action.confirm')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', html);
+            const el = document.getElementById(id);
+            const modal = new bootstrap.Modal(el);
+
+            let resolved = false;
+
+            document.getElementById(`${id}-confirm`).addEventListener('click', () => {
+                resolved = true;
+                const result = opts.onConfirm ? opts.onConfirm() : true;
+                modal.hide();
+                resolve(result);
+            });
+
+            // Enter key submits
+            el.querySelectorAll('input, select').forEach(input => {
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        document.getElementById(`${id}-confirm`).click();
+                    }
+                });
+            });
+
+            el.addEventListener('hidden.bs.modal', () => {
+                el.remove();
+                if (!resolved) resolve(null);
+            });
+
+            modal.show();
+            setTimeout(() => el.querySelector('input, textarea, select')?.focus(), 300);
+        });
+    },
+
+    /**
+     * Confirm dialog. Replaces window.confirm().
+     */
+    async confirm(message, opts = {}) {
+        const result = await this.modal({
+            title: opts.title || I18n.t('action.confirm'),
+            body: `<p style="margin:0">${this.escHtml(message)}</p>`,
+            confirmText: opts.confirmText || I18n.t('action.confirm'),
+            danger: opts.danger,
+            onConfirm: () => true,
+        });
+        return !!result;
+    },
+
+    /**
+     * Prompt dialog. Replaces window.prompt().
+     */
+    async prompt(label, defaultValue = '', opts = {}) {
+        const inputId = 'tm-prompt-' + Date.now();
+        const result = await this.modal({
+            title: opts.title || label,
+            body: `
+                <div class="mb-0">
+                    ${opts.hideLabel ? '' : `<label class="form-label">${this.escHtml(label)}</label>`}
+                    <input type="${opts.type || 'text'}" class="form-control" id="${inputId}"
+                           value="${this.escHtml(defaultValue)}" placeholder="${this.escHtml(opts.placeholder || '')}">
+                </div>
+            `,
+            confirmText: opts.confirmText || I18n.t('action.confirm'),
+            onConfirm: () => document.getElementById(inputId)?.value || '',
+        });
+        return result;
+    },
+
+    // ── Toast ────────────────────────────
+    toast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const id = 'toast-' + Date.now();
+        const iconMap = {
+            success: 'bi-check-circle-fill',
+            danger: 'bi-exclamation-triangle-fill',
+            warning: 'bi-exclamation-circle-fill',
+            info: 'bi-info-circle-fill'
+        };
+        container.insertAdjacentHTML('beforeend', `
+            <div id="${id}" class="toast align-items-center text-bg-${type} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body"><i class="bi ${iconMap[type] || iconMap.info} me-2"></i>${App.escHtml(message)}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `);
+        const el = document.getElementById(id);
+        const toast = new bootstrap.Toast(el, { delay: 4000 });
+        toast.show();
+        el.addEventListener('hidden.bs.toast', () => el.remove());
+    },
+
+    // ── Utilities ────────────────────────
+    escHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    },
+
+    formatDate(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        const loc = { it: 'it-IT', en: 'en-US', es: 'es-ES' }[I18n.getLang()] || 'it-IT';
+        return d.toLocaleDateString(loc, { day: '2-digit', month: 'short', year: 'numeric' });
+    },
+};
+
+// Boot
+document.addEventListener('DOMContentLoaded', () => App.init());

@@ -1,0 +1,314 @@
+/* ══════════════════════════════════════════
+   TalkingMaps – Dashboard, Layers, Media, Users
+   ══════════════════════════════════════════ */
+
+#panel-dashboard, #panel-layers, #panel-media, #panel-users {
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* ── Dashboard Header ────────────────── */
+.dashboard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.dashboard-header h2 {
+    font-family: var(--tm-font-display);
+    font-size: 24px;
+    margin: 0;
+    color: var(--tm-text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.dashboard-header h2 i {
+    color: var(--tm-primary);
+    font-size: 22px;
+}
+
+.dashboard-filters {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.dashboard-filters .form-control {
+    max-width: 240px;
+    font-size: 13px;
+}
+
+.dashboard-filters .form-select {
+    width: auto;
+    font-size: 13px;
+}
+
+/* ── Dashboard Logo Watermark ────────── */
+.dashboard-logo-watermark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0.03;
+    pointer-events: none;
+    z-index: 0;
+    width: 400px;
+    height: auto;
+    filter: invert(1);
+}
+
+/* ── Stats row ───────────────────────── */
+.dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: var(--tm-surface);
+    border: 1px solid var(--tm-border);
+    border-radius: var(--tm-radius);
+    padding: 20px;
+    text-align: center;
+    transition: border-color var(--tm-transition);
+}
+
+.stat-card:hover {
+    border-color: var(--tm-text-muted);
+}
+
+.stat-card .stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--tm-primary);
+}
+
+.stat-card .stat-label {
+    font-size: 13px;
+    color: var(--tm-text-muted);
+    margin-top: 4px;
+}
+
+/* ── Story grid ──────────────────────── */
+.stories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    position: relative;
+    z-index: 1;
+}
+
+/* ── Layers catalog ──────────────────── */
+.layers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.layer-card {
+    background: var(--tm-surface);
+    border: 1px solid var(--tm-border);
+    border-radius: var(--tm-radius);
+    padding: 16px;
+    transition: border-color var(--tm-transition);
+}
+
+.layer-card:hover {
+    border-color: var(--tm-text-muted);
+}
+
+.layer-card h4 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 8px;
+    color: var(--tm-text);
+}
+
+.layer-card .layer-type-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: var(--tm-primary-soft, rgba(26,115,232,0.15));
+    color: var(--tm-primary);
+    font-weight: 500;
+}
+
+/* ── Media library ───────────────────── */
+.media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+}
+
+.media-item {
+    aspect-ratio: 1;
+    background: var(--tm-surface);
+    border: 2px solid var(--tm-border);
+    border-radius: var(--tm-radius-sm);
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+    transition: border-color var(--tm-transition), transform var(--tm-transition);
+}
+
+.media-item:hover {
+    border-color: var(--tm-primary);
+    transform: translateY(-2px);
+}
+
+.media-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.media-item .media-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 8px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.8));
+    font-size: 11px;
+    color: rgba(255,255,255,0.8);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.media-item .media-type-icon {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: white;
+}
+
+/* ── Upload zone ─────────────────────── */
+.upload-zone {
+    border: 2px dashed var(--tm-border);
+    border-radius: var(--tm-radius);
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color var(--tm-transition), background var(--tm-transition);
+    background: transparent;
+    color: var(--tm-text);
+}
+
+.upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--tm-primary);
+    background: var(--tm-primary-soft, rgba(26,115,232,0.08));
+}
+
+.upload-zone i {
+    font-size: 36px;
+    color: var(--tm-text-muted);
+    margin-bottom: 12px;
+    display: block;
+}
+
+.upload-zone p {
+    color: var(--tm-text);
+    margin: 0 0 6px;
+    font-size: 14px;
+}
+
+.upload-zone small {
+    color: var(--tm-text-muted);
+    font-size: 12px;
+}
+
+/* ── Users table ─────────────────────── */
+.users-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.users-table th, .users-table td {
+    padding: 10px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--tm-border);
+    font-size: 14px;
+    color: var(--tm-text);
+}
+
+.users-table th {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--tm-text-muted);
+    background: var(--tm-surface);
+}
+
+.users-table tr:hover td {
+    background: var(--tm-surface-light);
+}
+
+/* ── Basemap admin ───────────────────── */
+.basemap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+}
+
+.basemap-card {
+    background: var(--tm-surface);
+    border: 1px solid var(--tm-border);
+    border-radius: var(--tm-radius);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: border-color var(--tm-transition);
+}
+
+.basemap-card:hover {
+    border-color: var(--tm-text-muted);
+}
+
+.basemap-card h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--tm-text);
+}
+
+.basemap-card .basemap-url {
+    font-size: 11px;
+    color: var(--tm-text-muted);
+    word-break: break-all;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.basemap-card .basemap-type {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: var(--tm-primary-soft, rgba(26,115,232,0.15));
+    color: var(--tm-primary);
+    font-weight: 500;
+    width: fit-content;
+}
+
+.basemap-card.inactive {
+    opacity: 0.5;
+}
