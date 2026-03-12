@@ -25,6 +25,11 @@ const StoryEditor = {
             this._layers = data.layers;
             this._data = data;
             this._render(data);
+
+            // Show guide for first-time users
+            setTimeout(() => {
+                if (typeof Guide !== 'undefined' && Guide.shouldShow()) Guide.start();
+            }, 600);
         } catch (err) {
             App.toast(I18n.t('error') + ': ' + err.message, 'danger');
         }

@@ -61,7 +61,7 @@ async def get_layer(layer_id: int, db: AsyncSession = Depends(get_db)):
 async def create_layer(req: LayerCreate, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
     result = await db.execute(text(
         """INSERT INTO layers (name, description, layer_type, source_config, style_config, legend_config, public, owner_id)
-           VALUES (:name, :desc, :type, :source::jsonb, :style::jsonb, :legend::jsonb, :pub, :owner)
+           VALUES (:name, :desc, :type, CAST(:source AS jsonb), CAST(:style AS jsonb), CAST(:legend AS jsonb), :pub, :owner)
            RETURNING id"""
     ), {
         "name": req.name, "desc": req.description, "type": req.layer_type,
@@ -84,13 +84,13 @@ async def update_layer(layer_id: int, req: LayerUpdate, user: dict = Depends(req
         sets.append("description = :desc")
         params["desc"] = req.description
     if req.source_config is not None:
-        sets.append("source_config = :source::jsonb")
+        sets.append("source_config = CAST(:source AS jsonb)")
         params["source"] = json.dumps(req.source_config)
     if req.style_config is not None:
-        sets.append("style_config = :style::jsonb")
+        sets.append("style_config = CAST(:style AS jsonb)")
         params["style"] = json.dumps(req.style_config)
     if req.legend_config is not None:
-        sets.append("legend_config = :legend::jsonb")
+        sets.append("legend_config = CAST(:legend AS jsonb)")
         params["legend"] = json.dumps(req.legend_config)
     if req.public is not None:
         sets.append("public = :pub")
@@ -164,7 +164,7 @@ async def upload_geojson(
     name = file.filename.rsplit(".", 1)[0]
     result = await db.execute(text(
         """INSERT INTO layers (name, layer_type, source_config, style_config, owner_id, public)
-           VALUES (:name, 'geojson', :source::jsonb, :style::jsonb, :owner, FALSE)
+           VALUES (:name, 'geojson', CAST(:source AS jsonb), CAST(:style AS jsonb), :owner, FALSE)
            RETURNING id"""
     ), {
         "name": name,

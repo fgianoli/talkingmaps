@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from core.database import get_db
+from core.database import get_db, get_system_db
 from core.security import get_current_user, require_editor
 
 router = APIRouter()
@@ -42,15 +42,14 @@ async def list_stories(
 ):
     """List stories. Admins/editors see all, viewers see only published/public."""
     if user["role"] in ("admin", "editor"):
-        q = "SELECT s.*, u.display_name as author_name FROM stories s LEFT JOIN users u ON s.author_id = u.id"
+        q = "SELECT s.* FROM stories s"
         params = {}
         if status:
             q += " WHERE s.status = :status"
             params["status"] = status
         q += " ORDER BY s.updated_at DESC"
     else:
-        q = """SELECT s.*, u.display_name as author_name FROM stories s
-               LEFT JOIN users u ON s.author_id = u.id
+        q = """SELECT s.* FROM stories s
                WHERE s.status = 'published' AND s.visibility = 'public'
                ORDER BY s.updated_at DESC"""
         params = {}
@@ -63,8 +62,8 @@ async def list_public_stories(db: AsyncSession = Depends(get_db)):
     """Public endpoint: no auth needed."""
     result = await db.execute(text(
         """SELECT s.id, s.slug, s.title, s.description, s.cover_image, s.theme,
-                  u.display_name as author_name, s.created_at, s.updated_at
-           FROM stories s LEFT JOIN users u ON s.author_id = u.id
+                  s.author_id, s.created_at, s.updated_at
+           FROM stories s
            WHERE s.status = 'published' AND s.visibility = 'public'
            ORDER BY s.updated_at DESC"""
     ))
@@ -75,8 +74,7 @@ async def list_public_stories(db: AsyncSession = Depends(get_db)):
 async def get_shared_story(token: str, db: AsyncSession = Depends(get_db)):
     """Access story via share token (no auth)."""
     result = await db.execute(text(
-        """SELECT s.*, u.display_name as author_name FROM stories s
-           LEFT JOIN users u ON s.author_id = u.id
+        """SELECT s.* FROM stories s
            WHERE s.share_token = :token AND s.status = 'published'"""
     ), {"token": token})
     story = result.mappings().fetchone()
@@ -88,7 +86,7 @@ async def get_shared_story(token: str, db: AsyncSession = Depends(get_db)):
 @router.get("/{story_id}")
 async def get_story(story_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(text(
-        "SELECT s.*, u.display_name as author_name FROM stories s LEFT JOIN users u ON s.author_id = u.id WHERE s.id = :id"
+        "SELECT s.* FROM stories s WHERE s.id = :id"
     ), {"id": story_id})
     story = result.mappings().fetchone()
     if not story:
@@ -98,30 +96,39 @@ async def get_story(story_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.post("/")
 async def create_story(req: StoryCreate, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
-    slug = slugify(req.title)
+    slug = slugify(req.title) or "untitled"
     # Ensure unique slug
     existing = await db.execute(text("SELECT id FROM stories WHERE slug = :s"), {"s": slug})
     if existing.fetchone():
         slug = f"{slug}-{uuid.uuid4().hex[:6]}"
 
-    result = await db.execute(text(
-        """INSERT INTO stories (title, slug, description, visibility, theme, settings, author_id)
-           VALUES (:title, :slug, :desc, :vis, :theme::jsonb, :settings::jsonb, :author)
-           RETURNING id, slug, share_token"""
-    ), {
-        "title": req.title, "slug": slug, "desc": req.description,
-        "vis": req.visibility, "theme": json.dumps(req.theme),
-        "settings": json.dumps(req.settings), "author": user["id"],
-    })
-    row = result.mappings().fetchone()
-    await db.commit()
+    try:
+        result = await db.execute(text(
+            """INSERT INTO stories (title, slug, description, visibility, theme, settings, author_id)
+               VALUES (:title, :slug, :desc, :vis, CAST(:theme AS jsonb), CAST(:settings AS jsonb), :author)
+               RETURNING id, slug, share_token"""
+        ), {
+            "title": req.title, "slug": slug, "desc": req.description,
+            "vis": req.visibility or "private",
+            "theme": json.dumps(req.theme) if req.theme else "{}",
+            "settings": json.dumps(req.settings) if req.settings else "{}",
+            "author": user["id"],
+        })
+        row = result.mappings().fetchone()
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating story: {e}")
 
     # Create default first slide (cover)
-    await db.execute(text(
-        """INSERT INTO slides (story_id, title, position, layout, narrative)
-           VALUES (:sid, :title, 0, 'cover', '<h1></h1><p></p>')"""
-    ), {"sid": row["id"], "title": req.title})
-    await db.commit()
+    try:
+        await db.execute(text(
+            """INSERT INTO slides (story_id, title, position, layout, narrative)
+               VALUES (:sid, :title, 0, 'cover', '<h1></h1><p></p>')"""
+        ), {"sid": row["id"], "title": req.title})
+        await db.commit()
+    except Exception:
+        pass  # Non-critical
 
     return {"id": row["id"], "slug": row["slug"], "share_token": row["share_token"]}
 
@@ -147,10 +154,10 @@ async def update_story(story_id: int, req: StoryUpdate, user: dict = Depends(req
         sets.append("visibility = :vis")
         params["vis"] = req.visibility
     if req.theme is not None:
-        sets.append("theme = :theme::jsonb")
+        sets.append("theme = CAST(:theme AS jsonb)")
         params["theme"] = json.dumps(req.theme)
     if req.settings is not None:
-        sets.append("settings = :settings::jsonb")
+        sets.append("settings = CAST(:settings AS jsonb)")
         params["settings"] = json.dumps(req.settings)
     if not sets:
         raise HTTPException(status_code=400, detail="Nessun campo da aggiornare")
@@ -184,7 +191,7 @@ async def duplicate_story(story_id: int, user: dict = Depends(require_editor), d
     new_slug = f"{original['slug']}-copy-{uuid.uuid4().hex[:6]}"
     new_story = await db.execute(text(
         """INSERT INTO stories (title, slug, description, cover_image, author_id, status, visibility, theme, settings)
-           VALUES (:title, :slug, :desc, :cover, :author, 'draft', 'private', :theme::jsonb, :settings::jsonb)
+           VALUES (:title, :slug, :desc, :cover, :author, 'draft', 'private', CAST(:theme AS jsonb), CAST(:settings AS jsonb))
            RETURNING id"""
     ), {
         "title": f"{original['title']} (copia)",
@@ -205,8 +212,8 @@ async def duplicate_story(story_id: int, user: dict = Depends(require_editor), d
                 map_center, map_zoom, map_bearing, map_pitch, map_bounds, map_animation,
                 layer_visibility, background_media, background_opacity, style_overrides)
                VALUES (:sid, :title, :narrative, :pos, :vis, :layout,
-                :center::jsonb, :zoom, :bearing, :pitch, :bounds::jsonb, :anim,
-                :lv::jsonb, :bg, :bgo, :so::jsonb)"""
+                CAST(:center AS jsonb), :zoom, :bearing, :pitch, CAST(:bounds AS jsonb), :anim,
+                CAST(:lv AS jsonb), :bg, :bgo, CAST(:so AS jsonb))"""
         ), {
             "sid": new_id, "title": slide["title"], "narrative": slide["narrative"],
             "pos": slide["position"], "vis": slide["visible"], "layout": slide["layout"],
@@ -224,7 +231,7 @@ async def duplicate_story(story_id: int, user: dict = Depends(require_editor), d
     for layer in layers.mappings().all():
         await db.execute(text(
             """INSERT INTO story_layers (story_id, layer_id, position, visible, opacity, custom_style)
-               VALUES (:sid, :lid, :pos, :vis, :opa, :cs::jsonb)"""
+               VALUES (:sid, :lid, :pos, :vis, :opa, CAST(:cs AS jsonb))"""
         ), {
             "sid": new_id, "lid": layer["layer_id"], "pos": layer["position"],
             "vis": layer["visible"], "opa": layer["opacity"],
@@ -236,11 +243,11 @@ async def duplicate_story(story_id: int, user: dict = Depends(require_editor), d
 
 
 @router.get("/{story_id}/full")
-async def get_story_full(story_id: int, db: AsyncSession = Depends(get_db)):
+async def get_story_full(story_id: int, db: AsyncSession = Depends(get_db), system_db: AsyncSession = Depends(get_system_db)):
     """Get complete story with slides, layers, markers - for the viewer."""
-    # Story
+    # Story (data DB)
     story_r = await db.execute(text(
-        "SELECT s.*, u.display_name as author_name FROM stories s LEFT JOIN users u ON s.author_id = u.id WHERE s.id = :id"
+        "SELECT s.* FROM stories s WHERE s.id = :id"
     ), {"id": story_id})
     story = story_r.mappings().fetchone()
     if not story:
@@ -269,8 +276,8 @@ async def get_story_full(story_id: int, db: AsyncSession = Depends(get_db)):
     ), {"sid": story_id})
     layers = [dict(l) for l in layers_r.mappings().all()]
 
-    # Basemaps
-    basemaps_r = await db.execute(text("SELECT * FROM basemaps WHERE active = TRUE ORDER BY position"))
+    # Basemaps (system DB)
+    basemaps_r = await system_db.execute(text("SELECT * FROM basemaps WHERE active = TRUE ORDER BY position"))
     basemaps = [dict(b) for b in basemaps_r.mappings().all()]
 
     return {

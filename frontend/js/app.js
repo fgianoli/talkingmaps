@@ -1,6 +1,6 @@
 /**
  * TalkingMaps – Main Application Controller
- * Modal system, i18n, navigation, toast
+ * Modal system, i18n, navigation, toast, landing page
  */
 const App = {
     currentPanel: null,
@@ -15,6 +15,7 @@ const App = {
         });
 
         this._setupRouting();
+        this._updateI18nTexts();
 
         const params = new URLSearchParams(window.location.search);
         if (params.has('story')) { this._viewPublicStory(params.get('story')); return; }
@@ -23,14 +24,121 @@ const App = {
         if (Api.isLoggedIn()) {
             this.showApp();
         } else {
-            this.showLogin();
+            this.showLanding();
         }
 
         this._bindEvents();
+
+        // Cookie consent
+        if (typeof CookieConsent !== 'undefined') CookieConsent.init();
+    },
+
+    // ── i18n text bindings ────────────────
+    _updateI18nTexts() {
+        const t = I18n.t.bind(I18n);
+
+        // Login screen
+        const tagline = document.getElementById('login-tagline');
+        if (tagline) tagline.textContent = t('app.tagline');
+
+        const loginBtn = document.getElementById('login-submit-btn');
+        if (loginBtn) loginBtn.textContent = t('app.login');
+
+        const googleDivText = document.getElementById('google-divider-text');
+        if (googleDivText) googleDivText.textContent = t('app.or');
+
+        const googleBtnText = document.getElementById('google-btn-text');
+        if (googleBtnText) googleBtnText.textContent = t('app.google_login');
+
+        const exploreText = document.getElementById('explore-public-text');
+        if (exploreText) exploreText.textContent = t('app.explore_public');
+
+        // Navbar
+        const navNew = document.getElementById('nav-new-story-text');
+        if (navNew) navNew.textContent = t('nav.new_story');
+
+        document.querySelectorAll('.nav-text-dashboard').forEach(el => el.textContent = t('nav.dashboard'));
+        document.querySelectorAll('.nav-text-layers').forEach(el => el.textContent = t('nav.layers'));
+        document.querySelectorAll('.nav-text-media').forEach(el => el.textContent = t('nav.media'));
+        document.querySelectorAll('.nav-text-users').forEach(el => el.textContent = t('nav.users'));
+        document.querySelectorAll('.nav-text-basemaps').forEach(el => el.textContent = t('nav.basemaps'));
+        document.querySelectorAll('.nav-text-logout').forEach(el => el.textContent = t('app.logout'));
+
+        // Landing page
+        this._updateLandingTexts();
+    },
+
+    _updateLandingTexts() {
+        const t = I18n.t.bind(I18n);
+
+        const heroTitle = document.getElementById('landing-hero-title');
+        if (heroTitle) heroTitle.innerHTML = `${t('landing.hero_title_1')} <span class="gradient-text">${t('landing.hero_title_2')}</span>`;
+
+        const heroSub = document.getElementById('landing-hero-subtitle');
+        if (heroSub) heroSub.textContent = t('landing.hero_subtitle');
+
+        const ctaStart = document.getElementById('landing-cta-start');
+        if (ctaStart) ctaStart.textContent = t('landing.cta_start');
+
+        const ctaDocs = document.getElementById('landing-cta-docs');
+        if (ctaDocs) ctaDocs.textContent = t('landing.cta_docs');
+
+        const linkFeatures = document.getElementById('landing-link-features');
+        if (linkFeatures) linkFeatures.textContent = t('landing.feat_title');
+
+        const linkInstall = document.getElementById('landing-link-install');
+        if (linkInstall) linkInstall.textContent = t('landing.install_title');
+
+        const btnLogin = document.getElementById('landing-btn-login');
+        if (btnLogin) btnLogin.textContent = t('landing.cta_login');
+
+        const featTitle = document.getElementById('landing-feat-title');
+        if (featTitle) featTitle.textContent = t('landing.feat_title');
+
+        const featSub = document.getElementById('landing-feat-subtitle');
+        if (featSub) featSub.textContent = t('landing.feat_subtitle');
+
+        const installTitle = document.getElementById('landing-install-title');
+        if (installTitle) installTitle.textContent = t('landing.install_title');
+
+        const installSub = document.getElementById('landing-install-subtitle');
+        if (installSub) installSub.textContent = t('landing.install_subtitle');
+
+        const authors = document.getElementById('landing-authors');
+        if (authors) authors.textContent = t('landing.authors');
+
+        // Features grid
+        const grid = document.getElementById('landing-features-grid');
+        if (grid) {
+            const features = [
+                { icon: 'bi-map', color: 'blue', key: 'maps' },
+                { icon: 'bi-book', color: 'purple', key: 'stories' },
+                { icon: 'bi-bar-chart', color: 'orange', key: 'data' },
+                { icon: 'bi-people', color: 'green', key: 'collab' },
+                { icon: 'bi-github', color: 'pink', key: 'open' },
+                { icon: 'bi-cloud-arrow-up', color: 'teal', key: 'lidar' },
+            ];
+            grid.innerHTML = features.map(f => `
+                <div class="feature-card">
+                    <div class="feature-icon ${f.color}"><i class="bi ${f.icon}"></i></div>
+                    <h3>${t('landing.feat_' + f.key)}</h3>
+                    <p>${t('landing.feat_' + f.key + '_desc')}</p>
+                </div>
+            `).join('');
+        }
     },
 
     // ── Navigation ───────────────────────
+    showLanding() {
+        document.getElementById('landing-page').classList.remove('d-none');
+        document.getElementById('login-screen').classList.add('d-none');
+        document.getElementById('app').classList.add('d-none');
+        document.getElementById('story-viewer').classList.add('d-none');
+        document.body.classList.remove('is-admin');
+    },
+
     showLogin() {
+        document.getElementById('landing-page').classList.add('d-none');
         document.getElementById('login-screen').classList.remove('d-none');
         document.getElementById('app').classList.add('d-none');
         document.getElementById('story-viewer').classList.add('d-none');
@@ -38,9 +146,11 @@ const App = {
     },
 
     showApp() {
+        document.getElementById('landing-page').classList.add('d-none');
         document.getElementById('login-screen').classList.add('d-none');
         document.getElementById('app').classList.remove('d-none');
         document.getElementById('story-viewer').classList.add('d-none');
+        document.getElementById('main-navbar').classList.remove('d-none');
 
         const user = Api.getUser();
         document.getElementById('current-user-name').textContent = user?.display_name || user?.username || '';
@@ -72,7 +182,7 @@ const App = {
 
     // ── Events ───────────────────────────
     _bindEvents() {
-        // Login
+        // Login form
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('login-username').value;
@@ -89,6 +199,15 @@ const App = {
             }
         });
 
+        // Google Sign-In
+        document.getElementById('btn-google-login')?.addEventListener('click', () => {
+            this._googleLogin();
+        });
+
+        // Landing page buttons
+        document.getElementById('landing-cta-start')?.addEventListener('click', () => this.showLogin());
+        document.getElementById('landing-btn-login')?.addEventListener('click', (e) => { e.preventDefault(); this.showLogin(); });
+
         // Navbar
         document.getElementById('btn-home')?.addEventListener('click', (e) => { e.preventDefault(); this.showPanel('dashboard'); });
         document.getElementById('btn-dashboard')?.addEventListener('click', (e) => { e.preventDefault(); this.showPanel('dashboard'); });
@@ -101,7 +220,7 @@ const App = {
             e.preventDefault();
             try { await Api.logout(); } catch { /* ok */ }
             Api.clearSession();
-            this.showLogin();
+            this.showLanding();
         });
 
         document.getElementById('btn-new-story')?.addEventListener('click', () => this.createNewStory());
@@ -109,6 +228,7 @@ const App = {
         // Language selector
         document.getElementById('btn-lang')?.addEventListener('change', (e) => {
             I18n.setLang(e.target.value);
+            this._updateI18nTexts();
             if (this.currentPanel) this.showPanel(this.currentPanel);
         });
 
@@ -124,7 +244,7 @@ const App = {
             if (Api.isLoggedIn()) {
                 document.getElementById('app').classList.remove('d-none');
             } else {
-                this.showLogin();
+                this.showLanding();
             }
             StoryViewer.destroy();
         });
@@ -143,6 +263,40 @@ const App = {
         } else if (hash.startsWith('#/view/')) {
             const id = parseInt(hash.replace('#/view/', ''));
             if (id) this._viewPublicStory(id);
+        }
+    },
+
+    // ── Google OAuth ─────────────────────
+    async _googleLogin() {
+        // For now, show a message that Google OAuth requires configuration
+        // The backend endpoint /api/auth/google will handle the actual flow
+        try {
+            // Use Google Identity Services popup
+            if (typeof google !== 'undefined' && google.accounts) {
+                google.accounts.id.initialize({
+                    client_id: window.TM_GOOGLE_CLIENT_ID || '',
+                    callback: async (response) => {
+                        try {
+                            const result = await Api.post('/api/auth/google', { credential: response.credential });
+                            Api.setSession(result.access_token, result.user);
+                            this.showApp();
+                        } catch (err) {
+                            this.toast(err.message, 'danger');
+                        }
+                    },
+                });
+                google.accounts.id.prompt();
+            } else {
+                // Fallback: redirect-based OAuth
+                const result = await Api.get('/api/auth/google/url');
+                if (result.url) {
+                    window.location.href = result.url;
+                } else {
+                    this.toast('Google Sign-In non configurato', 'warning');
+                }
+            }
+        } catch (err) {
+            this.toast('Google Sign-In non ancora configurato. Usa username e password.', 'info');
         }
     },
 
@@ -189,6 +343,7 @@ const App = {
     async _viewPublicStory(storyId) {
         try {
             const data = await Api.getStoryFull(storyId);
+            document.getElementById('landing-page').classList.add('d-none');
             document.getElementById('login-screen').classList.add('d-none');
             document.getElementById('app').classList.add('d-none');
             StoryViewer.load(data);
@@ -201,6 +356,7 @@ const App = {
         try {
             const story = await Api.getSharedStory(token);
             const data = await Api.getStoryFull(story.id);
+            document.getElementById('landing-page').classList.add('d-none');
             document.getElementById('login-screen').classList.add('d-none');
             document.getElementById('app').classList.add('d-none');
             StoryViewer.load(data);
@@ -210,6 +366,7 @@ const App = {
     },
 
     async _viewPublicList() {
+        document.getElementById('landing-page').classList.add('d-none');
         document.getElementById('login-screen').classList.add('d-none');
         document.getElementById('app').classList.remove('d-none');
         document.getElementById('main-navbar').classList.add('d-none');
@@ -218,10 +375,6 @@ const App = {
     },
 
     // ══ Modal System ══════════════════════
-    /**
-     * Show modal dialog. Replaces prompt/confirm.
-     * @returns {Promise<*>} result from onConfirm(), or null if cancelled
-     */
     modal(opts) {
         return new Promise((resolve) => {
             const id = 'tm-modal-' + Date.now();
@@ -260,7 +413,6 @@ const App = {
                 resolve(result);
             });
 
-            // Enter key submits
             el.querySelectorAll('input, select').forEach(input => {
                 input.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
@@ -280,9 +432,6 @@ const App = {
         });
     },
 
-    /**
-     * Confirm dialog. Replaces window.confirm().
-     */
     async confirm(message, opts = {}) {
         const result = await this.modal({
             title: opts.title || I18n.t('action.confirm'),
@@ -294,9 +443,6 @@ const App = {
         return !!result;
     },
 
-    /**
-     * Prompt dialog. Replaces window.prompt().
-     */
     async prompt(label, defaultValue = '', opts = {}) {
         const inputId = 'tm-prompt-' + Date.now();
         const result = await this.modal({
@@ -324,8 +470,14 @@ const App = {
             warning: 'bi-exclamation-circle-fill',
             info: 'bi-info-circle-fill'
         };
+        const bgMap = {
+            success: 'text-bg-success',
+            danger: 'text-bg-danger',
+            warning: 'text-bg-warning',
+            info: 'text-bg-primary'
+        };
         container.insertAdjacentHTML('beforeend', `
-            <div id="${id}" class="toast align-items-center text-bg-${type} border-0" role="alert">
+            <div id="${id}" class="toast align-items-center ${bgMap[type] || bgMap.info} border-0" role="alert">
                 <div class="d-flex">
                     <div class="toast-body"><i class="bi ${iconMap[type] || iconMap.info} me-2"></i>${App.escHtml(message)}</div>
                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>

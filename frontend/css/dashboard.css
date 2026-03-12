@@ -1,9 +1,10 @@
 /* ══════════════════════════════════════════
    TalkingMaps – Dashboard, Layers, Media, Users
+   Light Theme
    ══════════════════════════════════════════ */
 
-#panel-dashboard, #panel-layers, #panel-media, #panel-users {
-    padding: 24px;
+#panel-dashboard, #panel-layers, #panel-media, #panel-users, #panel-basemaps {
+    padding: 28px;
     max-width: 1400px;
     margin: 0 auto;
 }
@@ -55,12 +56,11 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    opacity: 0.03;
+    opacity: 0.04;
     pointer-events: none;
     z-index: 0;
     width: 400px;
     height: auto;
-    filter: invert(1);
 }
 
 /* ── Stats row ───────────────────────── */
@@ -77,11 +77,12 @@
     border-radius: var(--tm-radius);
     padding: 20px;
     text-align: center;
-    transition: border-color var(--tm-transition);
+    transition: border-color var(--tm-transition), box-shadow var(--tm-transition);
 }
 
 .stat-card:hover {
-    border-color: var(--tm-text-muted);
+    border-color: var(--tm-border-strong);
+    box-shadow: var(--tm-shadow);
 }
 
 .stat-card .stat-value {
@@ -117,11 +118,12 @@
     border: 1px solid var(--tm-border);
     border-radius: var(--tm-radius);
     padding: 16px;
-    transition: border-color var(--tm-transition);
+    transition: border-color var(--tm-transition), box-shadow var(--tm-transition);
 }
 
 .layer-card:hover {
-    border-color: var(--tm-text-muted);
+    border-color: var(--tm-border-strong);
+    box-shadow: var(--tm-shadow);
 }
 
 .layer-card h4 {
@@ -135,7 +137,7 @@
     font-size: 11px;
     padding: 2px 8px;
     border-radius: 12px;
-    background: var(--tm-primary-soft, rgba(26,115,232,0.15));
+    background: var(--tm-primary-soft);
     color: var(--tm-primary);
     font-weight: 500;
 }
@@ -149,7 +151,7 @@
 
 .media-item {
     aspect-ratio: 1;
-    background: var(--tm-surface);
+    background: var(--tm-bg-alt);
     border: 2px solid var(--tm-border);
     border-radius: var(--tm-radius-sm);
     overflow: hidden;
@@ -161,6 +163,7 @@
 .media-item:hover {
     border-color: var(--tm-primary);
     transform: translateY(-2px);
+    box-shadow: var(--tm-shadow);
 }
 
 .media-item img {
@@ -175,9 +178,9 @@
     left: 0;
     right: 0;
     padding: 8px;
-    background: linear-gradient(transparent, rgba(0,0,0,0.8));
+    background: linear-gradient(transparent, rgba(0,0,0,0.7));
     font-size: 11px;
-    color: rgba(255,255,255,0.8);
+    color: rgba(255,255,255,0.9);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -190,7 +193,7 @@
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0,0,0,0.4);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -200,24 +203,24 @@
 
 /* ── Upload zone ─────────────────────── */
 .upload-zone {
-    border: 2px dashed var(--tm-border);
+    border: 2px dashed var(--tm-border-strong);
     border-radius: var(--tm-radius);
     padding: 40px;
     text-align: center;
     cursor: pointer;
     transition: border-color var(--tm-transition), background var(--tm-transition);
-    background: transparent;
+    background: var(--tm-surface);
     color: var(--tm-text);
 }
 
 .upload-zone:hover, .upload-zone.dragover {
     border-color: var(--tm-primary);
-    background: var(--tm-primary-soft, rgba(26,115,232,0.08));
+    background: var(--tm-primary-soft);
 }
 
 .upload-zone i {
     font-size: 36px;
-    color: var(--tm-text-muted);
+    color: var(--tm-text-light);
     margin-bottom: 12px;
     display: block;
 }
@@ -237,10 +240,14 @@
 .users-table {
     width: 100%;
     border-collapse: collapse;
+    background: var(--tm-surface);
+    border-radius: var(--tm-radius);
+    overflow: hidden;
+    border: 1px solid var(--tm-border);
 }
 
 .users-table th, .users-table td {
-    padding: 10px 16px;
+    padding: 12px 16px;
     text-align: left;
     border-bottom: 1px solid var(--tm-border);
     font-size: 14px;
@@ -253,11 +260,11 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--tm-text-muted);
-    background: var(--tm-surface);
+    background: var(--tm-bg-alt);
 }
 
 .users-table tr:hover td {
-    background: var(--tm-surface-light);
+    background: var(--tm-surface-hover);
 }
 
 /* ── Basemap admin ───────────────────── */
@@ -275,11 +282,12 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    transition: border-color var(--tm-transition);
+    transition: border-color var(--tm-transition), box-shadow var(--tm-transition);
 }
 
 .basemap-card:hover {
-    border-color: var(--tm-text-muted);
+    border-color: var(--tm-border-strong);
+    box-shadow: var(--tm-shadow);
 }
 
 .basemap-card h4 {
@@ -303,7 +311,7 @@
     font-size: 11px;
     padding: 2px 8px;
     border-radius: 12px;
-    background: var(--tm-primary-soft, rgba(26,115,232,0.15));
+    background: var(--tm-primary-soft);
     color: var(--tm-primary);
     font-weight: 500;
     width: fit-content;
@@ -311,4 +319,34 @@
 
 .basemap-card.inactive {
     opacity: 0.5;
+}
+
+/* ── Responsive ──────────────────────── */
+@media (max-width: 768px) {
+    #panel-dashboard, #panel-layers, #panel-media, #panel-users, #panel-basemaps {
+        padding: 16px;
+    }
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .dashboard-filters {
+        width: 100%;
+    }
+    .dashboard-filters .form-control {
+        max-width: none;
+        flex: 1;
+    }
+    .stories-grid {
+        grid-template-columns: 1fr;
+    }
+    .media-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+    .users-table {
+        font-size: 12px;
+    }
+    .users-table th, .users-table td {
+        padding: 8px 10px;
+    }
 }

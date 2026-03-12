@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from core.database import get_db
+from core.database import get_db, get_system_db
 from core.security import hash_password, require_admin
 
 router = APIRouter()
@@ -17,7 +17,7 @@ class UserCreate(BaseModel):
 
 
 @router.get("/")
-async def list_users(user: dict = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+async def list_users(user: dict = Depends(require_admin), db: AsyncSession = Depends(get_system_db)):
     result = await db.execute(text(
         "SELECT id, username, display_name, email, role, active, created_at FROM users ORDER BY id"
     ))
@@ -25,7 +25,7 @@ async def list_users(user: dict = Depends(require_admin), db: AsyncSession = Dep
 
 
 @router.post("/")
-async def create_user(req: UserCreate, user: dict = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+async def create_user(req: UserCreate, user: dict = Depends(require_admin), db: AsyncSession = Depends(get_system_db)):
     if req.role not in ("admin", "editor", "viewer"):
         raise HTTPException(status_code=400, detail="Ruolo non valido")
     existing = await db.execute(text("SELECT id FROM users WHERE username = :u"), {"u": req.username})
@@ -42,7 +42,7 @@ async def create_user(req: UserCreate, user: dict = Depends(require_admin), db: 
 
 
 @router.put("/{user_id}/toggle")
-async def toggle_user(user_id: int, user: dict = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+async def toggle_user(user_id: int, user: dict = Depends(require_admin), db: AsyncSession = Depends(get_system_db)):
     if user_id == user["id"]:
         raise HTTPException(status_code=400, detail="Non puoi disabilitare te stesso")
     result = await db.execute(text("UPDATE users SET active = NOT active, updated_at = NOW() WHERE id = :id RETURNING active"), {"id": user_id})
@@ -54,7 +54,7 @@ async def toggle_user(user_id: int, user: dict = Depends(require_admin), db: Asy
 
 
 @router.put("/{user_id}/password")
-async def reset_password(user_id: int, user: dict = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+async def reset_password(user_id: int, user: dict = Depends(require_admin), db: AsyncSession = Depends(get_system_db)):
     from pydantic import BaseModel
 
     class PwReset(BaseModel):
@@ -65,7 +65,7 @@ async def reset_password(user_id: int, user: dict = Depends(require_admin), db: 
 
 
 @router.put("/{user_id}/reset-password")
-async def admin_reset_password(user_id: int, body: dict, user: dict = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+async def admin_reset_password(user_id: int, body: dict, user: dict = Depends(require_admin), db: AsyncSession = Depends(get_system_db)):
     new_password = body.get("password", "")
     if len(new_password) < 6:
         raise HTTPException(status_code=400, detail="Password troppo corta (min 6 caratteri)")

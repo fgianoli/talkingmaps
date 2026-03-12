@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from core.database import get_db
+from core.database import get_db, get_system_db
 from core.security import get_current_user, require_editor
 
 router = APIRouter()
@@ -37,7 +37,7 @@ class SymbologyUpdate(BaseModel):
 async def list_symbologies(
     layer_id: int | None = None,
     user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_system_db),
 ):
     q = "SELECT * FROM symbologies"
     params = {}
@@ -53,7 +53,7 @@ async def list_symbologies(
 async def list_presets(
     category: str | None = None,
     geometry_type: str | None = None,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_system_db),
 ):
     q = "SELECT * FROM symbology_presets WHERE 1=1"
     params = {}
@@ -69,7 +69,7 @@ async def list_presets(
 
 
 @router.get("/{symbology_id}")
-async def get_symbology(symbology_id: int, db: AsyncSession = Depends(get_db)):
+async def get_symbology(symbology_id: int, db: AsyncSession = Depends(get_system_db)):
     result = await db.execute(text("SELECT * FROM symbologies WHERE id = :id"), {"id": symbology_id})
     row = result.mappings().fetchone()
     if not row:
@@ -78,7 +78,7 @@ async def get_symbology(symbology_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/")
-async def create_symbology(req: SymbologyCreate, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
+async def create_symbology(req: SymbologyCreate, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_system_db)):
     # Compile to MapLibre style
     maplibre_style = compile_to_maplibre(req.config, req.style_type, req.geometry_type)
 
@@ -90,7 +90,7 @@ async def create_symbology(req: SymbologyCreate, user: dict = Depends(require_ed
 
     result = await db.execute(text(
         """INSERT INTO symbologies (name, description, layer_id, geometry_type, style_type, config, maplibre_style, is_default, owner_id)
-           VALUES (:name, :desc, :lid, :gt, :st, :cfg::jsonb, :mls::jsonb, :def, :owner)
+           VALUES (:name, :desc, :lid, :gt, :st, CAST(:cfg AS jsonb), CAST(:mls AS jsonb), :def, :owner)
            RETURNING id"""
     ), {
         "name": req.name, "desc": req.description, "lid": req.layer_id,
@@ -104,7 +104,7 @@ async def create_symbology(req: SymbologyCreate, user: dict = Depends(require_ed
 
 
 @router.put("/{symbology_id}")
-async def update_symbology(symbology_id: int, req: SymbologyUpdate, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
+async def update_symbology(symbology_id: int, req: SymbologyUpdate, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_system_db)):
     # Get current record for style_type / geometry_type fallback
     current = await db.execute(text("SELECT * FROM symbologies WHERE id = :id"), {"id": symbology_id})
     row = current.mappings().fetchone()
@@ -131,13 +131,13 @@ async def update_symbology(symbology_id: int, req: SymbologyUpdate, user: dict =
                              {"lid": row["layer_id"], "id": symbology_id})
 
     if req.config is not None:
-        sets.append("config = :cfg::jsonb")
+        sets.append("config = CAST(:cfg AS jsonb)")
         params["cfg"] = json.dumps(req.config)
         # Recompile MapLibre style
         st = req.style_type or row["style_type"]
         gt = row["geometry_type"]
         maplibre_style = compile_to_maplibre(req.config, st, gt)
-        sets.append("maplibre_style = :mls::jsonb")
+        sets.append("maplibre_style = CAST(:mls AS jsonb)")
         params["mls"] = json.dumps(maplibre_style)
 
     if not sets:
@@ -149,7 +149,7 @@ async def update_symbology(symbology_id: int, req: SymbologyUpdate, user: dict =
 
 
 @router.delete("/{symbology_id}")
-async def delete_symbology(symbology_id: int, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
+async def delete_symbology(symbology_id: int, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_system_db)):
     result = await db.execute(text("DELETE FROM symbologies WHERE id = :id RETURNING id"), {"id": symbology_id})
     if not result.fetchone():
         raise HTTPException(status_code=404, detail="Simbologia non trovata")
@@ -158,7 +158,7 @@ async def delete_symbology(symbology_id: int, user: dict = Depends(require_edito
 
 
 @router.post("/{symbology_id}/compile")
-async def recompile_symbology(symbology_id: int, db: AsyncSession = Depends(get_db)):
+async def recompile_symbology(symbology_id: int, db: AsyncSession = Depends(get_system_db)):
     """Recompile config to MapLibre style spec."""
     result = await db.execute(text("SELECT * FROM symbologies WHERE id = :id"), {"id": symbology_id})
     row = result.mappings().fetchone()
@@ -166,7 +166,7 @@ async def recompile_symbology(symbology_id: int, db: AsyncSession = Depends(get_
         raise HTTPException(status_code=404, detail="Simbologia non trovata")
     maplibre_style = compile_to_maplibre(row["config"], row["style_type"], row["geometry_type"])
     await db.execute(text(
-        "UPDATE symbologies SET maplibre_style = :mls::jsonb, updated_at = NOW() WHERE id = :id"
+        "UPDATE symbologies SET maplibre_style = CAST(:mls AS jsonb), updated_at = NOW() WHERE id = :id"
     ), {"id": symbology_id, "mls": json.dumps(maplibre_style)})
     await db.commit()
     return {"maplibre_style": maplibre_style}

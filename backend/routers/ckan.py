@@ -148,7 +148,7 @@ async def import_as_layer(
             # Create WMS layer
             result = await db.execute(sql_text(
                 """INSERT INTO layers (name, layer_type, source_config, owner_id, public)
-                   VALUES (:name, 'wms', :src::jsonb, :owner, FALSE) RETURNING id"""
+                   VALUES (:name, 'wms', CAST(:src AS jsonb), :owner, FALSE) RETURNING id"""
             ), {"name": name, "src": json.dumps({"url": url, "layers": body.get("layers", "")}), "owner": user["id"]})
             layer_id = result.fetchone()[0]
             await db.commit()
@@ -208,7 +208,7 @@ async def import_as_layer(
 
         result = await db.execute(sql_text(
             """INSERT INTO layers (name, layer_type, source_config, style_config, owner_id, public)
-               VALUES (:name, 'geojson', :src::jsonb, :style::jsonb, :owner, FALSE) RETURNING id"""
+               VALUES (:name, 'geojson', CAST(:src AS jsonb), CAST(:style AS jsonb), :owner, FALSE) RETURNING id"""
         ), {
             "name": name,
             "src": json.dumps({"url": f"/uploads/layers/{filename}", "type": "geojson"}),

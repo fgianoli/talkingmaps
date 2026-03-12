@@ -107,7 +107,7 @@ async def update_slide(slide_id: int, req: SlideUpdate, user: dict = Depends(req
     for jfield in ["map_center", "map_bounds", "layer_visibility", "style_overrides"]:
         val = getattr(req, jfield, None)
         if val is not None:
-            sets.append(f"{jfield} = :{jfield}::jsonb")
+            sets.append(f"{jfield} = CAST(:{jfield} AS jsonb)")
             params[jfield] = json.dumps(val)
 
     if not sets:

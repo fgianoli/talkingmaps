@@ -1,12 +1,13 @@
 /* ══════════════════════════════════════════
    TalkingMaps – Story Viewer
+   (Dark overlay – designed for map backgrounds)
    ══════════════════════════════════════════ */
 
 #story-viewer {
     position: fixed;
     inset: 0;
     z-index: 9000;
-    background: var(--tm-dark);
+    background: #1e293b;
 }
 
 /* ── Toolbar ──────────────────────────── */
@@ -15,15 +16,15 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 44px;
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(10px);
+    height: 48px;
+    background: rgba(15,23,42,0.7);
+    backdrop-filter: blur(12px);
     display: flex;
     align-items: center;
-    padding: 0 12px;
+    padding: 0 16px;
     gap: 12px;
     z-index: 100;
-    transition: opacity var(--tm-transition);
+    transition: opacity 0.3s;
 }
 
 #viewer-toolbar.hidden {
@@ -34,7 +35,7 @@
 #viewer-title {
     font-family: var(--tm-font-display);
     font-size: 15px;
-    font-weight: 500;
+    font-weight: 600;
     color: white;
     flex: 1;
     overflow: hidden;
@@ -50,7 +51,7 @@
 
 #viewer-progress {
     font-size: 12px;
-    color: rgba(255,255,255,0.7);
+    color: rgba(255,255,255,0.6);
     min-width: 40px;
     text-align: center;
 }
@@ -62,12 +63,7 @@
     z-index: 1;
 }
 
-#viewer-map {
-    width: 100%;
-    height: 100%;
-}
-
-#viewer-cesium {
+#viewer-map, #viewer-cesium {
     width: 100%;
     height: 100%;
 }
@@ -94,7 +90,6 @@
     scroll-snap-type: y mandatory;
 }
 
-/* Layout modes */
 #viewer-narrative.layout-side-left {
     left: 0;
     width: 420px;
@@ -125,13 +120,14 @@
 }
 
 .viewer-slide-content {
-    background: rgba(23, 24, 26, 0.88);
+    background: rgba(255,255,255,0.95);
     backdrop-filter: blur(16px);
-    border-radius: var(--tm-radius);
+    border-radius: 16px;
     padding: 32px;
     max-width: 100%;
-    box-shadow: var(--tm-shadow-lg);
-    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #1e293b;
 }
 
 .viewer-slide-content h1,
@@ -139,6 +135,7 @@
 .viewer-slide-content h3 {
     font-family: var(--tm-font-display);
     margin-top: 0;
+    color: #1e293b;
 }
 
 .viewer-slide-content h1 { font-size: 32px; line-height: 1.2; }
@@ -148,17 +145,17 @@
 .viewer-slide-content p {
     font-size: 15px;
     line-height: 1.7;
-    color: rgba(255,255,255,0.85);
+    color: #475569;
 }
 
 .viewer-slide-content img {
     max-width: 100%;
-    border-radius: var(--tm-radius-sm);
+    border-radius: 10px;
     margin: 12px 0;
 }
 
 .viewer-slide-content a {
-    color: var(--tm-primary);
+    color: #4f6df5;
 }
 
 /* ── Cover slide ──────────────────────── */
@@ -170,15 +167,14 @@
 .viewer-slide.slide-cover .viewer-slide-content {
     text-align: center;
     max-width: 600px;
-    background: rgba(0,0,0,0.7);
+    background: rgba(255,255,255,0.92);
 }
 
-/* ── Full-map slide ───────────────────── */
+/* ── Full-map / Full-media ────────────── */
 .viewer-slide.slide-full-map .viewer-slide-content {
     display: none;
 }
 
-/* ── Full-media slide ─────────────────── */
 .viewer-slide.slide-full-media {
     position: relative;
 }
@@ -191,7 +187,7 @@
     max-width: 600px;
 }
 
-/* ── Chart container in slides ────────── */
+/* ── Chart / dashboard in slides ──────── */
 .slide-chart-container {
     width: 100%;
     max-height: 300px;
@@ -203,7 +199,6 @@
     max-height: 300px;
 }
 
-/* ── Dashboard widget in slides ───────── */
 .slide-dashboard {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -212,8 +207,8 @@
 }
 
 .dashboard-widget {
-    background: rgba(255,255,255,0.06);
-    border-radius: var(--tm-radius-sm);
+    background: rgba(79,109,245,0.06);
+    border-radius: 10px;
     padding: 16px;
     text-align: center;
 }
@@ -221,19 +216,19 @@
 .dashboard-widget .widget-value {
     font-size: 28px;
     font-weight: 700;
-    color: var(--tm-primary);
+    color: #4f6df5;
 }
 
 .dashboard-widget .widget-label {
     font-size: 12px;
-    color: var(--tm-text-muted);
+    color: #64748b;
     margin-top: 4px;
 }
 
-/* ── iframe container ─────────────────── */
+/* ── iframe ───────────────────────────── */
 .slide-iframe-container {
     width: 100%;
-    border-radius: var(--tm-radius-sm);
+    border-radius: 10px;
     overflow: hidden;
     margin: 16px 0;
 }
@@ -256,36 +251,42 @@
 }
 
 #viewer-nav .btn {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0,0,0,0.5);
+    background: rgba(255,255,255,0.9);
     backdrop-filter: blur(4px);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: white;
+    border: 1px solid rgba(0,0,0,0.1);
+    color: #1e293b;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.2s;
 }
 
 #viewer-nav .btn:hover {
-    background: rgba(255,255,255,0.2);
+    background: white;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    transform: scale(1.05);
 }
 
 /* ── Basemap selector ─────────────────── */
 #viewer-basemap-selector {
     position: absolute;
-    top: 52px;
+    top: 56px;
     right: 12px;
-    background: rgba(23,24,26,0.95);
-    backdrop-filter: blur(10px);
-    border-radius: var(--tm-radius-sm);
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    border-radius: 10px;
     padding: 8px;
     z-index: 200;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 6px;
     max-width: 300px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    border: 1px solid rgba(0,0,0,0.1);
 }
 
 .basemap-option {
@@ -293,11 +294,11 @@
     border-radius: 6px;
     overflow: hidden;
     border: 2px solid transparent;
-    transition: border-color var(--tm-transition);
+    transition: border-color 0.2s;
 }
 
 .basemap-option.active {
-    border-color: var(--tm-primary);
+    border-color: #4f6df5;
 }
 
 .basemap-option img {
@@ -312,7 +313,7 @@
     font-size: 10px;
     text-align: center;
     padding: 2px;
-    color: var(--tm-text-muted);
+    color: #64748b;
 }
 
 /* ── Responsive ───────────────────────── */
@@ -323,15 +324,28 @@
         max-width: 100%;
     }
 
+    .viewer-slide {
+        padding: 60px 12px 30px;
+    }
+
     .viewer-slide-content {
         padding: 20px;
-        margin: 0 8px;
     }
 
     #viewer-toolbar { padding: 0 8px; }
+
+    #viewer-nav {
+        right: 8px;
+        bottom: 16px;
+    }
+
+    #viewer-nav .btn {
+        width: 40px;
+        height: 40px;
+    }
 }
 
-/* ── Scroll hint animation ────────────── */
+/* ── Scroll hint ──────────────────────── */
 .scroll-hint {
     position: absolute;
     bottom: 40px;

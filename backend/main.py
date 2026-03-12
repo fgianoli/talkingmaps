@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from core.config import settings
-from core.database import engine
+from core.database import engine, engine_system
 from core.security import hash_password
 from routers import auth, stories, slides, media, layers, basemaps, wms_proxy, users, symbology, ckan
 
@@ -21,9 +21,9 @@ async def lifespan(app: FastAPI):
         os.makedirs(os.path.join(settings.UPLOAD_DIR, subdir), exist_ok=True)
     print(f"[INIT] Upload directories ready at {settings.UPLOAD_DIR}")
 
-    # Create initial admin user if not exists
+    # Create initial admin user if not exists (in system DB)
     try:
-        async with engine.begin() as conn:
+        async with engine_system.begin() as conn:
             result = await conn.execute(text("SELECT id FROM users WHERE username = :u"), {"u": settings.ADMIN_USERNAME})
             if not result.fetchone():
                 pw = hash_password(settings.ADMIN_PASSWORD)
@@ -36,6 +36,7 @@ async def lifespan(app: FastAPI):
         print(f"[INIT] DB init warning: {e}")
     yield
     await engine.dispose()
+    await engine_system.dispose()
 
 
 app = FastAPI(

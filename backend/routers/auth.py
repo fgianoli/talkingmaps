@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from core.database import get_db
+from core.database import get_db, get_system_db
+from core.config import settings
 from core.security import (
     verify_password, hash_password, create_token, revoke_token, get_current_user,
 )
@@ -20,17 +21,21 @@ class ChangePasswordRequest(BaseModel):
     new_password: str
 
 
+class GoogleLoginRequest(BaseModel):
+    credential: str
+
+
 @router.post("/login")
-async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(req: LoginRequest, db: AsyncSession = Depends(get_system_db)):
     result = await db.execute(
         text("SELECT id, username, password_hash, role, display_name, active FROM users WHERE username = :u"),
         {"u": req.username},
     )
     user = result.mappings().fetchone()
-    if not user or not verify_password(req.password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Credenziali non valide")
+    if not user or not user["password_hash"] or not verify_password(req.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
     if not user["active"]:
-        raise HTTPException(status_code=403, detail="Account disabilitato")
+        raise HTTPException(status_code=403, detail="Account disabled")
 
     token = create_token(user["id"], user["username"], user["role"])
     return {
@@ -45,31 +50,114 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
     }
 
 
+@router.post("/google")
+async def google_login(req: GoogleLoginRequest, db: AsyncSession = Depends(get_system_db)):
+    """Login/register via Google ID token."""
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=501, detail="Google Sign-In not configured")
+
+    try:
+        from google.oauth2 import id_token
+        from google.auth.transport import requests as google_requests
+
+        idinfo = id_token.verify_oauth2_token(
+            req.credential,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Invalid Google token: {e}")
+
+    email = idinfo.get("email")
+    name = idinfo.get("name", "")
+    if not email:
+        raise HTTPException(status_code=400, detail="Google account has no email")
+
+    # Check if user exists by email
+    result = await db.execute(
+        text("SELECT id, username, role, display_name, active FROM users WHERE email = :e"),
+        {"e": email},
+    )
+    user = result.mappings().fetchone()
+
+    if user:
+        # Existing user
+        if not user["active"]:
+            raise HTTPException(status_code=403, detail="Account disabled")
+        token = create_token(user["id"], user["username"], user["role"])
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user": {
+                "id": user["id"],
+                "username": user["username"],
+                "display_name": user["display_name"],
+                "role": user["role"],
+            },
+        }
+    else:
+        # Auto-create new user with 'editor' role
+        username = email.split("@")[0]
+        # Ensure unique username
+        existing = await db.execute(text("SELECT id FROM users WHERE username = :u"), {"u": username})
+        if existing.fetchone():
+            import uuid
+            username = f"{username}_{uuid.uuid4().hex[:4]}"
+
+        new_user = await db.execute(
+            text("""INSERT INTO users (username, password_hash, display_name, email, role)
+                    VALUES (:u, :p, :d, :e, 'editor') RETURNING id"""),
+            {"u": username, "p": "", "d": name, "e": email},
+        )
+        user_id = new_user.fetchone()[0]
+        await db.commit()
+
+        token = create_token(user_id, username, "editor")
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user": {
+                "id": user_id,
+                "username": username,
+                "display_name": name,
+                "role": "editor",
+            },
+        }
+
+
+@router.get("/google/url")
+async def google_auth_url():
+    """Return Google OAuth URL for redirect-based flow."""
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=501, detail="Google Sign-In not configured")
+    return {"url": "", "client_id": settings.GOOGLE_CLIENT_ID}
+
+
 @router.post("/logout")
 async def logout(user: dict = Depends(get_current_user)):
     await revoke_token(user["token"])
-    return {"detail": "Logout effettuato"}
+    return {"detail": "Logged out"}
 
 
 @router.get("/me")
-async def me(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def me(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_system_db)):
     result = await db.execute(
         text("SELECT id, username, display_name, email, role, created_at FROM users WHERE id = :id"),
         {"id": user["id"]},
     )
     row = result.mappings().fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="Utente non trovato")
+        raise HTTPException(status_code=404, detail="User not found")
     return dict(row)
 
 
 @router.put("/change-password")
-async def change_password(req: ChangePasswordRequest, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def change_password(req: ChangePasswordRequest, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_system_db)):
     result = await db.execute(text("SELECT password_hash FROM users WHERE id = :id"), {"id": user["id"]})
     row = result.fetchone()
     if not row or not verify_password(req.current_password, row[0]):
-        raise HTTPException(status_code=400, detail="Password attuale non corretta")
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
     new_hash = hash_password(req.new_password)
     await db.execute(text("UPDATE users SET password_hash = :p, updated_at = NOW() WHERE id = :id"), {"p": new_hash, "id": user["id"]})
     await db.commit()
-    return {"detail": "Password aggiornata"}
+    return {"detail": "Password updated"}

@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     DATABASE_URL: str
+    DATABASE_SYSTEM_URL: str = ""
     REDIS_URL: str = "redis://redis:6379/0"
     SECRET_KEY: str
     ALLOWED_ORIGINS: str = "http://localhost:8080"
@@ -11,6 +12,8 @@ class Settings(BaseSettings):
     JWT_EXPIRE_MINUTES: int = 480
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str = "admin"
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
 
     @property
     def origins_list(self) -> list[str]:
