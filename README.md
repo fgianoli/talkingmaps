@@ -194,4 +194,4 @@ GNU General Public License v3.0
 
 ## Autore
 
-Federico Gianoli – [TalkingMaps](https://github.com/gianoli)
+Federico Gianoli & Martino Boni
