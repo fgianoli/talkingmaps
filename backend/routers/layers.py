@@ -16,7 +16,7 @@ router = APIRouter()
 class LayerCreate(BaseModel):
     name: str
     description: str | None = None
-    layer_type: str  # geojson, wms, wmts, xyz, vector-tiles
+    layer_type: str  # geojson, wms, wmts, xyz, vector-tiles, cog
     source_config: dict
     style_config: dict = {}
     legend_config: dict = {}

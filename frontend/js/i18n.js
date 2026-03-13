@@ -302,6 +302,29 @@ const I18n = {
             'editor.sym_point_stroke': 'Bordo punto',
             'editor.style_saved': 'Stile aggiornato',
 
+            // Point cloud (Potree)
+            'editor.potree_title': 'Nuvola di punti (Potree)',
+            'editor.potree_url': 'URL point cloud',
+            'editor.potree_hint': 'Inserisci l\'URL di una nuvola di punti (Potree octree, EPT, LAS/LAZ)',
+            'editor.potree_color_mode': 'Colorazione',
+            'editor.potree_color_rgb': 'Colore reale (RGB)',
+            'editor.potree_color_height': 'Per altezza',
+            'editor.potree_color_intensity': 'Per intensità',
+            'editor.potree_color_classification': 'Per classificazione',
+            'editor.potree_point_size': 'Dimensione punti',
+            'editor.potree_height': 'Altezza viewer (px)',
+
+            // 3D Tileset (Cesium)
+            'editor.tileset_title': 'Tileset 3D (Cesium)',
+            'editor.tileset_url': 'URL tileset.json',
+            'editor.tileset_ion': 'Cesium Ion Asset ID',
+            'editor.tileset_hint': 'Carica mesh 3D, BIM o nuvole di punti 3D Tiles. Attiva la vista 3D nel viewer.',
+
+            // COG
+            'editor.add_cog': 'Aggiungi raster COG',
+            'editor.cog_url': 'URL del file COG',
+            'editor.cog_hint': 'Cloud Optimized GeoTIFF: raster servito direttamente via HTTP, senza tile server.',
+
             // Chart wizard
             'chartwiz.title': 'Crea grafico',
             'chartwiz.tab_paste': 'Incolla dati',
@@ -666,6 +689,29 @@ const I18n = {
             'editor.sym_point_stroke': 'Point stroke',
             'editor.style_saved': 'Style updated',
 
+            // Point cloud (Potree)
+            'editor.potree_title': 'Point cloud (Potree)',
+            'editor.potree_url': 'Point cloud URL',
+            'editor.potree_hint': 'Enter the URL of a point cloud (Potree octree, EPT, LAS/LAZ)',
+            'editor.potree_color_mode': 'Coloring',
+            'editor.potree_color_rgb': 'True color (RGB)',
+            'editor.potree_color_height': 'By height',
+            'editor.potree_color_intensity': 'By intensity',
+            'editor.potree_color_classification': 'By classification',
+            'editor.potree_point_size': 'Point size',
+            'editor.potree_height': 'Viewer height (px)',
+
+            // 3D Tileset (Cesium)
+            'editor.tileset_title': '3D Tileset (Cesium)',
+            'editor.tileset_url': 'tileset.json URL',
+            'editor.tileset_ion': 'Cesium Ion Asset ID',
+            'editor.tileset_hint': 'Load 3D mesh, BIM or 3D Tiles point clouds. Activate 3D view in the viewer.',
+
+            // COG
+            'editor.add_cog': 'Add COG raster',
+            'editor.cog_url': 'COG file URL',
+            'editor.cog_hint': 'Cloud Optimized GeoTIFF: raster served directly via HTTP, no tile server needed.',
+
             'chartwiz.title': 'Create chart',
             'chartwiz.tab_paste': 'Paste data',
             'chartwiz.tab_csv': 'Upload CSV',
@@ -1023,6 +1069,29 @@ const I18n = {
             'editor.sym_point_radius': 'Radio de punto',
             'editor.sym_point_stroke': 'Borde de punto',
             'editor.style_saved': 'Estilo actualizado',
+
+            // Point cloud (Potree)
+            'editor.potree_title': 'Nube de puntos (Potree)',
+            'editor.potree_url': 'URL nube de puntos',
+            'editor.potree_hint': 'Introduce la URL de una nube de puntos (Potree octree, EPT, LAS/LAZ)',
+            'editor.potree_color_mode': 'Coloración',
+            'editor.potree_color_rgb': 'Color real (RGB)',
+            'editor.potree_color_height': 'Por altura',
+            'editor.potree_color_intensity': 'Por intensidad',
+            'editor.potree_color_classification': 'Por clasificación',
+            'editor.potree_point_size': 'Tamaño de puntos',
+            'editor.potree_height': 'Altura del visor (px)',
+
+            // 3D Tileset (Cesium)
+            'editor.tileset_title': 'Tileset 3D (Cesium)',
+            'editor.tileset_url': 'URL tileset.json',
+            'editor.tileset_ion': 'Cesium Ion Asset ID',
+            'editor.tileset_hint': 'Carga mallas 3D, BIM o nubes de puntos 3D Tiles. Activa la vista 3D en el visor.',
+
+            // COG
+            'editor.add_cog': 'Añadir raster COG',
+            'editor.cog_url': 'URL del archivo COG',
+            'editor.cog_hint': 'Cloud Optimized GeoTIFF: raster servido directamente vía HTTP, sin servidor de tiles.',
 
             'chartwiz.title': 'Crear gráfico',
             'chartwiz.tab_paste': 'Pegar datos',

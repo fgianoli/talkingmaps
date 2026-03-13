@@ -9,6 +9,7 @@ const TmMap = {
     _currentBasemap: 'osm',
     _basemaps: [],
     _onClickCallback: null,
+    _cogProtocolRegistered: false,
 
     /**
      * Initialize a MapLibre GL map
@@ -145,10 +146,19 @@ const TmMap = {
                 tiles: [source_config.url],
                 maxzoom: source_config.maxzoom || 14,
             });
+        } else if (layer_type === 'cog') {
+            this._registerCogProtocol();
+            this._map.addSource(sourceId, {
+                type: 'raster',
+                tiles: [`cog://${source_config.url}`],
+                tileSize: 256,
+                minzoom: source_config.minzoom || 0,
+                maxzoom: source_config.maxzoom || 22,
+            });
         }
 
         // Add layer with style
-        if (layer_type === 'wms' || layer_type === 'wmts' || layer_type === 'xyz') {
+        if (layer_type === 'wms' || layer_type === 'wmts' || layer_type === 'xyz' || layer_type === 'cog') {
             this._map.addLayer({
                 id: layerId,
                 type: 'raster',
@@ -416,5 +426,109 @@ const TmMap = {
             this._map.removeControl(this._draw);
             this._draw = null;
         }
+    },
+
+    // ── COG (Cloud Optimized GeoTIFF) Protocol ──
+    _cogCache: {},
+
+    _registerCogProtocol() {
+        if (this._cogProtocolRegistered) return;
+        if (!this._map || typeof GeoTIFF === 'undefined') return;
+
+        maplibregl.addProtocol('cog', async (params, abortController) => {
+            const url = params.url.replace('cog://', '');
+            const [z, x, y] = params.url.match(/(\d+)\/(\d+)\/(\d+)/)?.slice(1).map(Number) || [];
+
+            try {
+                // Cache the GeoTIFF object per URL
+                if (!this._cogCache[url]) {
+                    this._cogCache[url] = await GeoTIFF.fromUrl(url, {
+                        allowFullFile: false,
+                    });
+                }
+                const tiff = this._cogCache[url];
+                const image = await tiff.getImage();
+                const bbox = image.getBoundingBox();
+                const width = image.getWidth();
+                const height = image.getHeight();
+
+                // Calculate tile bounds
+                const tileSize = 256;
+                const totalTiles = Math.pow(2, z);
+                const tileMinX = (x / totalTiles) * 360 - 180;
+                const tileMaxX = ((x + 1) / totalTiles) * 360 - 180;
+                const tileMaxY = (180 / Math.PI) * (2 * Math.atan(Math.exp(Math.PI * (1 - 2 * y / totalTiles))) - Math.PI / 2);
+                const tileMinY = (180 / Math.PI) * (2 * Math.atan(Math.exp(Math.PI * (1 - 2 * (y + 1) / totalTiles))) - Math.PI / 2);
+
+                // Check if tile intersects COG bounds
+                if (tileMaxX < bbox[0] || tileMinX > bbox[2] || tileMaxY < bbox[1] || tileMinY > bbox[3]) {
+                    // Return transparent tile
+                    const canvas = new OffscreenCanvas(tileSize, tileSize);
+                    const blob = await canvas.convertToBlob({ type: 'image/png' });
+                    const buf = await blob.arrayBuffer();
+                    return { data: new Uint8Array(buf) };
+                }
+
+                // Calculate pixel window in the COG
+                const resX = (bbox[2] - bbox[0]) / width;
+                const resY = (bbox[3] - bbox[1]) / height;
+                const winLeft = Math.max(0, Math.floor((tileMinX - bbox[0]) / resX));
+                const winTop = Math.max(0, Math.floor((bbox[3] - tileMaxY) / resY));
+                const winRight = Math.min(width, Math.ceil((tileMaxX - bbox[0]) / resX));
+                const winBottom = Math.min(height, Math.ceil((bbox[3] - tileMinY) / resY));
+                const winWidth = winRight - winLeft;
+                const winHeight = winBottom - winTop;
+
+                if (winWidth <= 0 || winHeight <= 0) {
+                    const canvas = new OffscreenCanvas(tileSize, tileSize);
+                    const blob = await canvas.convertToBlob({ type: 'image/png' });
+                    const buf = await blob.arrayBuffer();
+                    return { data: new Uint8Array(buf) };
+                }
+
+                // Read raster data with overview selection
+                const rasters = await image.readRasters({
+                    window: [winLeft, winTop, winRight, winBottom],
+                    width: tileSize,
+                    height: tileSize,
+                    interleave: false,
+                });
+
+                // Render to canvas
+                const canvas = new OffscreenCanvas(tileSize, tileSize);
+                const ctx = canvas.getContext('2d');
+                const imgData = ctx.createImageData(tileSize, tileSize);
+
+                const numBands = rasters.length;
+                for (let i = 0; i < tileSize * tileSize; i++) {
+                    if (numBands >= 3) {
+                        // RGB
+                        imgData.data[i * 4] = rasters[0][i];
+                        imgData.data[i * 4 + 1] = rasters[1][i];
+                        imgData.data[i * 4 + 2] = rasters[2][i];
+                        imgData.data[i * 4 + 3] = numBands >= 4 ? rasters[3][i] : 255;
+                    } else {
+                        // Grayscale
+                        const v = rasters[0][i];
+                        imgData.data[i * 4] = v;
+                        imgData.data[i * 4 + 1] = v;
+                        imgData.data[i * 4 + 2] = v;
+                        imgData.data[i * 4 + 3] = v === 0 ? 0 : 255;
+                    }
+                }
+                ctx.putImageData(imgData, 0, 0);
+
+                const blob = await canvas.convertToBlob({ type: 'image/png' });
+                const buf = await blob.arrayBuffer();
+                return { data: new Uint8Array(buf) };
+            } catch (err) {
+                console.error('COG tile error:', err);
+                const canvas = new OffscreenCanvas(256, 256);
+                const blob = await canvas.convertToBlob({ type: 'image/png' });
+                const buf = await blob.arrayBuffer();
+                return { data: new Uint8Array(buf) };
+            }
+        });
+        this._cogProtocolRegistered = true;
     },
 };

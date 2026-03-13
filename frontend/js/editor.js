@@ -518,6 +518,57 @@ const StoryEditor = {
                     <small class="text-muted">${t('editor.chart_types')}</small>
                 </div>
             </div>
+
+            <!-- ═══ POINT CLOUD (Potree) ═══ -->
+            <div class="prop-section">
+                <div class="prop-section-title"><i class="bi bi-cloud-fill"></i> ${t('editor.potree_title')}</div>
+                <div class="prop-row">
+                    <label>${t('editor.potree_url')}</label>
+                    <input type="text" class="form-control" id="prop-potree-url"
+                           value="${slide.style_overrides?.potree?.url || ''}"
+                           placeholder="https://example.com/pointcloud/metadata.json">
+                </div>
+                ${slide.style_overrides?.potree?.url ? `
+                <div class="prop-row">
+                    <label>${t('editor.potree_color_mode')}</label>
+                    <select class="form-select" id="prop-potree-color">
+                        ${['rgb', 'height', 'intensity', 'classification'].map(m => `
+                            <option value="${m}" ${(slide.style_overrides?.potree?.colorMode || 'rgb') === m ? 'selected' : ''}>${t('editor.potree_color_' + m)}</option>
+                        `).join('')}
+                    </select>
+                </div>
+                <div class="prop-row">
+                    <label>${t('editor.potree_point_size')} (${slide.style_overrides?.potree?.pointSize || 1})</label>
+                    <input type="range" class="form-range" id="prop-potree-size" min="0.5" max="5" step="0.5"
+                           value="${slide.style_overrides?.potree?.pointSize || 1}">
+                </div>
+                <div class="prop-row">
+                    <label>${t('editor.potree_height')}</label>
+                    <input type="number" class="form-control" id="prop-potree-height" min="200" max="800" step="50"
+                           value="${slide.style_overrides?.potree?.height || 400}" style="width:100px">
+                </div>
+                ` : `
+                <small class="text-muted"><i class="bi bi-info-circle"></i> ${t('editor.potree_hint')}</small>
+                `}
+            </div>
+
+            <!-- ═══ 3D TILESET (Cesium) ═══ -->
+            <div class="prop-section">
+                <div class="prop-section-title"><i class="bi bi-badge-3d"></i> ${t('editor.tileset_title')}</div>
+                <div class="prop-row">
+                    <label>${t('editor.tileset_url')}</label>
+                    <input type="text" class="form-control" id="prop-tileset-url"
+                           value="${slide.style_overrides?.tileset3d?.url || ''}"
+                           placeholder="https://example.com/tileset.json">
+                </div>
+                <div class="prop-row">
+                    <label>${t('editor.tileset_ion')}</label>
+                    <input type="text" class="form-control" id="prop-tileset-ion"
+                           value="${slide.style_overrides?.tileset3d?.ionAssetId || ''}"
+                           placeholder="Asset ID (es. 96188)">
+                </div>
+                <small class="text-muted"><i class="bi bi-info-circle"></i> ${t('editor.tileset_hint')}</small>
+            </div>
             ` : ''}
 
             <div class="prop-section">
@@ -572,6 +623,21 @@ const StoryEditor = {
                 }
             });
         });
+
+        // Potree URL change -> re-render to show config options
+        const potreeUrlInput = document.getElementById('prop-potree-url');
+        if (potreeUrlInput) {
+            potreeUrlInput.addEventListener('change', () => {
+                const s = this._slides[this._currentSlideIdx];
+                if (s) {
+                    s.style_overrides = {
+                        ...(s.style_overrides || {}),
+                        potree: potreeUrlInput.value ? { url: potreeUrlInput.value, colorMode: 'rgb', pointSize: 1, height: 400 } : null,
+                    };
+                    this._renderProps(s);
+                }
+            });
+        }
     },
 
     // ── Actions ──────────────────────────
@@ -625,12 +691,42 @@ const StoryEditor = {
         const cardStyleEl = document.querySelector('.card-style-option.active');
         const textAlignEl = document.querySelector('.text-align-btn.active');
         const drawnFeatures = TmMap.getDrawFeatures();
+
+        // Potree config
+        const potreeUrlEl = document.getElementById('prop-potree-url');
+        let potreeConfig = slide.style_overrides?.potree || null;
+        if (potreeUrlEl?.value) {
+            potreeConfig = {
+                url: potreeUrlEl.value,
+                colorMode: document.getElementById('prop-potree-color')?.value || 'rgb',
+                pointSize: parseFloat(document.getElementById('prop-potree-size')?.value || 1),
+                height: parseInt(document.getElementById('prop-potree-height')?.value || 400),
+            };
+        } else {
+            potreeConfig = null;
+        }
+
+        // Tileset 3D config
+        const tilesetUrlEl = document.getElementById('prop-tileset-url');
+        const tilesetIonEl = document.getElementById('prop-tileset-ion');
+        let tilesetConfig = slide.style_overrides?.tileset3d || null;
+        if (tilesetUrlEl?.value || tilesetIonEl?.value) {
+            tilesetConfig = {
+                ...(tilesetUrlEl?.value ? { url: tilesetUrlEl.value } : {}),
+                ...(tilesetIonEl?.value ? { ionAssetId: parseInt(tilesetIonEl.value) } : {}),
+            };
+        } else {
+            tilesetConfig = null;
+        }
+
         updates.style_overrides = {
             ...(slide.style_overrides || {}),
             ...(updates.style_overrides || {}),
             ...(cardStyleEl ? { card_style: cardStyleEl.dataset.style } : {}),
             ...(textAlignEl ? { text_align: textAlignEl.dataset.align } : {}),
             ...(drawnFeatures?.features?.length ? { drawn_features: drawnFeatures } : {}),
+            potree: potreeConfig,
+            tileset3d: tilesetConfig,
         };
 
         if (Object.keys(updates).length > 0) {
@@ -1235,6 +1331,9 @@ const StoryEditor = {
                                 <button class="btn btn-sm btn-outline-light" onclick="StoryEditor._addWmsLayer()">
                                     <i class="bi bi-globe2"></i> ${t('layers.add_wms')}
                                 </button>
+                                <button class="btn btn-sm btn-outline-light" onclick="StoryEditor._addCogLayer()">
+                                    <i class="bi bi-file-earmark-image"></i> ${t('editor.add_cog')}
+                                </button>
                             </div>
                             <div class="layers-grid">
                                 ${allLayers.map(l => `
@@ -1328,6 +1427,33 @@ const StoryEditor = {
             const layer = await Api.createLayer({
                 name: result.name || 'WMS Layer', layer_type: 'wms',
                 source_config: { url: result.url, layers: result.layers || '' },
+            });
+            await this._addLayerToStory(layer.id);
+        } catch (err) { App.toast(err.message, 'danger'); }
+    },
+
+    async _addCogLayer() {
+        const t = I18n.t.bind(I18n);
+        const result = await App.modal({
+            title: t('editor.add_cog'),
+            body: `
+                <div class="mb-3"><label class="form-label">${t('editor.cog_url')}</label>
+                    <input type="text" class="form-control" id="modal-cog-url" placeholder="https://example.com/raster.tif"></div>
+                <div class="mb-3"><label class="form-label">${t('layers.wms_name')}</label>
+                    <input type="text" class="form-control" id="modal-cog-name" placeholder="Ortofoto COG"></div>
+                <small class="text-muted"><i class="bi bi-info-circle"></i> ${t('editor.cog_hint')}</small>
+            `,
+            confirmText: t('action.confirm'),
+            onConfirm: () => ({
+                url: document.getElementById('modal-cog-url')?.value,
+                name: document.getElementById('modal-cog-name')?.value,
+            }),
+        });
+        if (!result || !result.url) return;
+        try {
+            const layer = await Api.createLayer({
+                name: result.name || 'COG Raster', layer_type: 'cog',
+                source_config: { url: result.url },
             });
             await this._addLayerToStory(layer.id);
         } catch (err) { App.toast(err.message, 'danger'); }
