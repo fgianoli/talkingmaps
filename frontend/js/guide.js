@@ -1,11 +1,13 @@
 /**
  * TalkingMaps – Interactive Editor Guide
  * Step-by-step tour for first-time users
+ * Uses a CSS outline approach — never touches z-index or pointer-events on editor elements.
  */
 const Guide = {
     _key: 'tm_guide_done',
     _step: 0,
     _overlay: null,
+    _highlight: null,
 
     _steps: [
         { key: 'welcome', target: null, position: 'center' },
@@ -29,6 +31,7 @@ const Guide = {
 
     _createOverlay() {
         if (this._overlay) this._overlay.remove();
+        if (this._highlight) this._highlight.remove();
 
         const el = document.createElement('div');
         el.id = 'guide-overlay';
@@ -36,6 +39,7 @@ const Guide = {
             position:fixed;inset:0;z-index:50000;
             background:rgba(15,23,42,0.4);backdrop-filter:blur(2px);
             display:flex;align-items:center;justify-content:center;
+            pointer-events:auto;
         `;
         el.innerHTML = `
             <div id="guide-card" style="
@@ -51,6 +55,19 @@ const Guide = {
         `;
         document.body.appendChild(el);
         this._overlay = el;
+
+        // Separate highlight ring (sits above content, below overlay card)
+        const ring = document.createElement('div');
+        ring.id = 'guide-highlight';
+        ring.style.cssText = `
+            position:fixed;z-index:49999;
+            border:3px solid rgba(79,109,245,0.6);border-radius:10px;
+            box-shadow:0 0 0 3000px rgba(15,23,42,0.35);
+            pointer-events:none;transition:all 0.3s ease;
+            display:none;
+        `;
+        document.body.appendChild(ring);
+        this._highlight = ring;
     },
 
     _showStep() {
@@ -90,44 +107,28 @@ const Guide = {
         document.getElementById('guide-next')?.addEventListener('click', () => { this._step++; this._showStep(); });
         document.getElementById('guide-finish')?.addEventListener('click', () => this._close());
 
-        // Clean up all previous highlights first
-        this._steps.forEach(s => {
-            if (s.target) {
-                const el = document.querySelector(s.target);
-                if (el) {
-                    el.style.zIndex = '';
-                    el.style.boxShadow = '';
-                    el.style.pointerEvents = '';
-                }
-            }
-        });
-
-        // Highlight target (visible but non-interactive so it doesn't block the guide card)
+        // Highlight target using the separate ring — no styles on the actual element
         if (step.target) {
             const target = document.querySelector(step.target);
-            if (target) {
-                target.style.position = target.style.position || 'relative';
-                target.style.zIndex = '50001';
-                target.style.boxShadow = '0 0 0 4px rgba(79,109,245,0.3)';
-                target.style.borderRadius = '8px';
-                target.style.pointerEvents = 'none';
+            if (target && this._highlight) {
+                const rect = target.getBoundingClientRect();
+                this._highlight.style.top = (rect.top - 4) + 'px';
+                this._highlight.style.left = (rect.left - 4) + 'px';
+                this._highlight.style.width = (rect.width + 8) + 'px';
+                this._highlight.style.height = (rect.height + 8) + 'px';
+                this._highlight.style.display = 'block';
             }
+        } else {
+            if (this._highlight) this._highlight.style.display = 'none';
         }
     },
 
     _close() {
         localStorage.setItem(this._key, '1');
-        // Clean up highlights
-        this._steps.forEach(s => {
-            if (s.target) {
-                const el = document.querySelector(s.target);
-                if (el) {
-                    el.style.zIndex = '';
-                    el.style.boxShadow = '';
-                    el.style.pointerEvents = '';
-                }
-            }
-        });
+        if (this._highlight) {
+            this._highlight.remove();
+            this._highlight = null;
+        }
         if (this._overlay) {
             this._overlay.remove();
             this._overlay = null;

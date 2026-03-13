@@ -18,6 +18,13 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+    display_name: Optional[str] = None
+
+
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
@@ -53,6 +60,52 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_system_db)):
             "username": user["username"],
             "display_name": user["display_name"],
             "role": user["role"],
+        },
+    }
+
+
+@router.post("/register")
+async def register(req: RegisterRequest, db: AsyncSession = Depends(get_system_db)):
+    """Self-registration for new users."""
+    import re
+    # Validate username
+    if not re.match(r'^[a-zA-Z0-9_]{3,50}$', req.username):
+        raise HTTPException(status_code=400, detail="Username: solo lettere, numeri e underscore (3-50 caratteri)")
+    # Validate email
+    if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', req.email):
+        raise HTTPException(status_code=400, detail="Email non valida")
+    # Validate password
+    if len(req.password) < 6:
+        raise HTTPException(status_code=400, detail="La password deve avere almeno 6 caratteri")
+
+    # Check uniqueness
+    existing = await db.execute(
+        text("SELECT id FROM users WHERE username = :u OR email = :e"),
+        {"u": req.username, "e": req.email},
+    )
+    if existing.fetchone():
+        raise HTTPException(status_code=409, detail="Username o email già in uso")
+
+    display_name = req.display_name or req.username
+    pw_hash = hash_password(req.password)
+
+    result = await db.execute(
+        text("""INSERT INTO users (username, password_hash, display_name, email, role)
+                VALUES (:u, :p, :d, :e, 'editor') RETURNING id"""),
+        {"u": req.username, "p": pw_hash, "d": display_name, "e": req.email},
+    )
+    user_id = result.fetchone()[0]
+    await db.commit()
+
+    token = create_token(user_id, req.username, "editor")
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user_id,
+            "username": req.username,
+            "display_name": display_name,
+            "role": "editor",
         },
     }
 

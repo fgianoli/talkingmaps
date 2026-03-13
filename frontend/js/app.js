@@ -66,6 +66,18 @@ const App = {
         const exploreText = document.getElementById('explore-public-text');
         if (exploreText) exploreText.textContent = t('app.explore_public');
 
+        // Login/Register toggle
+        const noAccount = document.getElementById('login-no-account-text');
+        if (noAccount) noAccount.textContent = t('app.no_account');
+        const showRegBtn = document.getElementById('btn-show-register');
+        if (showRegBtn) showRegBtn.textContent = t('app.register');
+        const haveAccount = document.getElementById('reg-have-account-text');
+        if (haveAccount) haveAccount.textContent = t('app.have_account');
+        const showLoginBtn = document.getElementById('btn-show-login');
+        if (showLoginBtn) showLoginBtn.textContent = t('app.login');
+        const regSubmitBtn = document.getElementById('register-submit-btn');
+        if (regSubmitBtn) regSubmitBtn.textContent = t('app.register');
+
         // Navbar
         const navNew = document.getElementById('nav-new-story-text');
         if (navNew) navNew.textContent = t('nav.new_story');
@@ -213,6 +225,45 @@ const App = {
                 errorEl.classList.add('d-none');
                 const result = await Api.login(username, password);
                 Api.setSession(result.access_token, result.user);
+                this.showApp();
+            } catch (err) {
+                errorEl.textContent = err.message;
+                errorEl.classList.remove('d-none');
+            }
+        });
+
+        // Toggle login/register
+        document.getElementById('btn-show-register')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('login-form').classList.add('d-none');
+            document.getElementById('register-form').classList.remove('d-none');
+        });
+        document.getElementById('btn-show-login')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('register-form').classList.add('d-none');
+            document.getElementById('login-form').classList.remove('d-none');
+        });
+
+        // Register form
+        document.getElementById('register-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('reg-username').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const displayName = document.getElementById('reg-displayname').value.trim();
+            const password = document.getElementById('reg-password').value;
+            const confirm = document.getElementById('reg-password-confirm').value;
+            const errorEl = document.getElementById('register-error');
+            errorEl.classList.add('d-none');
+
+            if (password !== confirm) {
+                errorEl.textContent = I18n.t('app.passwords_mismatch');
+                errorEl.classList.remove('d-none');
+                return;
+            }
+            try {
+                const result = await Api.register(username, email, password, displayName || undefined);
+                Api.setSession(result.access_token, result.user);
+                this.toast(I18n.t('app.register_success'), 'success');
                 this.showApp();
             } catch (err) {
                 errorEl.textContent = err.message;

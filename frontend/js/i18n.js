@@ -48,6 +48,11 @@ const I18n = {
             'app.language': 'Lingua',
             'app.or': 'oppure',
             'app.google_login': 'Continua con Google',
+            'app.register': 'Registrati',
+            'app.no_account': 'Non hai un account?',
+            'app.have_account': 'Hai già un account?',
+            'app.register_success': 'Registrazione completata! Benvenuto.',
+            'app.passwords_mismatch': 'Le password non coincidono',
 
             // Landing
             'landing.hero_title_1': 'Racconta storie',
@@ -650,6 +655,11 @@ const I18n = {
             'app.language': 'Language',
             'app.or': 'or',
             'app.google_login': 'Continue with Google',
+            'app.register': 'Sign up',
+            'app.no_account': 'Don\'t have an account?',
+            'app.have_account': 'Already have an account?',
+            'app.register_success': 'Registration complete! Welcome.',
+            'app.passwords_mismatch': 'Passwords do not match',
 
             'landing.hero_title_1': 'Tell stories',
             'landing.hero_title_2': 'on the map',
@@ -1236,6 +1246,11 @@ const I18n = {
             'app.language': 'Idioma',
             'app.or': 'o',
             'app.google_login': 'Continuar con Google',
+            'app.register': 'Registrarse',
+            'app.no_account': '¿No tienes cuenta?',
+            'app.have_account': '¿Ya tienes cuenta?',
+            'app.register_success': '¡Registro completado! Bienvenido.',
+            'app.passwords_mismatch': 'Las contraseñas no coinciden',
 
             'landing.hero_title_1': 'Cuenta historias',
             'landing.hero_title_2': 'en el mapa',

@@ -78,6 +78,7 @@ const Api = {
 
     // ── Auth ─────────────────────────────
     login(username, password) { return this.post('/api/auth/login', { username, password }); },
+    register(username, email, password, display_name) { return this.post('/api/auth/register', { username, email, password, display_name }); },
     logout() { return this.post('/api/auth/logout', {}); },
     me() { return this.get('/api/auth/me'); },
     changePassword(current, newPw) { return this.put('/api/auth/change-password', { current_password: current, new_password: newPw }); },
@@ -231,5 +232,5 @@ const Api = {
 
     // Profile
     updateProfile(data) { return this.put('/api/auth/profile', data); },
-    uploadAvatar(file) { const fd = new FormData(); fd.append('file', file); return this.upload('/api/auth/avatar', fd); },
+    uploadAvatar(file) { const fd = new FormData(); fd.append('file', file); return this._fetch('/api/auth/avatar', { method: 'POST', body: fd }); },
 };

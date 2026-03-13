@@ -108,6 +108,32 @@ docker compose up -d
                 </div>
                 <button type="submit" class="btn btn-primary w-100" id="login-submit-btn"></button>
                 <div id="login-error" class="text-danger mt-2 d-none" style="font-size:13px"></div>
+                <div class="text-center mt-3" style="font-size:13px">
+                    <span id="login-no-account-text"></span> <a href="#" id="btn-show-register"></a>
+                </div>
+            </form>
+
+            <form id="register-form" class="d-none">
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="reg-username" placeholder="Username" required minlength="3" maxlength="50" pattern="[a-zA-Z0-9_]+">
+                </div>
+                <div class="mb-3">
+                    <input type="email" class="form-control" id="reg-email" placeholder="Email" required>
+                </div>
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="reg-displayname" placeholder="Nome visualizzato (facoltativo)">
+                </div>
+                <div class="mb-3">
+                    <input type="password" class="form-control" id="reg-password" placeholder="Password (min 6 caratteri)" required minlength="6">
+                </div>
+                <div class="mb-3">
+                    <input type="password" class="form-control" id="reg-password-confirm" placeholder="Conferma password" required minlength="6">
+                </div>
+                <button type="submit" class="btn btn-primary w-100" id="register-submit-btn"></button>
+                <div id="register-error" class="text-danger mt-2 d-none" style="font-size:13px"></div>
+                <div class="text-center mt-3" style="font-size:13px">
+                    <span id="reg-have-account-text"></span> <a href="#" id="btn-show-login"></a>
+                </div>
             </form>
 
             <!-- OAuth Sign-In -->
