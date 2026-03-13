@@ -3,6 +3,10 @@
  * Scroll-driven storytelling engine inspired by ESRI StoryMaps & Odyssey.js
  * Supports: 2D maps (MapLibre), 3D globe (Cesium), charts, dashboards,
  *           point clouds (Potree), iframes, media backgrounds
+ *
+ * Per-slide layout: each slide independently positions its content
+ * (side-left, side-right, center, cover, full-map, full-media,
+ *  text-only, text-media, separator)
  */
 const StoryViewer = {
     _data: null,
@@ -12,6 +16,9 @@ const StoryViewer = {
     _map: null,
     _is3D: false,
     _chartInstances: [],
+
+    // Layouts that show the map
+    _mapLayouts: ['cover', 'side-left', 'side-right', 'center', 'full-map'],
 
     /**
      * Load and display a full story
@@ -102,47 +109,73 @@ const StoryViewer = {
         }
     },
 
-    // ── Narrative Build ──────────────────
+    // ── Narrative Build (per-slide layout) ──
     _buildNarrative() {
         const container = document.getElementById('viewer-narrative');
         container.innerHTML = '';
-
-        // Determine default layout from first slide
-        const defaultLayout = this._slides[0]?.layout || 'side-left';
-        container.className = `layout-${defaultLayout}`;
+        // Remove fixed positioning classes — we use per-slide layout now
+        container.className = 'viewer-narrative-scroll';
 
         this._slides.forEach((slide, idx) => {
+            const layout = slide.layout || 'side-left';
+            const hasMap = this._mapLayouts.includes(layout);
+
             const slideEl = document.createElement('div');
-            slideEl.className = `viewer-slide slide-${slide.layout || 'side-left'}`;
+            slideEl.className = `viewer-slide slide-layout-${layout}`;
             slideEl.dataset.slideIndex = idx;
+            slideEl.dataset.layout = layout;
 
             // Content block
             const content = document.createElement('div');
             content.className = 'viewer-slide-content';
 
             // Title
-            if (slide.title && slide.layout !== 'full-map') {
-                content.innerHTML += `<h2>${slide.title}</h2>`;
+            if (slide.title && layout !== 'full-map') {
+                const titleTag = layout === 'separator' ? 'h1' : 'h2';
+                content.innerHTML += `<${titleTag}>${slide.title}</${titleTag}>`;
             }
 
             // Narrative HTML
-            if (slide.narrative) {
+            if (slide.narrative && layout !== 'separator') {
                 content.innerHTML += slide.narrative;
             }
 
             // Process embedded elements in narrative
             this._processEmbeds(content, slide, idx);
 
-            slideEl.appendChild(content);
+            // For text-media: wrap content + background media side by side
+            if (layout === 'text-media' && slide.background_media) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'viewer-text-media-wrapper';
 
-            // Background media
-            if (slide.background_media) {
-                const bgStyle = `background-image:url('${slide.background_media}');background-size:cover;background-position:center;`;
-                slideEl.style.cssText += bgStyle;
-                if (slide.background_opacity !== null && slide.background_opacity !== undefined) {
-                    const overlay = document.createElement('div');
-                    overlay.style.cssText = `position:absolute;inset:0;background:rgba(0,0,0,${1 - slide.background_opacity});pointer-events:none;`;
-                    slideEl.insertBefore(overlay, content);
+                const textSide = document.createElement('div');
+                textSide.className = 'viewer-text-media-text';
+                textSide.appendChild(content);
+
+                const mediaSide = document.createElement('div');
+                mediaSide.className = 'viewer-text-media-media';
+                const isVideo = /\.(mp4|webm|ogg)/i.test(slide.background_media);
+                if (isVideo) {
+                    mediaSide.innerHTML = `<video src="${slide.background_media}" autoplay muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:12px"></video>`;
+                } else {
+                    mediaSide.innerHTML = `<img src="${slide.background_media}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px">`;
+                }
+
+                wrapper.appendChild(textSide);
+                wrapper.appendChild(mediaSide);
+                slideEl.appendChild(wrapper);
+            } else {
+                slideEl.appendChild(content);
+
+                // Background media (for non text-media layouts)
+                if (slide.background_media && layout !== 'text-media') {
+                    const bgStyle = `background-image:url('${slide.background_media}');background-size:cover;background-position:center;`;
+                    slideEl.style.cssText += bgStyle;
+                    if (slide.background_opacity !== null && slide.background_opacity !== undefined) {
+                        const overlay = document.createElement('div');
+                        overlay.style.cssText = `position:absolute;inset:0;background:rgba(0,0,0,${1 - slide.background_opacity});pointer-events:none;`;
+                        slideEl.insertBefore(overlay, slideEl.firstChild);
+                    }
                 }
             }
 
@@ -157,20 +190,16 @@ const StoryViewer = {
 
     /**
      * Process embedded content markers in narrative HTML
-     * Supports: [chart:config], [dashboard:config], [iframe:url], [potree:url], [3d:config]
      */
     _processEmbeds(contentEl, slide, slideIdx) {
-        // Charts from style_overrides
         const overrides = slide.style_overrides || {};
         if (overrides.chart) {
             const chartContainer = document.createElement('div');
             chartContainer.className = 'slide-chart-container';
             contentEl.appendChild(chartContainer);
-            // Defer chart creation until slide is visible
             chartContainer.dataset.chartConfig = JSON.stringify(overrides.chart);
         }
 
-        // Dashboard widgets
         if (overrides.dashboard) {
             const dashContainer = document.createElement('div');
             dashContainer.className = 'slide-dashboard';
@@ -178,7 +207,6 @@ const StoryViewer = {
             TmCharts.renderDashboardWidgets(dashContainer, overrides.dashboard);
         }
 
-        // Iframe
         if (overrides.iframe) {
             const iframeContainer = document.createElement('div');
             iframeContainer.className = 'slide-iframe-container';
@@ -188,7 +216,6 @@ const StoryViewer = {
             contentEl.appendChild(iframeContainer);
         }
 
-        // Potree point cloud
         if (overrides.potree) {
             const potreeContainer = document.createElement('div');
             potreeContainer.className = 'slide-potree-container';
@@ -198,7 +225,6 @@ const StoryViewer = {
             potreeContainer.dataset.potreeConfig = JSON.stringify(overrides.potree);
         }
 
-        // 3D Tileset (Cesium inline)
         if (overrides.tileset3d) {
             const badge = document.createElement('span');
             badge.className = 'badge-3d';
@@ -245,15 +271,23 @@ const StoryViewer = {
         const slide = this._slides[index];
         if (!slide) return;
 
+        const layout = slide.layout || 'side-left';
+        const hasMap = this._mapLayouts.includes(layout);
+
         // Update progress
         document.getElementById('viewer-progress').textContent = `${index + 1} / ${this._slides.length}`;
 
-        // Update layout class on narrative container
-        const container = document.getElementById('viewer-narrative');
-        container.className = container.className.replace(/layout-\S+/, '') + ` layout-${slide.layout || 'side-left'}`;
+        // Show/hide map based on layout
+        const mapContainer = document.getElementById('viewer-map-container');
+        if (hasMap) {
+            mapContainer.classList.remove('viewer-map-hidden');
+            if (this._map) setTimeout(() => this._map.resize(), 100);
+        } else {
+            mapContainer.classList.add('viewer-map-hidden');
+        }
 
-        // Camera animation
-        if (slide.map_center) {
+        // Camera animation (only for map layouts)
+        if (hasMap && slide.map_center) {
             if (this._is3D) {
                 Cesium3D.flyTo({
                     position: [slide.map_center.lng, slide.map_center.lat, this._zoomToHeight(slide.map_zoom || 10)],
@@ -271,7 +305,7 @@ const StoryViewer = {
                     duration: 2000,
                 });
             }
-        } else if (slide.map_bounds) {
+        } else if (hasMap && slide.map_bounds) {
             TmMap.fitBounds(slide.map_bounds);
         }
 
@@ -309,7 +343,7 @@ const StoryViewer = {
             } catch { /* ok */ }
         }
 
-        // Highlight active slide thumb (if visible in toolbar)
+        // Highlight active slide
         document.querySelectorAll('.viewer-slide').forEach((el, i) => {
             el.classList.toggle('active', i === index);
         });
@@ -326,7 +360,6 @@ const StoryViewer = {
             toolbar.classList.add('hidden');
         }, 4000);
 
-        // Show on mouse move
         document.getElementById('story-viewer').onmousemove = () => {
             toolbar.classList.remove('hidden');
             clearTimeout(this._toolbarTimer);
@@ -347,7 +380,6 @@ const StoryViewer = {
             cesiumEl.style.display = 'block';
             btn.classList.add('active');
 
-            // Init Cesium if not already
             if (!Cesium3D.isActive()) {
                 const state = TmMap.getState();
                 Cesium3D.init('viewer-cesium', {
@@ -358,12 +390,10 @@ const StoryViewer = {
                     },
                 });
 
-                // Add 3D markers
                 const slide = this._slides[this._currentSlide];
                 const slideMarkers = (this._data.markers || []).filter(m => m.slide_id === slide?.id);
                 slideMarkers.forEach(m => Cesium3D.addMarker3D(m));
 
-                // Load 3D tilesets from story settings
                 const settings = this._data.story.settings || {};
                 if (settings.tilesets) {
                     settings.tilesets.forEach(t => Cesium3D.addTileset(t));

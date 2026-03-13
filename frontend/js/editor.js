@@ -13,6 +13,17 @@ const StoryEditor = {
     _autosaveTimer: null,
     _sortable: null,
 
+    // Layouts that include a map
+    _mapLayouts: ['cover', 'side-left', 'side-right', 'center', 'full-map'],
+    // Layouts without a map
+    _noMapLayouts: ['text-only', 'text-media', 'full-media', 'separator'],
+
+    _currentSlideHasMap() {
+        const slide = this._slides[this._currentSlideIdx];
+        if (!slide) return true;
+        return this._mapLayouts.includes(slide.layout || 'side-left');
+    },
+
     async load(storyId) {
         this._storyId = storyId;
         App.showPanel('editor');
@@ -49,6 +60,9 @@ const StoryEditor = {
                         <button class="btn btn-sm btn-outline-light" id="editor-preview" title="${t('editor.preview')}">
                             <i class="bi bi-eye"></i>
                         </button>
+                        <button class="btn btn-sm btn-outline-light" id="editor-show-guide" title="${t('editor.show_guide')}">
+                            <i class="bi bi-question-circle"></i>
+                        </button>
                     </div>
                 </div>
                 <div class="editor-slides-list" id="editor-slides-list"></div>
@@ -57,14 +71,22 @@ const StoryEditor = {
                 </div>
             </div>
 
-            <div class="editor-map-area">
+            <div class="editor-map-area" id="editor-map-area">
                 <div class="editor-map" id="editor-map"></div>
-                <div class="editor-map-tools">
+                <div class="editor-map-tools" id="editor-map-tools">
                     <button class="btn" id="editor-capture-view" title="${t('editor.capture')}"><i class="bi bi-camera"></i></button>
                     <button class="btn" id="editor-add-marker" title="${t('editor.add_marker')}"><i class="bi bi-geo-alt"></i></button>
                     <button class="btn" id="editor-manage-layers" title="${t('editor.manage_layers')}"><i class="bi bi-layers"></i></button>
                 </div>
                 <div class="editor-map-info" id="editor-map-info">zoom: - | center: -</div>
+                <!-- No-map placeholder, shown for text-only/separator slides -->
+                <div class="editor-no-map-placeholder d-none" id="editor-no-map-placeholder">
+                    <i class="bi bi-file-text" style="font-size:48px;color:var(--tm-text-light);margin-bottom:12px"></i>
+                    <p style="color:var(--tm-text-muted);font-size:14px;max-width:300px;text-align:center;line-height:1.6" id="editor-no-map-text"></p>
+                    <button class="btn btn-sm btn-outline-primary mt-2" id="editor-switch-to-map-layout">
+                        <i class="bi bi-map"></i> ${t('layout.side-left')}
+                    </button>
+                </div>
             </div>
 
             <div class="editor-props-panel">
@@ -108,6 +130,30 @@ const StoryEditor = {
         });
     },
 
+    // ── Map / No-map toggle ──────────────
+    _updateMapVisibility() {
+        const hasMap = this._currentSlideHasMap();
+        const mapEl = document.getElementById('editor-map');
+        const toolsEl = document.getElementById('editor-map-tools');
+        const infoEl = document.getElementById('editor-map-info');
+        const placeholder = document.getElementById('editor-no-map-placeholder');
+        const textEl = document.getElementById('editor-no-map-text');
+
+        if (hasMap) {
+            mapEl?.classList.remove('d-none');
+            toolsEl?.classList.remove('d-none');
+            infoEl?.classList.remove('d-none');
+            placeholder?.classList.add('d-none');
+            if (this._map) this._map.resize();
+        } else {
+            mapEl?.classList.add('d-none');
+            toolsEl?.classList.add('d-none');
+            infoEl?.classList.add('d-none');
+            placeholder?.classList.remove('d-none');
+            if (textEl) textEl.textContent = I18n.t('editor.no_map_hint');
+        }
+    },
+
     // ── Slides List ──────────────────────
     _renderSlidesList() {
         const list = document.getElementById('editor-slides-list');
@@ -117,6 +163,8 @@ const StoryEditor = {
             'cover': 'bi-card-heading', 'side-left': 'bi-layout-sidebar',
             'side-right': 'bi-layout-sidebar-reverse', 'center': 'bi-layout-text-window',
             'full-map': 'bi-map', 'full-media': 'bi-image',
+            'text-only': 'bi-file-text', 'text-media': 'bi-layout-text-sidebar',
+            'separator': 'bi-hr',
         };
 
         list.innerHTML = this._slides.map((slide, idx) => {
@@ -154,7 +202,10 @@ const StoryEditor = {
             el.classList.toggle('active', i === idx);
         });
 
-        if (slide.map_center) {
+        // Update map visibility based on layout
+        this._updateMapVisibility();
+
+        if (this._currentSlideHasMap() && slide.map_center) {
             TmMap.flyTo({
                 center: [slide.map_center.lng, slide.map_center.lat],
                 zoom: slide.map_zoom || 10,
@@ -174,34 +225,75 @@ const StoryEditor = {
         const body = document.getElementById('editor-props-body');
         if (!body) return;
         const t = I18n.t.bind(I18n);
+        const hasMap = this._mapLayouts.includes(slide.layout || 'side-left');
+        const isSeparator = slide.layout === 'separator';
+
+        // All available layouts
+        const allLayouts = ['cover', 'side-left', 'side-right', 'center', 'full-map', 'full-media', 'text-only', 'text-media', 'separator'];
 
         body.innerHTML = `
+            <!-- ═══ QUICK ACTIONS BAR ═══ -->
+            <div class="editor-quick-actions">
+                <div class="prop-section-title"><i class="bi bi-lightning"></i> ${t('editor.quick_actions')}</div>
+                <div class="quick-actions-grid">
+                    <button class="quick-action-btn" onclick="document.getElementById('prop-narrative')?.focus()" title="${t('editor.qa_text')}">
+                        <i class="bi bi-type"></i>
+                        <span>${t('editor.narrative')}</span>
+                    </button>
+                    <button class="quick-action-btn" onclick="StoryEditor._insertImage()">
+                        <i class="bi bi-image"></i>
+                        <span>${t('editor.qa_image')}</span>
+                    </button>
+                    <button class="quick-action-btn" onclick="StoryEditor._insertIframe()">
+                        <i class="bi bi-play-btn"></i>
+                        <span>${t('editor.qa_video')}</span>
+                    </button>
+                    <button class="quick-action-btn" onclick="StoryEditor._insertChart()">
+                        <i class="bi bi-bar-chart-line"></i>
+                        <span>${t('editor.qa_chart')}</span>
+                    </button>
+                    ${hasMap ? `
+                        <button class="quick-action-btn" onclick="StoryEditor._openLayersModal()">
+                            <i class="bi bi-layers"></i>
+                            <span>${t('editor.qa_layer')}</span>
+                        </button>
+                        <button class="quick-action-btn" onclick="StoryEditor._toggleAddMarker()">
+                            <i class="bi bi-geo-alt"></i>
+                            <span>${t('editor.qa_marker')}</span>
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+
             <div class="prop-section">
                 <div class="prop-section-title"><i class="bi bi-type-h1"></i> ${t('editor.content')}</div>
                 <div class="prop-row">
                     <label>${t('editor.title')}</label>
                     <input type="text" class="form-control" id="prop-title" value="${App.escHtml(slide.title || '')}" placeholder="${t('editor.title_ph')}">
                 </div>
+                ${!isSeparator ? `
                 <div class="prop-row">
                     <label>${t('editor.narrative')}</label>
                     <div class="narrative-toolbar">
-                        <button class="btn" onclick="document.execCommand('bold')"><i class="bi bi-type-bold"></i></button>
-                        <button class="btn" onclick="document.execCommand('italic')"><i class="bi bi-type-italic"></i></button>
-                        <button class="btn" onclick="document.execCommand('insertUnorderedList')"><i class="bi bi-list-ul"></i></button>
-                        <button class="btn" onclick="document.execCommand('insertOrderedList')"><i class="bi bi-list-ol"></i></button>
-                        <button class="btn" onclick="StoryEditor._insertLink()"><i class="bi bi-link-45deg"></i></button>
-                        <button class="btn" onclick="StoryEditor._insertImage()"><i class="bi bi-image"></i></button>
-                        <button class="btn" onclick="StoryEditor._insertChart()"><i class="bi bi-bar-chart-line"></i></button>
-                        <button class="btn" onclick="StoryEditor._insertIframe()"><i class="bi bi-code-square"></i></button>
+                        <button class="btn" onclick="document.execCommand('bold')" title="Bold"><i class="bi bi-type-bold"></i></button>
+                        <button class="btn" onclick="document.execCommand('italic')" title="Italic"><i class="bi bi-type-italic"></i></button>
+                        <button class="btn" onclick="document.execCommand('insertUnorderedList')" title="List"><i class="bi bi-list-ul"></i></button>
+                        <button class="btn" onclick="document.execCommand('insertOrderedList')" title="Numbered list"><i class="bi bi-list-ol"></i></button>
+                        <button class="btn" onclick="document.execCommand('formatBlock', false, 'h2')" title="Heading"><i class="bi bi-type-h2"></i></button>
+                        <button class="btn" onclick="document.execCommand('formatBlock', false, 'blockquote')" title="Quote"><i class="bi bi-quote"></i></button>
+                        <button class="btn" onclick="StoryEditor._insertLink()" title="${t('editor.insert_link')}"><i class="bi bi-link-45deg"></i></button>
+                        <button class="btn" onclick="StoryEditor._insertImage()" title="${t('editor.insert_image')}"><i class="bi bi-image"></i></button>
+                        <button class="btn" onclick="StoryEditor._insertIframe()" title="${t('editor.insert_iframe')}"><i class="bi bi-code-square"></i></button>
                     </div>
                     <div class="narrative-editor" id="prop-narrative" contenteditable="true">${slide.narrative || ''}</div>
                 </div>
+                ` : ''}
             </div>
 
             <div class="prop-section">
                 <div class="prop-section-title"><i class="bi bi-grid-1x2"></i> ${t('editor.layout')}</div>
                 <div class="layout-selector">
-                    ${['cover', 'side-left', 'side-right', 'center', 'full-map', 'full-media'].map(l => `
+                    ${allLayouts.map(l => `
                         <div class="layout-option ${slide.layout === l ? 'active' : ''}" data-layout="${l}">
                             <i class="bi bi-${this._layoutIcon(l)}"></i>
                             ${t('layout.' + l)}
@@ -210,8 +302,13 @@ const StoryEditor = {
                 </div>
             </div>
 
+            ${hasMap ? `
+            <!-- Map section (only for map layouts) -->
             <div class="prop-section">
                 <div class="prop-section-title"><i class="bi bi-map"></i> ${t('editor.map_view')}</div>
+                <div class="editor-map-hint">
+                    <i class="bi bi-info-circle"></i> ${t('editor.has_map_hint')}
+                </div>
                 <div class="prop-row">
                     <label>${t('editor.animation')}</label>
                     <select class="form-select" id="prop-animation">
@@ -220,7 +317,7 @@ const StoryEditor = {
                         <option value="jumpTo" ${slide.map_animation === 'jumpTo' ? 'selected' : ''}>${t('editor.anim_jump')}</option>
                     </select>
                 </div>
-                <button class="btn btn-sm btn-outline-light w-100 mt-2" id="btn-capture-map-state">
+                <button class="btn btn-sm btn-outline-primary w-100 mt-2" id="btn-capture-map-state">
                     <i class="bi bi-camera"></i> ${t('editor.capture_view')}
                 </button>
                 ${slide.map_center ? `
@@ -246,7 +343,11 @@ const StoryEditor = {
                         `;
                     }).join('') || `<small class="text-muted">${t('editor.no_layers')}</small>`}
                 </div>
+                <button class="btn btn-sm btn-outline-light w-100 mt-2" onclick="StoryEditor._openLayersModal()">
+                    <i class="bi bi-plus"></i> ${t('editor.manage_layers')}
+                </button>
             </div>
+            ` : ''}
 
             <div class="prop-section">
                 <div class="prop-section-title"><i class="bi bi-image"></i> ${t('editor.bg')}</div>
@@ -266,6 +367,7 @@ const StoryEditor = {
                 </div>
             </div>
 
+            ${!isSeparator ? `
             <div class="prop-section">
                 <div class="prop-section-title"><i class="bi bi-bar-chart-line"></i> ${t('editor.charts')}</div>
                 <div class="chart-editor">
@@ -276,6 +378,7 @@ const StoryEditor = {
                     <small class="text-muted">${t('editor.chart_types')}</small>
                 </div>
             </div>
+            ` : ''}
 
             <div class="prop-section">
                 <div class="prop-row">
@@ -291,6 +394,15 @@ const StoryEditor = {
             opt.addEventListener('click', () => {
                 body.querySelectorAll('.layout-option').forEach(o => o.classList.remove('active'));
                 opt.classList.add('active');
+                // Update slide layout and refresh map visibility
+                const slide = this._slides[this._currentSlideIdx];
+                if (slide) {
+                    slide.layout = opt.dataset.layout;
+                    this._updateMapVisibility();
+                    // Re-render props to show/hide map sections
+                    this._renderProps(slide);
+                    this._renderSlidesList();
+                }
             });
         });
 
@@ -353,9 +465,64 @@ const StoryEditor = {
         }
     },
 
-    async _addSlide() {
+    // ── Add Slide with type picker ───────
+    async _addSlide(layout) {
+        if (layout) {
+            return this._createSlide(layout);
+        }
+        // Show slide type picker modal
+        const t = I18n.t.bind(I18n);
+        const types = [
+            { layout: 'side-left', icon: 'bi-layout-sidebar', key: 'map', color: '#4f6df5' },
+            { layout: 'text-only', icon: 'bi-file-text', key: 'text', color: '#10b981' },
+            { layout: 'text-media', icon: 'bi-layout-text-sidebar', key: 'media', color: '#f59e0b' },
+            { layout: 'full-media', icon: 'bi-image', key: 'fullmedia', color: '#ec4899' },
+            { layout: 'separator', icon: 'bi-hr', key: 'separator', color: '#8b5cf6' },
+        ];
+
+        const html = `
+            <div class="modal fade" id="slide-type-modal" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><i class="bi bi-plus-circle"></i> ${t('editor.add_slide_menu')}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="slide-type-grid">
+                                ${types.map(tp => `
+                                    <div class="slide-type-card" data-layout="${tp.layout}">
+                                        <div class="slide-type-icon" style="color:${tp.color}">
+                                            <i class="bi ${tp.icon}"></i>
+                                        </div>
+                                        <div class="slide-type-info">
+                                            <h4>${t('editor.slide_type_' + tp.key)}</h4>
+                                            <p>${t('editor.slide_type_' + tp.key + '_desc')}</p>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.getElementById('slide-type-modal')?.remove();
+        document.body.insertAdjacentHTML('beforeend', html);
+        const modal = new bootstrap.Modal(document.getElementById('slide-type-modal'));
+        modal.show();
+
+        document.querySelectorAll('.slide-type-card').forEach(card => {
+            card.addEventListener('click', () => {
+                modal.hide();
+                this._createSlide(card.dataset.layout);
+            });
+        });
+    },
+
+    async _createSlide(layout) {
         try {
-            const result = await Api.createSlide({ story_id: this._storyId, title: '' });
+            const result = await Api.createSlide({ story_id: this._storyId, title: '', layout: layout || 'side-left' });
             const fullSlide = await Api.getSlide(result.id);
             this._slides.push(fullSlide);
             this._renderSlidesList();
@@ -398,11 +565,29 @@ const StoryEditor = {
         if (url) document.execCommand('insertImage', false, url);
     },
 
-    _insertChart() {
+    async _insertChart() {
+        const slide = this._slides[this._currentSlideIndex];
+        const existing = slide?.style_overrides?.chart || null;
+        const config = await ChartWizard.open(existing);
+        if (!config) return;
+
+        // Put result into the JSON textarea
         const chartEl = document.getElementById('prop-chart-config');
         if (chartEl) {
-            chartEl.focus();
-            App.toast(I18n.t('editor.charts'), 'info');
+            chartEl.value = JSON.stringify(config, null, 2);
+            chartEl.dispatchEvent(new Event('change'));
+        }
+
+        // Autosave immediately
+        const updates = {
+            style_overrides: { ...(slide.style_overrides || {}), chart: config }
+        };
+        try {
+            await Api.updateSlide(slide.id, updates);
+            Object.assign(slide, updates);
+            App.toast(I18n.t('editor.chart_saved') || 'Chart saved', 'success');
+        } catch (err) {
+            console.error('Chart save failed:', err);
         }
     },
 
@@ -436,15 +621,19 @@ const StoryEditor = {
     _addMarkerMode: false,
 
     _toggleAddMarker() {
+        if (!this._currentSlideHasMap()) {
+            App.toast(I18n.t('editor.no_map_hint'), 'warning');
+            return;
+        }
         this._addMarkerMode = !this._addMarkerMode;
         const btn = document.getElementById('editor-add-marker');
-        btn.classList.toggle('active', this._addMarkerMode);
+        if (btn) btn.classList.toggle('active', this._addMarkerMode);
 
         if (this._addMarkerMode) {
             this._map.getCanvas().style.cursor = 'crosshair';
             this._map.once('click', async (e) => {
                 this._addMarkerMode = false;
-                btn.classList.remove('active');
+                if (btn) btn.classList.remove('active');
                 this._map.getCanvas().style.cursor = '';
 
                 const title = await App.prompt(I18n.t('editor.marker_title'), '', { title: I18n.t('editor.add_marker') });
@@ -476,6 +665,25 @@ const StoryEditor = {
         });
 
         document.getElementById('editor-manage-layers')?.addEventListener('click', () => this._openLayersModal());
+
+        // Guide button
+        document.getElementById('editor-show-guide')?.addEventListener('click', () => {
+            if (typeof Guide !== 'undefined') {
+                Guide.reset();
+                Guide.start();
+            }
+        });
+
+        // Switch to map layout button (in no-map placeholder)
+        document.getElementById('editor-switch-to-map-layout')?.addEventListener('click', () => {
+            const slide = this._slides[this._currentSlideIdx];
+            if (slide) {
+                slide.layout = 'side-left';
+                this._updateMapVisibility();
+                this._renderProps(slide);
+                this._renderSlidesList();
+            }
+        });
     },
 
     async _openLayersModal() {
@@ -623,6 +831,8 @@ const StoryEditor = {
 
     _layoutIcon(layout) {
         return { 'cover': 'card-heading', 'side-left': 'layout-sidebar', 'side-right': 'layout-sidebar-reverse',
-            'center': 'layout-text-window', 'full-map': 'map', 'full-media': 'image' }[layout] || 'square';
+            'center': 'layout-text-window', 'full-map': 'map', 'full-media': 'image',
+            'text-only': 'file-text', 'text-media': 'layout-text-sidebar',
+            'separator': 'hr' }[layout] || 'square';
     },
 };

@@ -359,6 +359,167 @@
     color: var(--tm-primary);
 }
 
+/* ── Quick Actions ────────────────────── */
+.editor-quick-actions {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--tm-border);
+}
+
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+}
+
+.quick-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 6px;
+    border: 1px solid var(--tm-border);
+    border-radius: var(--tm-radius-sm);
+    background: var(--tm-bg);
+    cursor: pointer;
+    transition: all var(--tm-transition);
+    color: var(--tm-text-muted);
+    font-size: 11px;
+    text-align: center;
+}
+
+.quick-action-btn i {
+    font-size: 18px;
+    color: var(--tm-primary);
+}
+
+.quick-action-btn:hover {
+    background: var(--tm-primary-soft);
+    border-color: var(--tm-primary);
+    color: var(--tm-text);
+}
+
+/* ── Slide Type Picker Modal ─────────── */
+.slide-type-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.slide-type-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 16px;
+    border: 2px solid var(--tm-border);
+    border-radius: var(--tm-radius);
+    cursor: pointer;
+    transition: all var(--tm-transition);
+}
+
+.slide-type-card:hover {
+    border-color: var(--tm-primary);
+    background: var(--tm-primary-soft);
+}
+
+.slide-type-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--tm-bg);
+    border-radius: 10px;
+}
+
+.slide-type-info h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 2px;
+    color: var(--tm-text);
+}
+
+.slide-type-info p {
+    font-size: 12px;
+    color: var(--tm-text-muted);
+    margin: 0;
+}
+
+/* ── No-map placeholder ──────────────── */
+.editor-no-map-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--tm-bg);
+    z-index: 5;
+}
+
+/* ── Map hint ────────────────────────── */
+.editor-map-hint {
+    font-size: 12px;
+    color: var(--tm-text-muted);
+    background: var(--tm-bg);
+    border: 1px solid var(--tm-border);
+    border-radius: var(--tm-radius-sm);
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    line-height: 1.5;
+}
+
+.editor-map-hint i {
+    color: var(--tm-primary);
+}
+
+/* ── Chart Wizard ────────────────────── */
+.cwiz-upload-zone {
+    border: 2px dashed var(--tm-border);
+    border-radius: var(--tm-radius);
+    padding: 32px;
+    text-align: center;
+    background: var(--tm-bg);
+    cursor: pointer;
+}
+
+.cwiz-upload-zone:hover {
+    border-color: var(--tm-primary);
+    background: var(--tm-primary-soft);
+}
+
+.cwiz-type-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.cwiz-type-btn {
+    padding: 6px 10px;
+    border: 1px solid var(--tm-border);
+    border-radius: var(--tm-radius-sm);
+    background: var(--tm-surface);
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--tm-text-muted);
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.cwiz-type-btn:hover {
+    border-color: var(--tm-primary);
+}
+
+.cwiz-type-btn.active {
+    background: var(--tm-primary);
+    color: white;
+    border-color: var(--tm-primary);
+}
+
 /* ── Responsive ───────────────────────── */
 @media (max-width: 1024px) {
     #panel-editor {

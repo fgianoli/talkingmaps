@@ -12,7 +12,7 @@ services:
       - ./backend/setup_system.sql:/docker-entrypoint-initdb.d/01-setup-system.sql
       - ./backend/setup_data.sql:/docker-entrypoint-initdb.d/02-setup-data.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-talkingmaps_data}"]
       interval: 10s
       timeout: 5s
       retries: 5

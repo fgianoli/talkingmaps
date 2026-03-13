@@ -1,6 +1,7 @@
 /* ══════════════════════════════════════════
    TalkingMaps – Story Viewer
-   (Dark overlay – designed for map backgrounds)
+   Per-slide layout system: each slide independently
+   controls its text positioning and map visibility
    ══════════════════════════════════════════ */
 
 #story-viewer {
@@ -61,6 +62,12 @@
     position: absolute;
     inset: 0;
     z-index: 1;
+    transition: opacity 0.4s ease;
+}
+
+#viewer-map-container.viewer-map-hidden {
+    opacity: 0;
+    pointer-events: none;
 }
 
 #viewer-map, #viewer-cesium {
@@ -78,38 +85,22 @@
     color: rgba(255,255,255,0.7) !important;
 }
 
-/* ── Narrative Overlay ────────────────── */
-#viewer-narrative {
+/* ── Narrative Scroll Container ─────────
+   Now uses a neutral scroll wrapper;
+   layout positioning is per-slide           */
+.viewer-narrative-scroll {
     position: absolute;
     top: 0;
+    left: 0;
+    right: 0;
     bottom: 0;
     z-index: 50;
     overflow-y: auto;
     scroll-behavior: smooth;
-    pointer-events: none;
     scroll-snap-type: y mandatory;
 }
 
-#viewer-narrative.layout-side-left {
-    left: 0;
-    width: 420px;
-    max-width: 40vw;
-}
-
-#viewer-narrative.layout-side-right {
-    right: 0;
-    width: 420px;
-    max-width: 40vw;
-}
-
-#viewer-narrative.layout-center {
-    left: 50%;
-    transform: translateX(-50%);
-    width: 600px;
-    max-width: 80vw;
-}
-
-/* ── Slide card ───────────────────────── */
+/* ── Base Slide ──────────────────────── */
 .viewer-slide {
     min-height: 100vh;
     display: flex;
@@ -117,8 +108,10 @@
     padding: 80px 24px 40px;
     pointer-events: auto;
     scroll-snap-align: start;
+    position: relative;
 }
 
+/* ── Slide Content Card ─────────────── */
 .viewer-slide-content {
     background: rgba(255,255,255,0.95);
     backdrop-filter: blur(16px);
@@ -158,28 +151,68 @@
     color: #4f6df5;
 }
 
-/* ── Cover slide ──────────────────────── */
-.viewer-slide.slide-cover {
+/* ═══════════════════════════════════════
+   PER-SLIDE LAYOUT CLASSES
+   Each slide positions its own content
+   independently from other slides
+   ═══════════════════════════════════════ */
+
+/* ── Side Left ─────────────────────── */
+.slide-layout-side-left {
+    justify-content: flex-start;
+}
+
+.slide-layout-side-left .viewer-slide-content {
+    width: 420px;
+    max-width: 40vw;
+}
+
+/* ── Side Right ────────────────────── */
+.slide-layout-side-right {
+    justify-content: flex-end;
+}
+
+.slide-layout-side-right .viewer-slide-content {
+    width: 420px;
+    max-width: 40vw;
+}
+
+/* ── Center Overlay ────────────────── */
+.slide-layout-center {
+    justify-content: center;
+}
+
+.slide-layout-center .viewer-slide-content {
+    width: 600px;
+    max-width: 80vw;
+    text-align: center;
+}
+
+/* ── Cover ─────────────────────────── */
+.slide-layout-cover {
     align-items: center;
     justify-content: center;
 }
 
-.viewer-slide.slide-cover .viewer-slide-content {
+.slide-layout-cover .viewer-slide-content {
     text-align: center;
     max-width: 600px;
     background: rgba(255,255,255,0.92);
 }
 
-/* ── Full-map / Full-media ────────────── */
-.viewer-slide.slide-full-map .viewer-slide-content {
+/* ── Full Map (no content card) ────── */
+.slide-layout-full-map .viewer-slide-content {
     display: none;
 }
 
-.viewer-slide.slide-full-media {
+/* ── Full Media ────────────────────── */
+.slide-layout-full-media {
     position: relative;
+    background-size: cover;
+    background-position: center;
 }
 
-.viewer-slide.slide-full-media .viewer-slide-content {
+.slide-layout-full-media .viewer-slide-content {
     position: absolute;
     bottom: 40px;
     left: 24px;
@@ -187,7 +220,108 @@
     max-width: 600px;
 }
 
-/* ── Chart / dashboard in slides ──────── */
+/* ═══════════════════════════════════════
+   NO-MAP LAYOUTS
+   These slides hide the map and take
+   full screen for content
+   ═══════════════════════════════════════ */
+
+/* ── Text Only ─────────────────────── */
+.slide-layout-text-only {
+    justify-content: center;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+.slide-layout-text-only .viewer-slide-content {
+    width: 780px;
+    max-width: 85vw;
+    background: white;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    border: 1px solid rgba(0,0,0,0.06);
+}
+
+/* ── Text + Media (side by side) ───── */
+.slide-layout-text-media {
+    justify-content: center;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    padding: 60px 0;
+}
+
+.viewer-text-media-wrapper {
+    display: flex;
+    width: 100%;
+    max-width: 1200px;
+    min-height: 70vh;
+    gap: 0;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+    background: white;
+}
+
+.viewer-text-media-text {
+    flex: 1;
+    padding: 40px 32px;
+    display: flex;
+    align-items: center;
+}
+
+.viewer-text-media-text .viewer-slide-content {
+    background: transparent;
+    box-shadow: none;
+    border: none;
+    backdrop-filter: none;
+    padding: 0;
+    width: 100%;
+}
+
+.viewer-text-media-media {
+    flex: 1;
+    min-height: 400px;
+    overflow: hidden;
+}
+
+.viewer-text-media-media img,
+.viewer-text-media-media video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* ── Separator ─────────────────────── */
+.slide-layout-separator {
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+}
+
+.slide-layout-separator .viewer-slide-content {
+    text-align: center;
+    background: transparent;
+    box-shadow: none;
+    border: none;
+    backdrop-filter: none;
+    max-width: 800px;
+}
+
+.slide-layout-separator .viewer-slide-content h1 {
+    font-size: 48px;
+    color: white;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.slide-layout-separator .viewer-slide-content h2 {
+    color: rgba(255,255,255,0.8);
+    font-size: 28px;
+}
+
+.slide-layout-separator .viewer-slide-content p {
+    color: rgba(255,255,255,0.6);
+    font-size: 18px;
+}
+
+/* ── Chart / dashboard in slides ──── */
 .slide-chart-container {
     width: 100%;
     max-height: 300px;
@@ -225,7 +359,7 @@
     margin-top: 4px;
 }
 
-/* ── iframe ───────────────────────────── */
+/* ── iframe ───────────────────────── */
 .slide-iframe-container {
     width: 100%;
     border-radius: 10px;
@@ -239,7 +373,7 @@
     border: none;
 }
 
-/* ── Navigation ───────────────────────── */
+/* ── Navigation ───────────────────── */
 #viewer-nav {
     position: absolute;
     right: 16px;
@@ -271,7 +405,7 @@
     transform: scale(1.05);
 }
 
-/* ── Basemap selector ─────────────────── */
+/* ── Basemap selector ─────────────── */
 #viewer-basemap-selector {
     position: absolute;
     top: 56px;
@@ -316,12 +450,63 @@
     color: #64748b;
 }
 
-/* ── Responsive ───────────────────────── */
+/* ── Scroll hint ──────────────────── */
+.scroll-hint {
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    animation: scrollBounce 2s infinite;
+    color: rgba(255,255,255,0.5);
+    font-size: 24px;
+}
+
+@keyframes scrollBounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(8px); }
+}
+
+/* ── 3D badge ─────────────────────── */
+.badge-3d {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+/* ── Active slide indicator ───────── */
+.viewer-slide.active {
+    z-index: 2;
+}
+
+/* ── Responsive ───────────────────── */
 @media (max-width: 768px) {
-    #viewer-narrative.layout-side-left,
-    #viewer-narrative.layout-side-right {
+    .slide-layout-side-left .viewer-slide-content,
+    .slide-layout-side-right .viewer-slide-content {
         width: 100%;
         max-width: 100%;
+    }
+
+    .slide-layout-center .viewer-slide-content {
+        max-width: 95vw;
+    }
+
+    .slide-layout-text-only .viewer-slide-content {
+        max-width: 95vw;
+    }
+
+    .viewer-text-media-wrapper {
+        flex-direction: column;
+    }
+
+    .viewer-text-media-media {
+        min-height: 250px;
+    }
+
+    .slide-layout-separator .viewer-slide-content h1 {
+        font-size: 32px;
     }
 
     .viewer-slide {
@@ -343,30 +528,4 @@
         width: 40px;
         height: 40px;
     }
-}
-
-/* ── Scroll hint ──────────────────────── */
-.scroll-hint {
-    position: absolute;
-    bottom: 40px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 100;
-    animation: scrollBounce 2s infinite;
-    color: rgba(255,255,255,0.5);
-    font-size: 24px;
-}
-
-@keyframes scrollBounce {
-    0%, 100% { transform: translateX(-50%) translateY(0); }
-    50% { transform: translateX(-50%) translateY(8px); }
-}
-
-/* ── 3D badge ─────────────────────────── */
-.badge-3d {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 4px;
 }

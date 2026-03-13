@@ -301,39 +301,122 @@ const App = {
     },
 
     // ── Create Story (modal) ─────────────
+    // Template definitions: each generates starter slides after story creation
+    _storyTemplates: {
+        sidecar: {
+            icon: 'bi-layout-sidebar',
+            slides: [
+                { title: 'Cover', layout: 'cover', narrative: '<p>Your story starts here...</p>' },
+                { title: 'Chapter 1', layout: 'side-left', narrative: '<p>Add your narrative text here.</p>' },
+                { title: 'Chapter 2', layout: 'side-right', narrative: '<p>Continue your story...</p>' },
+            ],
+        },
+        tour: {
+            icon: 'bi-geo-alt',
+            slides: [
+                { title: 'Welcome', layout: 'cover', narrative: '<p>Welcome to the tour!</p>' },
+                { title: 'Stop 1', layout: 'side-left', narrative: '<p>Describe this place...</p>' },
+                { title: 'Stop 2', layout: 'side-left', narrative: '<p>Next stop on the tour...</p>' },
+                { title: 'Stop 3', layout: 'side-left', narrative: '<p>Another interesting location...</p>' },
+            ],
+        },
+        narrative: {
+            icon: 'bi-journal-text',
+            slides: [
+                { title: 'Introduction', layout: 'text-only', narrative: '<h1>Your Title</h1><p>Start writing your article...</p>' },
+                { title: '', layout: 'text-media', narrative: '<p>Text with media side by side.</p>' },
+                { title: 'Map Section', layout: 'side-left', narrative: '<p>Here the map tells part of the story.</p>' },
+                { title: '', layout: 'separator', narrative: '' },
+                { title: 'Conclusion', layout: 'text-only', narrative: '<p>Wrap up your narrative.</p>' },
+            ],
+        },
+        presentation: {
+            icon: 'bi-easel',
+            slides: [
+                { title: 'Title Slide', layout: 'cover', narrative: '<h1>Presentation Title</h1><p>Subtitle here</p>' },
+                { title: '', layout: 'separator', narrative: '' },
+                { title: 'Data', layout: 'center', narrative: '<p>Add charts and data visualizations.</p>' },
+                { title: 'Full Map', layout: 'full-map', narrative: '' },
+                { title: 'Conclusion', layout: 'center', narrative: '<p>Key takeaways.</p>' },
+            ],
+        },
+    },
+
     async createNewStory() {
+        const t = I18n.t.bind(I18n);
+        const templates = ['sidecar', 'tour', 'narrative', 'presentation'];
+
+        const templateCards = templates.map(key => {
+            const tmpl = this._storyTemplates[key];
+            return `<div class="story-template-card ${key === 'sidecar' ? 'active' : ''}" data-template="${key}"
+                onclick="document.querySelectorAll('.story-template-card').forEach(c=>c.classList.remove('active'));this.classList.add('active');document.getElementById('modal-story-template').value='${key}';">
+                <i class="bi ${tmpl.icon}"></i>
+                <strong>${t('story.template_' + key)}</strong>
+                <small>${t('story.template_' + key + '_desc')}</small>
+            </div>`;
+        }).join('');
+
         const result = await this.modal({
-            title: I18n.t('story.new_title'),
+            title: t('story.new_title'),
             body: `
                 <div class="mb-3">
-                    <label class="form-label">${I18n.t('story.title_label')}</label>
+                    <label class="form-label">${t('story.title_label')}</label>
                     <input type="text" class="form-control" id="modal-story-title"
-                           placeholder="${I18n.t('story.title_placeholder')}" required>
+                           placeholder="${t('story.title_placeholder')}" required>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">${I18n.t('story.desc_label')}</label>
+                    <label class="form-label">${t('story.desc_label')}</label>
                     <textarea class="form-control" id="modal-story-desc" rows="2"></textarea>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">${I18n.t('story.visibility')}</label>
+                    <label class="form-label">${t('story.template')}</label>
+                    <div class="story-template-grid">${templateCards}</div>
+                    <input type="hidden" id="modal-story-template" value="sidecar">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">${t('story.visibility')}</label>
                     <select class="form-select" id="modal-story-visibility">
-                        <option value="private">${I18n.t('story.visibility_private')}</option>
-                        <option value="public">${I18n.t('story.visibility_public')}</option>
-                        <option value="unlisted">${I18n.t('story.visibility_unlisted')}</option>
+                        <option value="private">${t('story.visibility_private')}</option>
+                        <option value="public">${t('story.visibility_public')}</option>
+                        <option value="unlisted">${t('story.visibility_unlisted')}</option>
                     </select>
                 </div>
             `,
-            confirmText: I18n.t('action.confirm'),
+            confirmText: t('action.confirm'),
             onConfirm: () => ({
                 title: document.getElementById('modal-story-title')?.value,
                 description: document.getElementById('modal-story-desc')?.value || null,
                 visibility: document.getElementById('modal-story-visibility')?.value || 'private',
+                template: document.getElementById('modal-story-template')?.value || 'sidecar',
             }),
         });
+
         if (!result || !result.title) return;
         try {
-            const story = await Api.createStory(result);
-            this.toast(I18n.t('story.created'), 'success');
+            const story = await Api.createStory({
+                title: result.title,
+                description: result.description,
+                visibility: result.visibility,
+            });
+
+            // Create starter slides from template
+            const tmpl = this._storyTemplates[result.template];
+            if (tmpl) {
+                for (let i = 0; i < tmpl.slides.length; i++) {
+                    const s = tmpl.slides[i];
+                    try {
+                        await Api.createSlide({
+                            story_id: story.id,
+                            title: s.title,
+                            narrative: s.narrative,
+                            layout: s.layout,
+                            sort_order: i,
+                        });
+                    } catch { /* continue with other slides */ }
+                }
+            }
+
+            this.toast(t('story.created'), 'success');
             StoryEditor.load(story.id);
         } catch (err) {
             this.toast(err.message, 'danger');
