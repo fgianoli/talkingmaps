@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     ADMIN_PASSWORD: str = "admin"
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
+    CESIUM_ION_TOKEN: str = ""
+    DEFAULT_STORAGE_LIMIT_MB: int = 1024  # 1GB default per user
 
     @property
     def origins_list(self) -> list[str]:

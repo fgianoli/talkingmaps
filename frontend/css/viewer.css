@@ -266,6 +266,22 @@
     display: none;
 }
 
+/* ── 3D Globe / Point Cloud ─────── */
+.slide-layout-globe-3d .viewer-slide-content,
+.slide-layout-potree-3d .viewer-slide-content {
+    position: absolute;
+    bottom: 40px;
+    left: 24px;
+    right: 24px;
+    max-width: 500px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    backdrop-filter: blur(8px);
+    border-radius: 12px;
+    padding: 20px 24px;
+    z-index: 10;
+}
+
 /* ── Full Media ────────────────────── */
 .slide-layout-full-media {
     position: relative;

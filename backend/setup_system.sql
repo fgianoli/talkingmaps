@@ -58,6 +58,22 @@ CREATE TABLE IF NOT EXISTS symbology_presets (
     position INTEGER DEFAULT 0
 );
 
+-- System settings (admin-configurable key-value)
+CREATE TABLE IF NOT EXISTS system_settings (
+    key VARCHAR(100) PRIMARY KEY,
+    value TEXT NOT NULL DEFAULT '',
+    description TEXT,
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Default settings
+INSERT INTO system_settings (key, value, description) VALUES
+    ('cesium_ion_token', '', 'Cesium Ion access token for 3D tilesets'),
+    ('default_storage_limit_mb', '1024', 'Default storage quota per user in MB'),
+    ('max_upload_size_mb', '50', 'Max single file upload size in MB'),
+    ('analytics_enabled', 'true', 'Enable story view tracking')
+ON CONFLICT DO NOTHING;
+
 -- Default basemaps
 INSERT INTO basemaps (name, type, url, config, position) VALUES
     ('OpenStreetMap', 'xyz', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',

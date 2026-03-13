@@ -13,10 +13,12 @@ const StoryEditor = {
     _autosaveTimer: null,
     _sortable: null,
 
-    // Layouts that include a map
-    _mapLayouts: ['cover', 'side-left', 'side-right', 'center', 'full-map'],
+    // Layouts that include a map (2D or 3D)
+    _mapLayouts: ['cover', 'side-left', 'side-right', 'center', 'full-map', 'globe-3d', 'potree-3d'],
     // Layouts without a map
     _noMapLayouts: ['text-only', 'text-media', 'full-media', 'separator'],
+    // 3D-specific layouts
+    _3dLayouts: ['globe-3d', 'potree-3d'],
 
     _currentSlideHasMap() {
         const slide = this._slides[this._currentSlideIdx];
@@ -100,10 +102,16 @@ const StoryEditor = {
                 </div>
             </div>
 
-            <div class="editor-props-panel" style="resize:horizontal;overflow:auto;min-width:260px;max-width:600px;direction:rtl">
-                <div style="direction:ltr">
+            <div class="editor-props-wrapper">
+                <div class="editor-props-resize-handle" id="editor-props-resize"></div>
+                <div class="editor-props-panel">
                     <div class="editor-props-header">
                         <h3><i class="bi bi-sliders"></i> ${t('editor.props')}</h3>
+                    </div>
+                    <div class="editor-props-tabs" id="editor-props-tabs">
+                        <div class="editor-props-tab active" data-tab="slide"><i class="bi bi-card-text"></i> ${t('editor.tab_slide')}</div>
+                        <div class="editor-props-tab" data-tab="map"><i class="bi bi-map"></i> ${t('editor.tab_map')}</div>
+                        <div class="editor-props-tab" data-tab="media"><i class="bi bi-collection"></i> ${t('editor.tab_media')}</div>
                     </div>
                     <div class="editor-props-body" id="editor-props-body"></div>
                 </div>
@@ -111,6 +119,7 @@ const StoryEditor = {
         `;
 
         this._initEditorMap(data);
+        this._initPropsResize();
         this._renderSlidesList();
         if (this._slides.length > 0) this._selectSlide(0);
         this._bindEvents();
@@ -247,6 +256,7 @@ const StoryEditor = {
                         <small><i class="bi ${icon}"></i> ${I18n.t('layout.' + (slide.layout || 'side-left'))}</small>
                     </div>
                     <div class="slide-actions">
+                        <button class="btn btn-sm btn-outline-light" onclick="StoryEditor._duplicateSlide(${idx})" title="${I18n.t('editor.duplicate_slide')}"><i class="bi bi-copy"></i></button>
                         ${this._slides.length > 1 ? `<button class="btn btn-sm btn-outline-danger" onclick="StoryEditor._deleteSlide(${idx})" title="${I18n.t('action.delete')}"><i class="bi bi-trash"></i></button>` : ''}
                     </div>
                 </div>
@@ -302,284 +312,292 @@ const StoryEditor = {
         const isSeparator = slide.layout === 'separator';
 
         // All available layouts
-        const allLayouts = ['cover', 'side-left', 'side-right', 'center', 'full-map', 'full-media', 'text-only', 'text-media', 'separator'];
+        const allLayouts = ['cover', 'side-left', 'side-right', 'center', 'full-map', 'globe-3d', 'potree-3d', 'full-media', 'text-only', 'text-media', 'separator'];
 
         const currentTheme = this._story?.settings?.theme || 'light';
-        body.innerHTML = `
-            <!-- ═══ STORY THEME ═══ -->
-            <div class="prop-section prop-section-compact">
-                <div class="prop-section-title"><i class="bi bi-palette"></i> ${t('editor.story_theme')}</div>
-                <div class="theme-selector">
-                    ${[
-                        { id: 'light', label: t('editor.theme_light'), icon: 'bi-sun', colors: '#f8fafc,#e2e8f0' },
-                        { id: 'dark', label: t('editor.theme_dark'), icon: 'bi-moon-stars', colors: '#1e293b,#334155' },
-                        { id: 'warm', label: t('editor.theme_warm'), icon: 'bi-brightness-high', colors: '#fef3c7,#fde68a' },
-                        { id: 'cool', label: t('editor.theme_cool'), icon: 'bi-snow', colors: '#e0f2fe,#bae6fd' },
-                    ].map(th => `
-                        <div class="theme-option ${currentTheme === th.id ? 'active' : ''}" data-theme="${th.id}"
-                             onclick="StoryEditor._setStoryTheme('${th.id}')">
-                            <div class="theme-swatch" style="background:linear-gradient(135deg, ${th.colors.split(',')[0]}, ${th.colors.split(',')[1]})"></div>
-                            <span>${th.label}</span>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
 
-            <!-- ═══ QUICK ACTIONS BAR ═══ -->
-            <div class="editor-quick-actions">
-                <div class="prop-section-title"><i class="bi bi-lightning"></i> ${t('editor.quick_actions')}</div>
-                <div class="quick-actions-grid">
-                    <button class="quick-action-btn" onclick="document.getElementById('prop-narrative')?.focus()" title="${t('editor.qa_text')}">
-                        <i class="bi bi-type"></i>
-                        <span>${t('editor.narrative')}</span>
-                    </button>
-                    <button class="quick-action-btn" onclick="StoryEditor._insertImage()">
-                        <i class="bi bi-image"></i>
-                        <span>${t('editor.qa_image')}</span>
-                    </button>
-                    <button class="quick-action-btn" onclick="StoryEditor._insertIframe()">
-                        <i class="bi bi-play-btn"></i>
-                        <span>${t('editor.qa_video')}</span>
-                    </button>
-                    <button class="quick-action-btn" onclick="StoryEditor._insertChart()">
-                        <i class="bi bi-bar-chart-line"></i>
-                        <span>${t('editor.qa_chart')}</span>
-                    </button>
-                    ${hasMap ? `
-                        <button class="quick-action-btn" onclick="StoryEditor._openLayersModal()">
-                            <i class="bi bi-layers"></i>
-                            <span>${t('editor.qa_layer')}</span>
-                        </button>
-                        <button class="quick-action-btn" onclick="StoryEditor._toggleAddMarker()">
-                            <i class="bi bi-geo-alt"></i>
-                            <span>${t('editor.qa_marker')}</span>
-                        </button>
+        // Remember active tab
+        const activeTab = this._activePropsTab || 'slide';
+
+        body.innerHTML = `
+            <!-- ═══════════ TAB: SLIDE ═══════════ -->
+            <div class="editor-tab-content ${activeTab === 'slide' ? 'active' : ''}" data-tab-content="slide">
+
+                <div class="prop-section">
+                    <div class="prop-section-title"><i class="bi bi-grid-1x2"></i> ${t('editor.layout')}</div>
+                    <div class="layout-selector">
+                        ${allLayouts.map(l => `
+                            <div class="layout-option ${slide.layout === l ? 'active' : ''}" data-layout="${l}">
+                                <i class="bi bi-${this._layoutIcon(l)}"></i>
+                                ${t('layout.' + l)}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="prop-section">
+                    <div class="prop-section-title"><i class="bi bi-type-h1"></i> ${t('editor.content')}</div>
+                    <div class="prop-row">
+                        <label>${t('editor.title')}</label>
+                        <input type="text" class="form-control" id="prop-title" value="${App.escHtml(slide.title || '')}" placeholder="${t('editor.title_ph')}">
+                    </div>
+                    ${!isSeparator ? `
+                    <div class="prop-row">
+                        <label>${t('editor.narrative')}</label>
+                        <div class="narrative-toolbar">
+                            <button class="btn" onclick="document.execCommand('bold')" title="Bold"><i class="bi bi-type-bold"></i></button>
+                            <button class="btn" onclick="document.execCommand('italic')" title="Italic"><i class="bi bi-type-italic"></i></button>
+                            <button class="btn" onclick="document.execCommand('insertUnorderedList')" title="List"><i class="bi bi-list-ul"></i></button>
+                            <button class="btn" onclick="document.execCommand('insertOrderedList')" title="Numbered list"><i class="bi bi-list-ol"></i></button>
+                            <button class="btn" onclick="document.execCommand('formatBlock', false, 'h2')" title="H2"><i class="bi bi-type-h2"></i></button>
+                            <button class="btn" onclick="document.execCommand('formatBlock', false, 'h3')" title="H3"><i class="bi bi-type-h3"></i></button>
+                            <button class="btn" onclick="document.execCommand('formatBlock', false, 'blockquote')" title="Quote"><i class="bi bi-quote"></i></button>
+                            <span class="narrative-toolbar-sep"></span>
+                            <select class="narrative-font-select" onchange="document.execCommand('fontName', false, this.value)" title="${t('editor.font')}">
+                                <option value="Ubuntu">Ubuntu</option>
+                                <option value="Playfair Display">Playfair</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Courier New">Courier</option>
+                            </select>
+                            <select class="narrative-size-select" onchange="document.execCommand('fontSize', false, this.value)" title="${t('editor.font_size')}">
+                                <option value="2">S</option>
+                                <option value="3" selected>M</option>
+                                <option value="4">L</option>
+                                <option value="5">XL</option>
+                            </select>
+                            <input type="color" class="narrative-color-pick" onchange="document.execCommand('foreColor', false, this.value)"
+                                   value="#1e293b" title="${t('editor.text_color')}">
+                            <span class="narrative-toolbar-sep"></span>
+                            <button class="btn" onclick="StoryEditor._insertLink()" title="${t('editor.insert_link')}"><i class="bi bi-link-45deg"></i></button>
+                            <button class="btn" onclick="StoryEditor._insertMapLink()" title="${t('editor.link_to_map')}"><i class="bi bi-geo-alt"></i></button>
+                            <button class="btn" onclick="StoryEditor._insertImage()" title="${t('editor.insert_image')}"><i class="bi bi-image"></i></button>
+                            <button class="btn" onclick="StoryEditor._insertIframe()" title="${t('editor.insert_iframe')}"><i class="bi bi-code-square"></i></button>
+                        </div>
+                        <div class="narrative-editor" id="prop-narrative" contenteditable="true">${slide.narrative || ''}</div>
+                    </div>
                     ` : ''}
                 </div>
-            </div>
 
-            <div class="prop-section">
-                <div class="prop-section-title"><i class="bi bi-type-h1"></i> ${t('editor.content')}</div>
-                <div class="prop-row">
-                    <label>${t('editor.title')}</label>
-                    <input type="text" class="form-control" id="prop-title" value="${App.escHtml(slide.title || '')}" placeholder="${t('editor.title_ph')}">
-                </div>
+                <!-- Card style -->
                 ${!isSeparator ? `
-                <div class="prop-row">
-                    <label>${t('editor.narrative')}</label>
-                    <div class="narrative-toolbar">
-                        <button class="btn" onclick="document.execCommand('bold')" title="Bold"><i class="bi bi-type-bold"></i></button>
-                        <button class="btn" onclick="document.execCommand('italic')" title="Italic"><i class="bi bi-type-italic"></i></button>
-                        <button class="btn" onclick="document.execCommand('insertUnorderedList')" title="List"><i class="bi bi-list-ul"></i></button>
-                        <button class="btn" onclick="document.execCommand('insertOrderedList')" title="Numbered list"><i class="bi bi-list-ol"></i></button>
-                        <button class="btn" onclick="document.execCommand('formatBlock', false, 'h2')" title="H2"><i class="bi bi-type-h2"></i></button>
-                        <button class="btn" onclick="document.execCommand('formatBlock', false, 'h3')" title="H3"><i class="bi bi-type-h3"></i></button>
-                        <button class="btn" onclick="document.execCommand('formatBlock', false, 'blockquote')" title="Quote"><i class="bi bi-quote"></i></button>
-                        <span class="narrative-toolbar-sep"></span>
-                        <select class="narrative-font-select" onchange="document.execCommand('fontName', false, this.value)" title="${t('editor.font')}">
-                            <option value="Ubuntu">Ubuntu</option>
-                            <option value="Playfair Display">Playfair</option>
-                            <option value="Georgia">Georgia</option>
-                            <option value="Arial">Arial</option>
-                            <option value="Courier New">Courier</option>
-                        </select>
-                        <select class="narrative-size-select" onchange="document.execCommand('fontSize', false, this.value)" title="${t('editor.font_size')}">
-                            <option value="2">S</option>
-                            <option value="3" selected>M</option>
-                            <option value="4">L</option>
-                            <option value="5">XL</option>
-                        </select>
-                        <input type="color" class="narrative-color-pick" onchange="document.execCommand('foreColor', false, this.value)"
-                               value="#1e293b" title="${t('editor.text_color')}">
-                        <span class="narrative-toolbar-sep"></span>
-                        <button class="btn" onclick="StoryEditor._insertLink()" title="${t('editor.insert_link')}"><i class="bi bi-link-45deg"></i></button>
-                        <button class="btn" onclick="StoryEditor._insertMapLink()" title="${t('editor.link_to_map')}"><i class="bi bi-geo-alt"></i></button>
-                        <button class="btn" onclick="StoryEditor._insertImage()" title="${t('editor.insert_image')}"><i class="bi bi-image"></i></button>
-                        <button class="btn" onclick="StoryEditor._insertIframe()" title="${t('editor.insert_iframe')}"><i class="bi bi-code-square"></i></button>
+                <div class="prop-section">
+                    <div class="prop-section-title"><i class="bi bi-aspect-ratio"></i> ${t('editor.card_style')}</div>
+                    <div class="card-style-selector">
+                        ${['card', 'full-width', 'transparent'].map(s => `
+                            <div class="card-style-option ${(slide.style_overrides?.card_style || 'card') === s ? 'active' : ''}" data-style="${s}">
+                                <i class="bi bi-${s === 'card' ? 'card-text' : s === 'full-width' ? 'distribute-vertical' : 'transparency'}"></i>
+                                <span>${t('editor.card_' + s.replace('-', '_'))}</span>
+                            </div>
+                        `).join('')}
                     </div>
-                    <div class="narrative-editor" id="prop-narrative" contenteditable="true">${slide.narrative || ''}</div>
+                    <div class="prop-row mt-2">
+                        <label>${t('editor.text_align')}</label>
+                        <div class="btn-group w-100" role="group">
+                            ${['left', 'center', 'right'].map(a => `
+                                <button class="btn btn-sm btn-outline-light text-align-btn ${(slide.style_overrides?.text_align || 'left') === a ? 'active' : ''}" data-align="${a}">
+                                    <i class="bi bi-text-${a}"></i>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
                 </div>
                 ` : ''}
-            </div>
 
-            <div class="prop-section">
-                <div class="prop-section-title"><i class="bi bi-grid-1x2"></i> ${t('editor.layout')}</div>
-                <div class="layout-selector">
-                    ${allLayouts.map(l => `
-                        <div class="layout-option ${slide.layout === l ? 'active' : ''}" data-layout="${l}">
-                            <i class="bi bi-${this._layoutIcon(l)}"></i>
-                            ${t('layout.' + l)}
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-
-            <!-- ═══ CARD STYLE (sidecar options) ═══ -->
-            ${!isSeparator ? `
-            <div class="prop-section">
-                <div class="prop-section-title"><i class="bi bi-aspect-ratio"></i> ${t('editor.card_style')}</div>
-                <div class="card-style-selector">
-                    ${['card', 'full-width', 'transparent'].map(s => `
-                        <div class="card-style-option ${(slide.style_overrides?.card_style || 'card') === s ? 'active' : ''}" data-style="${s}">
-                            <i class="bi bi-${s === 'card' ? 'card-text' : s === 'full-width' ? 'distribute-vertical' : 'transparency'}"></i>
-                            <span>${t('editor.card_' + s.replace('-', '_'))}</span>
-                        </div>
-                    `).join('')}
-                </div>
-                <div class="prop-row mt-2">
-                    <label>${t('editor.text_align')}</label>
-                    <div class="btn-group w-100" role="group">
-                        ${['left', 'center', 'right'].map(a => `
-                            <button class="btn btn-sm btn-outline-light text-align-btn ${(slide.style_overrides?.text_align || 'left') === a ? 'active' : ''}" data-align="${a}">
-                                <i class="bi bi-text-${a}"></i>
-                            </button>
-                        `).join('')}
-                    </div>
-                </div>
-            </div>
-            ` : ''}
-
-            ${hasMap ? `
-            <!-- Map section (only for map layouts) -->
-            <div class="prop-section">
-                <div class="prop-section-title"><i class="bi bi-map"></i> ${t('editor.map_view')}</div>
-                <div class="editor-map-hint">
-                    <i class="bi bi-info-circle"></i> ${t('editor.has_map_hint')}
-                </div>
-                <div class="prop-row">
-                    <label>${t('editor.animation')}</label>
-                    <select class="form-select" id="prop-animation">
-                        <option value="flyTo" ${slide.map_animation === 'flyTo' ? 'selected' : ''}>${t('editor.anim_fly')}</option>
-                        <option value="easeTo" ${slide.map_animation === 'easeTo' ? 'selected' : ''}>${t('editor.anim_ease')}</option>
-                        <option value="jumpTo" ${slide.map_animation === 'jumpTo' ? 'selected' : ''}>${t('editor.anim_jump')}</option>
-                    </select>
-                </div>
-                <button class="btn btn-sm btn-outline-primary w-100 mt-2" id="btn-capture-map-state">
-                    <i class="bi bi-camera"></i> ${t('editor.capture_view')}
-                </button>
-                ${slide.map_center ? `
-                    <small class="text-muted d-block mt-1">
-                        ${t('editor.view_set')} ${slide.map_center.lat?.toFixed(3)}, ${slide.map_center.lng?.toFixed(3)} z${slide.map_zoom?.toFixed(1)}
-                    </small>
-                ` : `<small class="text-muted d-block mt-1">${t('editor.no_view')}</small>`}
-            </div>
-
-            <div class="prop-section">
-                <div class="prop-section-title"><i class="bi bi-layers"></i> ${t('editor.layer_vis')}</div>
-                <div class="editor-layers-list" id="prop-layers-list">
-                    ${(this._layers || []).map(l => {
-                        const vis = slide.layer_visibility?.[l.layer_id];
-                        const isVis = vis !== undefined ? vis : l.visible;
-                        return `
-                            <div class="editor-layer-item" data-layer-id="${l.layer_id}">
-                                <i class="bi bi-eye${isVis ? '' : '-slash'} layer-visibility ${isVis ? 'visible' : ''}"
-                                   onclick="StoryEditor._toggleLayerVis(${l.layer_id}, this)"></i>
-                                <span style="flex:1;font-size:13px">${App.escHtml(l.layer_name)}</span>
-                                <button class="btn btn-sm" onclick="StoryEditor._openLayerStyle(${l.layer_id})" title="${t('editor.layer_style')}">
-                                    <i class="bi bi-palette" style="font-size:12px"></i>
-                                </button>
-                                <small class="text-muted">${l.layer_type}</small>
+                <!-- Theme -->
+                <div class="prop-section">
+                    <div class="prop-section-title"><i class="bi bi-palette"></i> ${t('editor.story_theme')}</div>
+                    <div class="theme-selector">
+                        ${[
+                            { id: 'light', label: t('editor.theme_light'), icon: 'bi-sun', colors: '#f8fafc,#e2e8f0' },
+                            { id: 'dark', label: t('editor.theme_dark'), icon: 'bi-moon-stars', colors: '#1e293b,#334155' },
+                            { id: 'warm', label: t('editor.theme_warm'), icon: 'bi-brightness-high', colors: '#fef3c7,#fde68a' },
+                            { id: 'cool', label: t('editor.theme_cool'), icon: 'bi-snow', colors: '#e0f2fe,#bae6fd' },
+                        ].map(th => `
+                            <div class="theme-option ${currentTheme === th.id ? 'active' : ''}" data-theme="${th.id}"
+                                 onclick="StoryEditor._setStoryTheme('${th.id}')">
+                                <div class="theme-swatch" style="background:linear-gradient(135deg, ${th.colors.split(',')[0]}, ${th.colors.split(',')[1]})"></div>
+                                <span>${th.label}</span>
                             </div>
-                        `;
-                    }).join('') || `<small class="text-muted">${t('editor.no_layers')}</small>`}
-                </div>
-                <button class="btn btn-sm btn-outline-light w-100 mt-2" onclick="StoryEditor._openLayersModal()">
-                    <i class="bi bi-plus"></i> ${t('editor.manage_layers')}
-                </button>
-            </div>
-            ` : ''}
-
-            <div class="prop-section">
-                <div class="prop-section-title"><i class="bi bi-image"></i> ${t('editor.bg')}</div>
-                <div class="prop-row">
-                    <label>${t('editor.bg_media')}</label>
-                    <div class="input-group">
-                        <input type="text" class="form-control" id="prop-bg-media" value="${slide.background_media || ''}" placeholder="URL media">
-                        <button class="btn btn-outline-light" onclick="StoryEditor._pickMedia('prop-bg-media')">
-                            <i class="bi bi-folder2-open"></i>
-                        </button>
+                        `).join('')}
                     </div>
                 </div>
-                <div class="prop-row">
-                    <label>${t('editor.bg_opacity')}</label>
-                    <input type="range" class="form-range" id="prop-bg-opacity" min="0" max="1" step="0.05"
-                           value="${slide.background_opacity ?? 1}">
+
+                <div class="prop-section">
+                    <div class="prop-row">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="prop-visible" ${slide.visible !== false ? 'checked' : ''}>
+                            <label class="form-check-label" for="prop-visible">${t('editor.slide_visible')}</label>
+                        </div>
                 </div>
             </div>
+            </div><!-- /tab:slide -->
 
-            ${!isSeparator ? `
-            <div class="prop-section">
-                <div class="prop-section-title"><i class="bi bi-bar-chart-line"></i> ${t('editor.charts')}</div>
-                <div class="chart-editor">
-                    <label class="form-label" style="font-size:12px">${t('editor.chart_config')}</label>
-                    <textarea class="form-control" id="prop-chart-config" rows="4"
-                        placeholder='{"type":"bar","labels":["A","B","C"],"data":[10,20,30]}'
-                        style="font-family:monospace;font-size:11px">${JSON.stringify(slide.style_overrides?.chart || '', null, 2) === '""' ? '' : JSON.stringify(slide.style_overrides?.chart || '', null, 2)}</textarea>
-                    <small class="text-muted">${t('editor.chart_types')}</small>
+            <!-- ═══════════ TAB: MAP ═══════════ -->
+            <div class="editor-tab-content ${activeTab === 'map' ? 'active' : ''}" data-tab-content="map">
+                ${hasMap ? `
+                <div class="prop-section">
+                    <div class="prop-section-title"><i class="bi bi-map"></i> ${t('editor.map_view')}</div>
+                    <div class="editor-map-hint">
+                        <i class="bi bi-info-circle"></i> ${t('editor.has_map_hint')}
+                    </div>
+                    <div class="prop-row">
+                        <label>${t('editor.animation')}</label>
+                        <select class="form-select" id="prop-animation">
+                            <option value="flyTo" ${slide.map_animation === 'flyTo' ? 'selected' : ''}>${t('editor.anim_fly')}</option>
+                            <option value="easeTo" ${slide.map_animation === 'easeTo' ? 'selected' : ''}>${t('editor.anim_ease')}</option>
+                            <option value="jumpTo" ${slide.map_animation === 'jumpTo' ? 'selected' : ''}>${t('editor.anim_jump')}</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary w-100 mt-2" id="btn-capture-map-state">
+                        <i class="bi bi-camera"></i> ${t('editor.capture_view')}
+                    </button>
+                    ${slide.map_center ? `
+                        <small class="text-muted d-block mt-1">
+                            ${t('editor.view_set')} ${slide.map_center.lat?.toFixed(3)}, ${slide.map_center.lng?.toFixed(3)} z${slide.map_zoom?.toFixed(1)}
+                        </small>
+                    ` : `<small class="text-muted d-block mt-1">${t('editor.no_view')}</small>`}
                 </div>
-            </div>
 
-            <!-- ═══ POINT CLOUD (Potree) ═══ -->
-            <div class="prop-section">
-                <div class="prop-section-title"><i class="bi bi-cloud-fill"></i> ${t('editor.potree_title')}</div>
-                <div class="prop-row">
-                    <label>${t('editor.potree_url')}</label>
-                    <input type="text" class="form-control" id="prop-potree-url"
-                           value="${slide.style_overrides?.potree?.url || ''}"
-                           placeholder="https://example.com/pointcloud/metadata.json">
+                <div class="prop-section">
+                    <div class="prop-section-title"><i class="bi bi-layers"></i> ${t('editor.layer_vis')}</div>
+                    <div class="editor-layers-list" id="prop-layers-list">
+                        ${(this._layers || []).map(l => {
+                            const vis = slide.layer_visibility?.[l.layer_id];
+                            const isVis = vis !== undefined ? vis : l.visible;
+                            return `
+                                <div class="editor-layer-item" data-layer-id="${l.layer_id}">
+                                    <i class="bi bi-eye${isVis ? '' : '-slash'} layer-visibility ${isVis ? 'visible' : ''}"
+                                       onclick="StoryEditor._toggleLayerVis(${l.layer_id}, this)"></i>
+                                    <span style="flex:1;font-size:13px">${App.escHtml(l.layer_name)}</span>
+                                    <button class="btn btn-sm" onclick="StoryEditor._openLayerStyle(${l.layer_id})" title="${t('editor.layer_style')}">
+                                        <i class="bi bi-palette" style="font-size:12px"></i>
+                                    </button>
+                                    <small class="text-muted">${l.layer_type}</small>
+                                </div>
+                            `;
+                        }).join('') || `<small class="text-muted">${t('editor.no_layers')}</small>`}
+                    </div>
+                    <button class="btn btn-sm btn-outline-light w-100 mt-2" onclick="StoryEditor._openLayersModal()">
+                        <i class="bi bi-plus"></i> ${t('editor.manage_layers')}
+                    </button>
                 </div>
-                ${slide.style_overrides?.potree?.url ? `
-                <div class="prop-row">
-                    <label>${t('editor.potree_color_mode')}</label>
-                    <select class="form-select" id="prop-potree-color">
-                        ${['rgb', 'height', 'intensity', 'classification'].map(m => `
-                            <option value="${m}" ${(slide.style_overrides?.potree?.colorMode || 'rgb') === m ? 'selected' : ''}>${t('editor.potree_color_' + m)}</option>
-                        `).join('')}
-                    </select>
-                </div>
-                <div class="prop-row">
-                    <label>${t('editor.potree_point_size')} (${slide.style_overrides?.potree?.pointSize || 1})</label>
-                    <input type="range" class="form-range" id="prop-potree-size" min="0.5" max="5" step="0.5"
-                           value="${slide.style_overrides?.potree?.pointSize || 1}">
-                </div>
-                <div class="prop-row">
-                    <label>${t('editor.potree_height')}</label>
-                    <input type="number" class="form-control" id="prop-potree-height" min="200" max="800" step="50"
-                           value="${slide.style_overrides?.potree?.height || 400}" style="width:100px">
+
+                <div class="prop-section">
+                    <div class="prop-section-title"><i class="bi bi-geo-alt"></i> ${t('editor.markers')}</div>
+                    <div class="editor-quick-actions" style="border-bottom:none;margin-bottom:0;padding-bottom:0">
+                        <div class="quick-actions-grid" style="grid-template-columns:1fr 1fr">
+                            <button class="quick-action-btn" onclick="StoryEditor._toggleAddMarker()">
+                                <i class="bi bi-geo-alt-fill"></i>
+                                <span>${t('editor.qa_marker')}</span>
+                            </button>
+                            <button class="quick-action-btn" onclick="StoryEditor._openLayersModal()">
+                                <i class="bi bi-layers-fill"></i>
+                                <span>${t('editor.qa_layer')}</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 ` : `
-                <small class="text-muted"><i class="bi bi-info-circle"></i> ${t('editor.potree_hint')}</small>
+                <div style="text-align:center;padding:40px 20px;color:var(--tm-text-muted)">
+                    <i class="bi bi-map" style="font-size:36px;display:block;margin-bottom:12px;opacity:0.3"></i>
+                    <p style="font-size:13px">${t('editor.map_tab_no_map')}</p>
+                    <button class="btn btn-sm btn-outline-primary" onclick="StoryEditor._switchToMapLayout()">
+                        <i class="bi bi-map"></i> ${t('editor.switch_to_map')}
+                    </button>
+                </div>
                 `}
-            </div>
+            </div><!-- /tab:map -->
 
-            <!-- ═══ 3D TILESET (Cesium) ═══ -->
-            <div class="prop-section">
-                <div class="prop-section-title"><i class="bi bi-badge-3d"></i> ${t('editor.tileset_title')}</div>
-                <div class="prop-row">
-                    <label>${t('editor.tileset_url')}</label>
-                    <input type="text" class="form-control" id="prop-tileset-url"
-                           value="${slide.style_overrides?.tileset3d?.url || ''}"
-                           placeholder="https://example.com/tileset.json">
-                </div>
-                <div class="prop-row">
-                    <label>${t('editor.tileset_ion')}</label>
-                    <input type="text" class="form-control" id="prop-tileset-ion"
-                           value="${slide.style_overrides?.tileset3d?.ionAssetId || ''}"
-                           placeholder="Asset ID (es. 96188)">
-                </div>
-                <small class="text-muted"><i class="bi bi-info-circle"></i> ${t('editor.tileset_hint')}</small>
-            </div>
-            ` : ''}
-
-            <div class="prop-section">
-                <div class="prop-row">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="prop-visible" ${slide.visible !== false ? 'checked' : ''}>
-                        <label class="form-check-label" for="prop-visible">${t('editor.slide_visible')}</label>
+            <!-- ═══════════ TAB: MEDIA ═══════════ -->
+            <div class="editor-tab-content ${activeTab === 'media' ? 'active' : ''}" data-tab-content="media">
+                <div class="prop-section">
+                    <div class="prop-section-title"><i class="bi bi-image"></i> ${t('editor.bg')}</div>
+                    <div class="prop-row">
+                        <label>${t('editor.bg_media')}</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="prop-bg-media" value="${slide.background_media || ''}" placeholder="URL media">
+                            <button class="btn btn-outline-light" onclick="StoryEditor._pickMedia('prop-bg-media')">
+                                <i class="bi bi-folder2-open"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="prop-row">
+                        <label>${t('editor.bg_opacity')}</label>
+                        <input type="range" class="form-range" id="prop-bg-opacity" min="0" max="1" step="0.05"
+                               value="${slide.background_opacity ?? 1}">
                     </div>
                 </div>
-            </div>
+
+                ${!isSeparator ? `
+                <div class="prop-section">
+                    <div class="prop-section-title"><i class="bi bi-bar-chart-line"></i> ${t('editor.charts')}</div>
+                    <div class="chart-editor">
+                        <label class="form-label" style="font-size:12px">${t('editor.chart_config')}</label>
+                        <textarea class="form-control" id="prop-chart-config" rows="4"
+                            placeholder='{"type":"bar","labels":["A","B","C"],"data":[10,20,30]}'
+                            style="font-family:monospace;font-size:11px">${JSON.stringify(slide.style_overrides?.chart || '', null, 2) === '""' ? '' : JSON.stringify(slide.style_overrides?.chart || '', null, 2)}</textarea>
+                        <small class="text-muted">${t('editor.chart_types')}</small>
+                    </div>
+                </div>
+
+                <!-- Point Cloud (Potree) -->
+                <div class="prop-section">
+                    <div class="prop-section-title"><i class="bi bi-cloud-fill"></i> ${t('editor.potree_title')}</div>
+                    <div class="prop-row">
+                        <label>${t('editor.potree_url')}</label>
+                        <input type="text" class="form-control" id="prop-potree-url"
+                               value="${slide.style_overrides?.potree?.url || ''}"
+                               placeholder="https://example.com/pointcloud/metadata.json">
+                    </div>
+                    ${slide.style_overrides?.potree?.url ? `
+                    <div class="prop-row">
+                        <label>${t('editor.potree_color_mode')}</label>
+                        <select class="form-select" id="prop-potree-color">
+                            ${['rgb', 'height', 'intensity', 'classification'].map(m => `
+                                <option value="${m}" ${(slide.style_overrides?.potree?.colorMode || 'rgb') === m ? 'selected' : ''}>${t('editor.potree_color_' + m)}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="prop-row">
+                        <label>${t('editor.potree_point_size')} (${slide.style_overrides?.potree?.pointSize || 1})</label>
+                        <input type="range" class="form-range" id="prop-potree-size" min="0.5" max="5" step="0.5"
+                               value="${slide.style_overrides?.potree?.pointSize || 1}">
+                    </div>
+                    <div class="prop-row">
+                        <label>${t('editor.potree_height')}</label>
+                        <input type="number" class="form-control" id="prop-potree-height" min="200" max="800" step="50"
+                               value="${slide.style_overrides?.potree?.height || 400}" style="width:100px">
+                    </div>
+                    ` : `
+                    <small class="text-muted"><i class="bi bi-info-circle"></i> ${t('editor.potree_hint')}</small>
+                    `}
+                </div>
+
+                <!-- 3D Model (Cesium 3D Tiles) -->
+                <div class="prop-section">
+                    <div class="prop-section-title"><i class="bi bi-badge-3d"></i> ${t('editor.tileset_title')}</div>
+                    <small class="text-muted d-block mb-2"><i class="bi bi-info-circle"></i> ${t('editor.tileset_desc')}</small>
+                    <div class="prop-row">
+                        <label>${t('editor.tileset_url')}</label>
+                        <input type="text" class="form-control" id="prop-tileset-url"
+                               value="${slide.style_overrides?.tileset3d?.url || ''}"
+                               placeholder="https://example.com/tileset.json">
+                    </div>
+                    <div class="prop-row">
+                        <label>${t('editor.tileset_ion')}</label>
+                        <input type="text" class="form-control" id="prop-tileset-ion"
+                               value="${slide.style_overrides?.tileset3d?.ionAssetId || ''}"
+                               placeholder="Asset ID (es. 96188)">
+                    </div>
+                    <small class="text-muted"><i class="bi bi-info-circle"></i> ${t('editor.tileset_hint')}</small>
+                </div>
+                ` : ''}
+            </div><!-- /tab:media -->
         `;
+
+        // ── Tab switching ──
+        this._initPropsTabs();
 
         body.querySelectorAll('.layout-option').forEach(opt => {
             opt.addEventListener('click', () => {
@@ -746,6 +764,8 @@ const StoryEditor = {
         const t = I18n.t.bind(I18n);
         const types = [
             { layout: 'side-left', icon: 'bi-layout-sidebar', key: 'map', color: '#4f6df5' },
+            { layout: 'globe-3d', icon: 'bi-globe-americas', key: 'globe3d', color: '#0ea5e9' },
+            { layout: 'potree-3d', icon: 'bi-cloud-fill', key: 'potree3d', color: '#6366f1' },
             { layout: 'text-only', icon: 'bi-file-text', key: 'text', color: '#10b981' },
             { layout: 'text-media', icon: 'bi-layout-text-sidebar', key: 'media', color: '#f59e0b' },
             { layout: 'full-media', icon: 'bi-image', key: 'fullmedia', color: '#ec4899' },
@@ -813,6 +833,38 @@ const StoryEditor = {
             this._renderSlidesList();
             this._selectSlide(Math.min(idx, this._slides.length - 1));
             App.toast(I18n.t('editor.slide_deleted'), 'success');
+        } catch (err) { App.toast(err.message, 'danger'); }
+    },
+
+    async _duplicateSlide(idx) {
+        const source = this._slides[idx];
+        if (!source) return;
+        try {
+            const result = await Api.createSlide({
+                story_id: this._storyId,
+                title: (source.title || '') + ' (copia)',
+                layout: source.layout,
+            });
+            const newSlide = await Api.getSlide(result.id);
+            // Copy all properties from the source slide
+            const copyFields = {
+                narrative: source.narrative,
+                map_center: source.map_center,
+                map_zoom: source.map_zoom,
+                map_bearing: source.map_bearing,
+                map_pitch: source.map_pitch,
+                map_animation: source.map_animation,
+                background_media: source.background_media,
+                background_opacity: source.background_opacity,
+                style_overrides: source.style_overrides ? JSON.parse(JSON.stringify(source.style_overrides)) : {},
+                layer_visibility: source.layer_visibility ? JSON.parse(JSON.stringify(source.layer_visibility)) : {},
+            };
+            await Api.updateSlide(newSlide.id, copyFields);
+            Object.assign(newSlide, copyFields);
+            this._slides.splice(idx + 1, 0, newSlide);
+            this._renderSlidesList();
+            this._selectSlide(idx + 1);
+            App.toast(I18n.t('editor.slide_duplicated'), 'success');
         } catch (err) { App.toast(err.message, 'danger'); }
     },
 
@@ -1499,10 +1551,73 @@ const StoryEditor = {
         }
     },
 
+    // ── Props Tab Switching ─────────────
+    _activePropsTab: 'slide',
+
+    _initPropsTabs() {
+        const tabs = document.getElementById('editor-props-tabs');
+        if (!tabs) return;
+        // Update active state from stored tab
+        tabs.querySelectorAll('.editor-props-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.tab === this._activePropsTab);
+        });
+        // Only bind once
+        if (!tabs.dataset.bound) {
+            tabs.dataset.bound = '1';
+            tabs.addEventListener('click', (e) => {
+                const tab = e.target.closest('.editor-props-tab');
+                if (!tab) return;
+                this._activePropsTab = tab.dataset.tab;
+                tabs.querySelectorAll('.editor-props-tab').forEach(t => t.classList.toggle('active', t === tab));
+                document.querySelectorAll('.editor-tab-content').forEach(c => {
+                    c.classList.toggle('active', c.dataset.tabContent === tab.dataset.tab);
+                });
+            });
+        }
+    },
+
+    // ── Props Panel Resize (drag from left edge) ──
+    _initPropsResize() {
+        const handle = document.getElementById('editor-props-resize');
+        if (!handle) return;
+        let startX, startWidth;
+        const panelEditor = document.getElementById('panel-editor');
+
+        const onMouseMove = (e) => {
+            const delta = startX - e.clientX;
+            const newWidth = Math.min(Math.max(startWidth + delta, 300), 700);
+            panelEditor.style.setProperty('--editor-props-width', newWidth + 'px');
+        };
+        const onMouseUp = () => {
+            handle.classList.remove('dragging');
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            if (this._map) this._map.resize();
+        };
+        handle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            startX = e.clientX;
+            startWidth = handle.parentElement.getBoundingClientRect().width;
+            handle.classList.add('dragging');
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+    },
+
+    _switchToMapLayout() {
+        const slide = this._slides[this._currentSlideIdx];
+        if (slide) {
+            slide.layout = 'side-left';
+            this._updateMapVisibility();
+            this._renderProps(slide);
+            this._renderSlidesList();
+        }
+    },
+
     _layoutIcon(layout) {
         return { 'cover': 'card-heading', 'side-left': 'layout-sidebar', 'side-right': 'layout-sidebar-reverse',
             'center': 'layout-text-window', 'full-map': 'map', 'full-media': 'image',
             'text-only': 'file-text', 'text-media': 'layout-text-sidebar',
-            'separator': 'hr' }[layout] || 'square';
+            'separator': 'hr', 'globe-3d': 'globe-americas', 'potree-3d': 'cloud-fill' }[layout] || 'square';
     },
 };

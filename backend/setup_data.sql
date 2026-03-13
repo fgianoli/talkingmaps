@@ -107,3 +107,27 @@ CREATE TABLE IF NOT EXISTS media (
 );
 CREATE INDEX IF NOT EXISTS idx_media_owner ON media(owner_id);
 CREATE INDEX IF NOT EXISTS idx_media_story ON media(story_id);
+
+-- Story analytics (view tracking)
+CREATE TABLE IF NOT EXISTS story_views (
+    id SERIAL PRIMARY KEY,
+    story_id INTEGER NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+    viewer_ip VARCHAR(45),
+    user_agent TEXT,
+    referrer TEXT,
+    viewed_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_views_story ON story_views(story_id);
+CREATE INDEX IF NOT EXISTS idx_views_date ON story_views(viewed_at);
+
+-- Story version snapshots
+CREATE TABLE IF NOT EXISTS story_versions (
+    id SERIAL PRIMARY KEY,
+    story_id INTEGER NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+    version_number INTEGER NOT NULL DEFAULT 1,
+    snapshot JSONB NOT NULL,
+    created_by INTEGER,
+    message VARCHAR(500),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_versions_story ON story_versions(story_id);

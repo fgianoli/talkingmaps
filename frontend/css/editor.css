@@ -4,7 +4,7 @@
 
 #panel-editor {
     display: grid;
-    grid-template-columns: 300px 1fr 340px;
+    grid-template-columns: 300px 1fr var(--editor-props-width, 420px);
     height: 100%;
     overflow: hidden;
 }
@@ -183,24 +183,94 @@
 }
 
 /* ── Properties Panel (right) ─────────── */
+.editor-props-wrapper {
+    position: relative;
+    display: flex;
+    overflow: hidden;
+}
+
+.editor-props-resize-handle {
+    width: 5px;
+    cursor: col-resize;
+    background: transparent;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 20;
+    transition: background 0.15s;
+}
+
+.editor-props-resize-handle:hover,
+.editor-props-resize-handle.dragging {
+    background: var(--tm-primary);
+    opacity: 0.5;
+}
+
 .editor-props-panel {
     background: var(--tm-surface);
     border-left: 1px solid var(--tm-border);
-    overflow-y: auto;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-width: 0;
 }
 
 .editor-props-header {
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--tm-border);
+    padding: 10px 16px 0;
 }
 
 .editor-props-header h3 {
     font-size: 14px;
     font-weight: 600;
-    margin: 0;
+    margin: 0 0 8px;
     color: var(--tm-text);
+}
+
+/* ── Prop Tabs ────────────────────────── */
+.editor-props-tabs {
+    display: flex;
+    border-bottom: 2px solid var(--tm-border);
+    padding: 0 16px;
+    gap: 0;
+    overflow-x: auto;
+    flex-shrink: 0;
+}
+
+.editor-props-tab {
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--tm-text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.editor-props-tab:hover {
+    color: var(--tm-text);
+}
+
+.editor-props-tab.active {
+    color: var(--tm-primary);
+    border-bottom-color: var(--tm-primary);
+    font-weight: 600;
+}
+
+.editor-props-tab i {
+    font-size: 13px;
+}
+
+.editor-tab-content {
+    display: none;
+}
+
+.editor-tab-content.active {
+    display: block;
 }
 
 .editor-props-body {
@@ -546,10 +616,14 @@
         margin: 0;
     }
 
-    .editor-props-panel {
+    .editor-props-wrapper {
         border-left: none;
         border-top: 1px solid var(--tm-border);
         max-height: 50vh;
+    }
+
+    .editor-props-resize-handle {
+        display: none;
     }
 }
 

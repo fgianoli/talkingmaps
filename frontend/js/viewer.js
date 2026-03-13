@@ -17,8 +17,9 @@ const StoryViewer = {
     _is3D: false,
     _chartInstances: [],
 
-    // Layouts that show the map
-    _mapLayouts: ['cover', 'side-left', 'side-right', 'center', 'full-map'],
+    // Layouts that show the map (2D or 3D)
+    _mapLayouts: ['cover', 'side-left', 'side-right', 'center', 'full-map', 'globe-3d', 'potree-3d'],
+    _3dLayouts: ['globe-3d', 'potree-3d'],
 
     /**
      * Load and display a full story
@@ -322,6 +323,7 @@ const StoryViewer = {
 
         const layout = slide.layout || 'side-left';
         const hasMap = this._mapLayouts.includes(layout);
+        const is3DLayout = this._3dLayouts.includes(layout);
 
         // Update progress
         document.getElementById('viewer-progress').textContent = `${index + 1} / ${this._slides.length}`;
@@ -335,9 +337,16 @@ const StoryViewer = {
             mapContainer.classList.add('viewer-map-hidden');
         }
 
+        // Auto-switch to 3D for globe-3d/potree-3d layouts, back to 2D for others
+        if (is3DLayout && !this._is3D) {
+            this._toggle3D();
+        } else if (!is3DLayout && this._is3D) {
+            this._toggle3D();
+        }
+
         // Camera animation (only for map layouts)
         if (hasMap && slide.map_center) {
-            if (this._is3D) {
+            if (this._is3D || is3DLayout) {
                 Cesium3D.flyTo({
                     position: [slide.map_center.lng, slide.map_center.lat, this._zoomToHeight(slide.map_zoom || 10)],
                     heading: slide.map_bearing || 0,
@@ -356,6 +365,16 @@ const StoryViewer = {
             }
         } else if (hasMap && slide.map_bounds) {
             TmMap.fitBounds(slide.map_bounds);
+        }
+
+        // Load 3D tilesets for this slide if globe-3d layout
+        if (layout === 'globe-3d' && slide.style_overrides?.tileset3d) {
+            const ts = slide.style_overrides.tileset3d;
+            if (ts.ionAssetId) {
+                Cesium3D.addTileset({ ionAssetId: ts.ionAssetId, id: `slide-${index}-tileset` });
+            } else if (ts.url) {
+                Cesium3D.addTileset({ url: ts.url, id: `slide-${index}-tileset` });
+            }
         }
 
         // Layer visibility for this slide
