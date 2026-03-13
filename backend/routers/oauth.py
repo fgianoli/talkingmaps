@@ -214,6 +214,50 @@ async def github_login(req: OAuthCodeRequest, db: AsyncSession = Depends(get_sys
     return _make_login_response(user)
 
 
+# ── Google OAuth2 (redirect/code flow) ──────
+
+@router.post("/google/code")
+async def google_login_code(req: OAuthCodeRequest, db: AsyncSession = Depends(get_system_db)):
+    """Exchange Google authorization code for user info and login/register."""
+    _validate_redirect_uri(req.redirect_uri)
+    if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
+        raise HTTPException(status_code=501, detail="Google OAuth not configured")
+
+    # Exchange code for tokens
+    async with httpx.AsyncClient(timeout=15) as client:
+        token_resp = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "client_id": settings.GOOGLE_CLIENT_ID,
+                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "code": req.code,
+                "grant_type": "authorization_code",
+                "redirect_uri": req.redirect_uri,
+            },
+        )
+        if token_resp.status_code != 200:
+            print(f"[OAUTH] Google token error: {token_resp.text[:300]}")
+            raise HTTPException(401, "Autenticazione Google fallita. Riprova.")
+        tokens = token_resp.json()
+
+        # Get user info
+        user_resp = await client.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {tokens['access_token']}"},
+        )
+        if user_resp.status_code != 200:
+            raise HTTPException(401, "Impossibile recuperare il profilo Google")
+        profile = user_resp.json()
+
+    email = profile.get("email")
+    if not email:
+        raise HTTPException(400, "Account Google senza email")
+
+    display_name = profile.get("name") or email.split("@")[0]
+    user = await _find_or_create_user(db, email, display_name, "google")
+    return _make_login_response(user)
+
+
 # ── Available providers (for frontend to know which buttons to show) ──────
 
 @router.get("/providers")

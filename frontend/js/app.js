@@ -294,13 +294,19 @@ const App = {
 
     // ── Google OAuth ─────────────────────
     async _googleLogin() {
-        // For now, show a message that Google OAuth requires configuration
-        // The backend endpoint /api/auth/google will handle the actual flow
         try {
+            // Get client_id from backend
+            const config = await Api.get('/api/auth/google/url');
+            const clientId = config.client_id;
+            if (!clientId) {
+                this.toast('Google Sign-In non configurato', 'warning');
+                return;
+            }
+
             // Use Google Identity Services popup
             if (typeof google !== 'undefined' && google.accounts) {
                 google.accounts.id.initialize({
-                    client_id: window.TM_GOOGLE_CLIENT_ID || '',
+                    client_id: clientId,
                     callback: async (response) => {
                         try {
                             const result = await Api.post('/api/auth/google', { credential: response.credential });
@@ -311,19 +317,33 @@ const App = {
                         }
                     },
                 });
-                google.accounts.id.prompt();
+                google.accounts.id.prompt((notification) => {
+                    // If popup is suppressed (e.g. user dismissed), fall back to button
+                    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                        this._googleLoginRedirect(clientId);
+                    }
+                });
             } else {
-                // Fallback: redirect-based OAuth
-                const result = await Api.get('/api/auth/google/url');
-                if (result.url) {
-                    window.location.href = result.url;
-                } else {
-                    this.toast('Google Sign-In non configurato', 'warning');
-                }
+                // GIS library not loaded — use redirect flow
+                this._googleLoginRedirect(clientId);
             }
         } catch (err) {
-            this.toast('Google Sign-In non ancora configurato. Usa username e password.', 'info');
+            this.toast('Google Sign-In non disponibile', 'warning');
         }
+    },
+
+    _googleLoginRedirect(clientId) {
+        const redirectUri = window.location.origin + window.location.pathname;
+        const state = 'google:' + crypto.getRandomValues(new Uint8Array(16)).reduce((s, b) => s + b.toString(16).padStart(2, '0'), '');
+        sessionStorage.setItem('oauth_state', state);
+        const url = 'https://accounts.google.com/o/oauth2/v2/auth' +
+            `?client_id=${encodeURIComponent(clientId)}` +
+            `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+            '&response_type=code' +
+            '&scope=openid%20email%20profile' +
+            `&state=${encodeURIComponent(state)}` +
+            '&prompt=select_account';
+        window.location.href = url;
     },
 
     // ── OAuth providers visibility ─────
@@ -381,14 +401,16 @@ const App = {
 
         // Extract provider from state (format: "provider:csrftoken")
         const provider = state.split(':')[0];
-        if (!['microsoft', 'github'].includes(provider)) return;
+        if (!['google', 'microsoft', 'github'].includes(provider)) return;
 
         // Clean URL
         const cleanUrl = window.location.origin + window.location.pathname;
         window.history.replaceState({}, '', cleanUrl);
 
         try {
-            const result = await Api.post(`/api/oauth/${provider}`, {
+            // Google uses /api/oauth/google/code, others use /api/oauth/{provider}
+            const endpoint = provider === 'google' ? '/api/oauth/google/code' : `/api/oauth/${provider}`;
+            const result = await Api.post(endpoint, {
                 code,
                 redirect_uri: cleanUrl,
             });
