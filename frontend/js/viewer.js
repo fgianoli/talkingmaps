@@ -70,6 +70,40 @@ const StoryViewer = {
             App.toast(I18n.t('editor.share_copied') || 'Link copied!', 'success');
         };
 
+        // Handle hotspot links (data-tm-link clicks)
+        document.getElementById('viewer-narrative').addEventListener('click', (e) => {
+            const link = e.target.closest('[data-tm-link]');
+            if (!link) return;
+            e.preventDefault();
+            const val = link.getAttribute('data-tm-link');
+            if (!val) return;
+            const [type, id] = val.split(':');
+            if (type === 'marker') {
+                const marker = (this._data.markers || []).find(m => String(m.id) === id);
+                if (marker) {
+                    TmMap.flyTo({
+                        center: [marker.lng, marker.lat],
+                        zoom: Math.max(this._map ? TmMap.getState().zoom : 14, 14),
+                        duration: 1500,
+                    });
+                }
+            } else if (type === 'layer') {
+                const layer = (this._data.layers || []).find(l => l.layer_id === id);
+                if (layer) {
+                    TmMap.setLayerVisibility(id, true);
+                    // Brief highlight pulse
+                    const map = TmMap.getMap();
+                    if (map && map.getLayer(id)) {
+                        const origOpacity = map.getPaintProperty(id, 'fill-opacity') || map.getPaintProperty(id, 'line-opacity') || 1;
+                        map.setPaintProperty(id, map.getLayer(id).type === 'line' ? 'line-opacity' : 'fill-opacity', 0.2);
+                        setTimeout(() => {
+                            try { map.setPaintProperty(id, map.getLayer(id).type === 'line' ? 'line-opacity' : 'fill-opacity', origOpacity); } catch {}
+                        }, 800);
+                    }
+                }
+            }
+        });
+
         // Load initial slide
         setTimeout(() => this._onSlideEnter(0), 500);
     },

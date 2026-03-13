@@ -280,6 +280,28 @@ const I18n = {
             'editor.legend': 'Legenda',
             'editor.legend_show': 'Mostra legenda',
 
+            // Map links (hotspot)
+            'editor.link_to_map': 'Collega alla mappa',
+            'editor.link_to_map_hint': 'Seleziona un marker o layer da collegare al testo selezionato',
+            'editor.markers': 'Marker',
+            'editor.layers_header': 'Layer',
+            'editor.no_markers': 'Nessun marker in questa slide',
+
+            // Layer symbology
+            'editor.layer_style': 'Stile layer',
+            'editor.geom_type': 'Tipo geometria',
+            'editor.sym_polygon': 'Poligono',
+            'editor.sym_line': 'Linea',
+            'editor.sym_point': 'Punto',
+            'editor.sym_fill_color': 'Colore riempimento',
+            'editor.sym_fill_opacity': 'Opacità riempimento',
+            'editor.sym_stroke_color': 'Colore bordo',
+            'editor.sym_stroke_width': 'Spessore bordo',
+            'editor.sym_point_color': 'Colore punto',
+            'editor.sym_point_radius': 'Raggio punto',
+            'editor.sym_point_stroke': 'Bordo punto',
+            'editor.style_saved': 'Stile aggiornato',
+
             // Chart wizard
             'chartwiz.title': 'Crea grafico',
             'chartwiz.tab_paste': 'Incolla dati',
@@ -622,6 +644,28 @@ const I18n = {
             'editor.legend': 'Legend',
             'editor.legend_show': 'Show legend',
 
+            // Map links (hotspot)
+            'editor.link_to_map': 'Link to map',
+            'editor.link_to_map_hint': 'Select a marker or layer to link to the selected text',
+            'editor.markers': 'Markers',
+            'editor.layers_header': 'Layers',
+            'editor.no_markers': 'No markers on this slide',
+
+            // Layer symbology
+            'editor.layer_style': 'Layer style',
+            'editor.geom_type': 'Geometry type',
+            'editor.sym_polygon': 'Polygon',
+            'editor.sym_line': 'Line',
+            'editor.sym_point': 'Point',
+            'editor.sym_fill_color': 'Fill color',
+            'editor.sym_fill_opacity': 'Fill opacity',
+            'editor.sym_stroke_color': 'Stroke color',
+            'editor.sym_stroke_width': 'Stroke width',
+            'editor.sym_point_color': 'Point color',
+            'editor.sym_point_radius': 'Point radius',
+            'editor.sym_point_stroke': 'Point stroke',
+            'editor.style_saved': 'Style updated',
+
             'chartwiz.title': 'Create chart',
             'chartwiz.tab_paste': 'Paste data',
             'chartwiz.tab_csv': 'Upload CSV',
@@ -957,6 +1001,28 @@ const I18n = {
             // Legend
             'editor.legend': 'Leyenda',
             'editor.legend_show': 'Mostrar leyenda',
+
+            // Map links (hotspot)
+            'editor.link_to_map': 'Vincular al mapa',
+            'editor.link_to_map_hint': 'Selecciona un marcador o capa para vincular al texto seleccionado',
+            'editor.markers': 'Marcadores',
+            'editor.layers_header': 'Capas',
+            'editor.no_markers': 'No hay marcadores en esta diapositiva',
+
+            // Layer symbology
+            'editor.layer_style': 'Estilo de capa',
+            'editor.geom_type': 'Tipo de geometría',
+            'editor.sym_polygon': 'Polígono',
+            'editor.sym_line': 'Línea',
+            'editor.sym_point': 'Punto',
+            'editor.sym_fill_color': 'Color de relleno',
+            'editor.sym_fill_opacity': 'Opacidad de relleno',
+            'editor.sym_stroke_color': 'Color de borde',
+            'editor.sym_stroke_width': 'Ancho de borde',
+            'editor.sym_point_color': 'Color de punto',
+            'editor.sym_point_radius': 'Radio de punto',
+            'editor.sym_point_stroke': 'Borde de punto',
+            'editor.style_saved': 'Estilo actualizado',
 
             'chartwiz.title': 'Crear gráfico',
             'chartwiz.tab_paste': 'Pegar datos',

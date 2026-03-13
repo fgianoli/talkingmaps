@@ -564,6 +564,15 @@ body:not(.is-admin) .admin-only { display: none !important; }
     color: var(--tm-primary);
 }
 
+.landing-nav-github {
+    font-size: 20px !important;
+    color: var(--tm-text) !important;
+}
+
+.landing-nav-github:hover {
+    color: var(--tm-primary) !important;
+}
+
 .landing-hero {
     padding: 140px 32px 80px;
     text-align: center;

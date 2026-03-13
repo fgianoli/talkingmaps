@@ -393,6 +393,7 @@ const StoryEditor = {
                                value="#1e293b" title="${t('editor.text_color')}">
                         <span class="narrative-toolbar-sep"></span>
                         <button class="btn" onclick="StoryEditor._insertLink()" title="${t('editor.insert_link')}"><i class="bi bi-link-45deg"></i></button>
+                        <button class="btn" onclick="StoryEditor._insertMapLink()" title="${t('editor.link_to_map')}"><i class="bi bi-geo-alt"></i></button>
                         <button class="btn" onclick="StoryEditor._insertImage()" title="${t('editor.insert_image')}"><i class="bi bi-image"></i></button>
                         <button class="btn" onclick="StoryEditor._insertIframe()" title="${t('editor.insert_iframe')}"><i class="bi bi-code-square"></i></button>
                     </div>
@@ -474,6 +475,9 @@ const StoryEditor = {
                                 <i class="bi bi-eye${isVis ? '' : '-slash'} layer-visibility ${isVis ? 'visible' : ''}"
                                    onclick="StoryEditor._toggleLayerVis(${l.layer_id}, this)"></i>
                                 <span style="flex:1;font-size:13px">${App.escHtml(l.layer_name)}</span>
+                                <button class="btn btn-sm" onclick="StoryEditor._openLayerStyle(${l.layer_id})" title="${t('editor.layer_style')}">
+                                    <i class="bi bi-palette" style="font-size:12px"></i>
+                                </button>
                                 <small class="text-muted">${l.layer_type}</small>
                             </div>
                         `;
@@ -769,6 +773,207 @@ const StoryEditor = {
         const editor = document.getElementById('prop-narrative');
         if (editor) {
             editor.innerHTML += `<div class="slide-iframe-container"><iframe src="${App.escHtml(url)}" style="width:100%;height:400px;border:none;" allow="fullscreen" loading="lazy"></iframe></div>`;
+        }
+    },
+
+    // ── Link to map element ──────────────
+    async _insertMapLink() {
+        const t = I18n.t.bind(I18n);
+        const slide = this._slides[this._currentSlideIdx];
+        if (!slide) return;
+
+        // Gather available targets: markers + layers
+        const fullSlide = await Api.getSlide(slide.id);
+        const markers = fullSlide.markers || [];
+
+        let itemsHtml = '<div class="map-link-list">';
+        itemsHtml += `<h6><i class="bi bi-geo-alt"></i> ${t('editor.markers')}</h6>`;
+        if (markers.length) {
+            markers.forEach(m => {
+                const parsed = TmMap._parseIcon ? TmMap._parseIcon(m.icon) : { icon: 'geo-alt-fill' };
+                itemsHtml += `<div class="map-link-item" data-type="marker" data-id="${m.id}" data-lng="${m.lng}" data-lat="${m.lat}">
+                    <i class="bi bi-${parsed.icon}" style="color:${m.color || '#e74c3c'}"></i>
+                    <span>${App.escHtml(m.title || 'Marker #' + m.id)}</span>
+                </div>`;
+            });
+        } else {
+            itemsHtml += `<small class="text-muted">${t('editor.no_markers')}</small>`;
+        }
+
+        itemsHtml += `<h6 class="mt-3"><i class="bi bi-layers"></i> ${t('editor.layers_header')}</h6>`;
+        if (this._layers?.length) {
+            this._layers.forEach(l => {
+                itemsHtml += `<div class="map-link-item" data-type="layer" data-id="${l.layer_id}">
+                    <i class="bi bi-stack" style="color:var(--tm-primary)"></i>
+                    <span>${App.escHtml(l.layer_name)}</span>
+                </div>`;
+            });
+        } else {
+            itemsHtml += `<small class="text-muted">${t('editor.no_layers')}</small>`;
+        }
+        itemsHtml += '</div>';
+
+        const result = await App.modal({
+            title: t('editor.link_to_map'),
+            body: `
+                <p style="font-size:13px;color:var(--tm-text-muted)">${t('editor.link_to_map_hint')}</p>
+                ${itemsHtml}
+            `,
+            confirmText: t('action.confirm'),
+            onConfirm: () => {
+                const active = document.querySelector('.map-link-item.active');
+                if (!active) return null;
+                return { type: active.dataset.type, id: active.dataset.id, lng: active.dataset.lng, lat: active.dataset.lat };
+            },
+        });
+
+        // Setup click handlers on items after modal opens
+        setTimeout(() => {
+            document.querySelectorAll('.map-link-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    document.querySelectorAll('.map-link-item').forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                });
+            });
+        }, 150);
+
+        if (!result) return;
+
+        // Insert the link at cursor in narrative editor
+        const sel = window.getSelection();
+        const selectedText = sel?.toString() || result.type + ':' + result.id;
+        const link = `<a href="#" class="tm-map-link" data-tm-link="${result.type}:${result.id}" data-lng="${result.lng || ''}" data-lat="${result.lat || ''}" style="color:#4f6df5;text-decoration:underline;cursor:pointer">${App.escHtml(selectedText)}</a>`;
+
+        const editor = document.getElementById('prop-narrative');
+        if (editor) {
+            document.execCommand('insertHTML', false, link);
+        }
+    },
+
+    // ── Layer Symbology Editor ───────────
+    async _openLayerStyle(layerId) {
+        const t = I18n.t.bind(I18n);
+        const layer = this._layers.find(l => l.layer_id === layerId);
+        if (!layer) return;
+
+        const currentStyle = layer.custom_style && Object.keys(layer.custom_style).length
+            ? layer.custom_style
+            : (layer.style_config || {});
+        const paint = currentStyle.paint || {};
+        const layerType = currentStyle.type || 'fill';
+
+        // Detect geometry type from current style
+        const isFill = layerType === 'fill' || paint['fill-color'];
+        const isLine = layerType === 'line' || paint['line-color'];
+        const isCircle = layerType === 'circle' || paint['circle-color'];
+
+        const fillColor = paint['fill-color'] || '#4f6df5';
+        const fillOpacity = paint['fill-opacity'] ?? 0.4;
+        const lineColor = paint['line-color'] || '#333333';
+        const lineWidth = paint['line-width'] ?? 2;
+        const circleColor = paint['circle-color'] || '#e74c3c';
+        const circleRadius = paint['circle-radius'] ?? 6;
+        const circleStrokeColor = paint['circle-stroke-color'] || '#ffffff';
+        const circleStrokeWidth = paint['circle-stroke-width'] ?? 2;
+
+        const result = await App.modal({
+            title: `${t('editor.layer_style')}: ${layer.layer_name}`,
+            size: 'lg',
+            body: `
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">${t('editor.geom_type')}</label>
+                        <select class="form-select" id="sym-geom-type">
+                            <option value="fill" ${isFill ? 'selected' : ''}>${t('editor.sym_polygon')}</option>
+                            <option value="line" ${isLine && !isFill ? 'selected' : ''}>${t('editor.sym_line')}</option>
+                            <option value="circle" ${isCircle ? 'selected' : ''}>${t('editor.sym_point')}</option>
+                        </select>
+                    </div>
+
+                    <!-- Polygon -->
+                    <div class="col-6" id="sym-fill-section">
+                        <label class="form-label">${t('editor.sym_fill_color')}</label>
+                        <input type="color" class="form-control form-control-color w-100" id="sym-fill-color" value="${fillColor}">
+                    </div>
+                    <div class="col-6" id="sym-fill-opacity-section">
+                        <label class="form-label">${t('editor.sym_fill_opacity')}</label>
+                        <input type="range" class="form-range" id="sym-fill-opacity" min="0" max="1" step="0.05" value="${fillOpacity}">
+                    </div>
+
+                    <!-- Line -->
+                    <div class="col-6">
+                        <label class="form-label">${t('editor.sym_stroke_color')}</label>
+                        <input type="color" class="form-control form-control-color w-100" id="sym-line-color" value="${lineColor}">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">${t('editor.sym_stroke_width')}</label>
+                        <input type="number" class="form-control" id="sym-line-width" min="0.5" max="20" step="0.5" value="${lineWidth}">
+                    </div>
+
+                    <!-- Circle (points) -->
+                    <div class="col-4" id="sym-circle-section">
+                        <label class="form-label">${t('editor.sym_point_color')}</label>
+                        <input type="color" class="form-control form-control-color w-100" id="sym-circle-color" value="${circleColor}">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">${t('editor.sym_point_radius')}</label>
+                        <input type="number" class="form-control" id="sym-circle-radius" min="2" max="30" value="${circleRadius}">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">${t('editor.sym_point_stroke')}</label>
+                        <input type="color" class="form-control form-control-color w-100" id="sym-circle-stroke" value="${circleStrokeColor}">
+                    </div>
+                </div>
+            `,
+            confirmText: t('action.save'),
+            onConfirm: () => {
+                const geomType = document.getElementById('sym-geom-type')?.value || 'fill';
+                const style = { type: geomType, paint: {} };
+
+                if (geomType === 'fill') {
+                    style.paint['fill-color'] = document.getElementById('sym-fill-color')?.value;
+                    style.paint['fill-opacity'] = parseFloat(document.getElementById('sym-fill-opacity')?.value);
+                    style.paint['fill-outline-color'] = document.getElementById('sym-line-color')?.value;
+                }
+                if (geomType === 'line' || geomType === 'fill') {
+                    style.paint['line-color'] = document.getElementById('sym-line-color')?.value;
+                    style.paint['line-width'] = parseFloat(document.getElementById('sym-line-width')?.value);
+                }
+                if (geomType === 'circle') {
+                    style.paint['circle-color'] = document.getElementById('sym-circle-color')?.value;
+                    style.paint['circle-radius'] = parseFloat(document.getElementById('sym-circle-radius')?.value);
+                    style.paint['circle-stroke-color'] = document.getElementById('sym-circle-stroke')?.value;
+                    style.paint['circle-stroke-width'] = parseFloat(document.getElementById('sym-line-width')?.value) || 2;
+                }
+                return style;
+            },
+        });
+
+        if (!result) return;
+
+        // Apply style to map immediately
+        try {
+            const map = TmMap.getMap();
+            const mlLayerId = `layer-${layerId}`;
+            if (map?.getLayer(mlLayerId)) {
+                // Remove old layer and re-add with new style
+                TmMap.removeLayer(layerId);
+                TmMap.addLayer({
+                    id: layerId,
+                    layer_type: layer.layer_type,
+                    source_config: layer.source_config,
+                    style_config: result,
+                    opacity: layer.opacity,
+                });
+            }
+
+            // Save to API
+            await Api.updateLayer(layerId, { style_config: result });
+            layer.custom_style = result;
+            layer.style_config = result;
+            App.toast(t('editor.style_saved'), 'success');
+        } catch (err) {
+            App.toast(err.message, 'danger');
         }
     },
 
