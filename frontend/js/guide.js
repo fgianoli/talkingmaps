@@ -41,7 +41,7 @@ const Guide = {
             <div id="guide-card" style="
                 background:white;border-radius:16px;padding:32px;
                 max-width:440px;width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.15);
-                text-align:center;position:relative;
+                text-align:center;position:relative;z-index:50010;
             ">
                 <div id="guide-step-indicator" style="margin-bottom:16px;display:flex;gap:6px;justify-content:center"></div>
                 <h3 id="guide-title" style="font-family:var(--tm-font-display);font-size:22px;margin:0 0 8px;color:#1e293b"></h3>
@@ -90,7 +90,19 @@ const Guide = {
         document.getElementById('guide-next')?.addEventListener('click', () => { this._step++; this._showStep(); });
         document.getElementById('guide-finish')?.addEventListener('click', () => this._close());
 
-        // Highlight target
+        // Clean up all previous highlights first
+        this._steps.forEach(s => {
+            if (s.target) {
+                const el = document.querySelector(s.target);
+                if (el) {
+                    el.style.zIndex = '';
+                    el.style.boxShadow = '';
+                    el.style.pointerEvents = '';
+                }
+            }
+        });
+
+        // Highlight target (visible but non-interactive so it doesn't block the guide card)
         if (step.target) {
             const target = document.querySelector(step.target);
             if (target) {
@@ -98,16 +110,7 @@ const Guide = {
                 target.style.zIndex = '50001';
                 target.style.boxShadow = '0 0 0 4px rgba(79,109,245,0.3)';
                 target.style.borderRadius = '8px';
-                // Clean up previous highlights
-                this._steps.forEach(s => {
-                    if (s.target && s.target !== step.target) {
-                        const el = document.querySelector(s.target);
-                        if (el) {
-                            el.style.zIndex = '';
-                            el.style.boxShadow = '';
-                        }
-                    }
-                });
+                target.style.pointerEvents = 'none';
             }
         }
     },
@@ -121,6 +124,7 @@ const Guide = {
                 if (el) {
                     el.style.zIndex = '';
                     el.style.boxShadow = '';
+                    el.style.pointerEvents = '';
                 }
             }
         });
