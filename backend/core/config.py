@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     ADMIN_PASSWORD: str = "admin"
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
+    MICROSOFT_CLIENT_ID: str = ""
+    MICROSOFT_CLIENT_SECRET: str = ""
+    MICROSOFT_TENANT_ID: str = "common"
+    GITHUB_CLIENT_ID: str = ""
+    GITHUB_CLIENT_SECRET: str = ""
     CESIUM_ION_TOKEN: str = ""
     DEFAULT_STORAGE_LIMIT_MB: int = 1024  # 1GB default per user
 
@@ -26,3 +31,20 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Startup security checks
+_INSECURE_SECRETS = {"changeme", "changeme-generate-a-random-secret-key", "secret", ""}
+if settings.SECRET_KEY.lower().replace("-", "").replace("_", "") in {"changeme", "changemegeneratearandomsecretkey", "secret", ""}:
+    import warnings
+    warnings.warn(
+        "\n⚠️  SECURITY WARNING: SECRET_KEY is set to a default/insecure value!\n"
+        "   Generate a strong key: python -c \"import secrets; print(secrets.token_hex(32))\"\n",
+        stacklevel=1,
+    )
+if settings.ADMIN_PASSWORD in ("admin", "password", "changeme", "123456"):
+    import warnings
+    warnings.warn(
+        "\n⚠️  SECURITY WARNING: ADMIN_PASSWORD is set to a weak default value!\n"
+        "   Change it in your .env file before deploying to production.\n",
+        stacklevel=1,
+    )

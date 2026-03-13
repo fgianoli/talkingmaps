@@ -16,3 +16,6 @@ aiofiles==24.1.0
 fiona==1.10.1
 pyproj==3.7.0
 google-auth==2.36.0
+laspy[laszip]==2.5.4
+py3dtiles==7.0.0
+cryptography==43.0.0

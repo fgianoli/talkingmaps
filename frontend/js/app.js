@@ -4,6 +4,8 @@
  */
 const App = {
     currentPanel: null,
+    embedMode: false,
+    embedOptions: {},
 
     async init() {
         I18n.init();
@@ -18,6 +20,19 @@ const App = {
         this._updateI18nTexts();
 
         const params = new URLSearchParams(window.location.search);
+
+        // Embed mode: load story without UI chrome
+        if (params.has('embed')) {
+            this.embedMode = true;
+            this.embedOptions = {
+                theme: params.get('theme') || null,
+                autoplay: params.get('autoplay') === 'true',
+                controls: params.get('controls') || 'full',
+            };
+            this._loadEmbed(params.get('embed'));
+            return;
+        }
+
         if (params.has('story')) { this._viewPublicStory(params.get('story')); return; }
         if (params.has('share')) { this._viewSharedStory(params.get('share')); return; }
 
@@ -28,6 +43,7 @@ const App = {
         }
 
         this._bindEvents();
+        this._loadOAuthProviders();
 
         // Cookie consent
         if (typeof CookieConsent !== 'undefined') CookieConsent.init();
@@ -44,11 +60,8 @@ const App = {
         const loginBtn = document.getElementById('login-submit-btn');
         if (loginBtn) loginBtn.textContent = t('app.login');
 
-        const googleDivText = document.getElementById('google-divider-text');
-        if (googleDivText) googleDivText.textContent = t('app.or');
-
-        const googleBtnText = document.getElementById('google-btn-text');
-        if (googleBtnText) googleBtnText.textContent = t('app.google_login');
+        const oauthDivText = document.getElementById('oauth-divider-text');
+        if (oauthDivText) oauthDivText.textContent = t('app.or');
 
         const exploreText = document.getElementById('explore-public-text');
         if (exploreText) exploreText.textContent = t('app.explore_public');
@@ -62,6 +75,8 @@ const App = {
         document.querySelectorAll('.nav-text-media').forEach(el => el.textContent = t('nav.media'));
         document.querySelectorAll('.nav-text-users').forEach(el => el.textContent = t('nav.users'));
         document.querySelectorAll('.nav-text-basemaps').forEach(el => el.textContent = t('nav.basemaps'));
+        document.querySelectorAll('.nav-text-settings').forEach(el => el.textContent = t('nav.settings'));
+        document.querySelectorAll('.nav-text-account').forEach(el => el.textContent = t('nav.account'));
         document.querySelectorAll('.nav-text-logout').forEach(el => el.textContent = t('app.logout'));
 
         // Landing page
@@ -107,6 +122,9 @@ const App = {
         const authors = document.getElementById('landing-authors');
         if (authors) authors.textContent = t('landing.authors');
 
+        const sponsor = document.getElementById('landing-sponsor');
+        if (sponsor) sponsor.innerHTML = `${t('landing.sponsor')} <a href="https://studiogis.eu" target="_blank" style="color:#60a5fa;text-decoration:none;font-weight:600">StudioGIS.eu</a>`;
+
         // Features grid
         const grid = document.getElementById('landing-features-grid');
         if (grid) {
@@ -117,6 +135,7 @@ const App = {
                 { icon: 'bi-people', color: 'green', key: 'collab' },
                 { icon: 'bi-github', color: 'pink', key: 'open' },
                 { icon: 'bi-cloud-arrow-up', color: 'teal', key: 'lidar' },
+                { icon: 'bi-robot', color: 'yellow', key: 'ai' },
             ];
             grid.innerHTML = features.map(f => `
                 <div class="feature-card">
@@ -177,6 +196,8 @@ const App = {
             case 'media': MediaLibrary.load(); break;
             case 'users': Dashboard.loadUsers(); break;
             case 'basemaps': Dashboard.loadBasemaps(); break;
+            case 'settings': Dashboard.loadSettings(); break;
+            case 'account': Dashboard.loadAccount(); break;
         }
     },
 
@@ -199,10 +220,13 @@ const App = {
             }
         });
 
-        // Google Sign-In
-        document.getElementById('btn-google-login')?.addEventListener('click', () => {
-            this._googleLogin();
-        });
+        // OAuth Sign-In
+        document.getElementById('btn-google-login')?.addEventListener('click', () => this._googleLogin());
+        document.getElementById('btn-microsoft-login')?.addEventListener('click', () => this._oauthLogin('microsoft'));
+        document.getElementById('btn-github-login')?.addEventListener('click', () => this._oauthLogin('github'));
+
+        // Check for OAuth callback
+        this._handleOAuthCallback();
 
         // Landing page buttons
         document.getElementById('landing-cta-start')?.addEventListener('click', () => this.showLogin());
@@ -215,6 +239,8 @@ const App = {
         document.getElementById('btn-media-library')?.addEventListener('click', (e) => { e.preventDefault(); this.showPanel('media'); });
         document.getElementById('btn-users-admin')?.addEventListener('click', (e) => { e.preventDefault(); this.showPanel('users'); });
         document.getElementById('btn-basemaps-admin')?.addEventListener('click', (e) => { e.preventDefault(); this.showPanel('basemaps'); });
+        document.getElementById('btn-settings-admin')?.addEventListener('click', (e) => { e.preventDefault(); this.showPanel('settings'); });
+        document.getElementById('btn-account')?.addEventListener('click', (e) => { e.preventDefault(); this.showPanel('account'); });
 
         document.getElementById('btn-logout')?.addEventListener('click', async (e) => {
             e.preventDefault();
@@ -297,6 +323,80 @@ const App = {
             }
         } catch (err) {
             this.toast('Google Sign-In non ancora configurato. Usa username e password.', 'info');
+        }
+    },
+
+    // ── OAuth providers visibility ─────
+    async _loadOAuthProviders() {
+        try {
+            const providers = await Api.get('/api/oauth/providers');
+            if (!providers.google) document.getElementById('btn-google-login')?.classList.add('d-none');
+            if (!providers.microsoft) document.getElementById('btn-microsoft-login')?.classList.add('d-none');
+            if (!providers.github) document.getElementById('btn-github-login')?.classList.add('d-none');
+            // Hide entire divider if no providers configured
+            if (!providers.google && !providers.microsoft && !providers.github) {
+                document.getElementById('oauth-divider')?.classList.add('d-none');
+                document.getElementById('oauth-buttons')?.classList.add('d-none');
+            }
+        } catch { /* ignore — show all buttons by default */ }
+    },
+
+    // ── Microsoft / GitHub OAuth (redirect flow) ─────
+    async _oauthLogin(provider) {
+        try {
+            const info = await Api.get(`/api/oauth/${provider}/url`);
+            const redirectUri = `${window.location.origin}${window.location.pathname}`;
+            // Generate cryptographic CSRF state token
+            const stateBytes = crypto.getRandomValues(new Uint8Array(16));
+            const csrfToken = Array.from(stateBytes, b => b.toString(16).padStart(2, '0')).join('');
+            const stateParam = `${provider}:${csrfToken}`;
+            sessionStorage.setItem('oauth_state', stateParam);
+            let url;
+            if (provider === 'microsoft') {
+                url = `${info.url}?client_id=${info.client_id}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=openid+email+profile&state=${encodeURIComponent(stateParam)}`;
+            } else if (provider === 'github') {
+                url = `${info.url}?client_id=${info.client_id}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user:email&state=${encodeURIComponent(stateParam)}`;
+            }
+            if (url) window.location.href = url;
+        } catch (err) {
+            this.toast(`${provider} Sign-In non configurato. Usa username e password.`, 'info');
+        }
+    },
+
+    async _handleOAuthCallback() {
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        const state = params.get('state');
+        if (!code || !state) return;
+
+        // Validate CSRF state token
+        const savedState = sessionStorage.getItem('oauth_state');
+        sessionStorage.removeItem('oauth_state');
+        if (!savedState || savedState !== state) {
+            this.toast('OAuth state mismatch — possible CSRF attack', 'danger');
+            const cleanUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, '', cleanUrl);
+            return;
+        }
+
+        // Extract provider from state (format: "provider:csrftoken")
+        const provider = state.split(':')[0];
+        if (!['microsoft', 'github'].includes(provider)) return;
+
+        // Clean URL
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+
+        try {
+            const result = await Api.post(`/api/oauth/${provider}`, {
+                code,
+                redirect_uri: cleanUrl,
+            });
+            Api.setSession(result.access_token, result.user);
+            this.showApp();
+        } catch (err) {
+            this.toast(`${provider} login failed: ${err.message}`, 'danger');
+            this.showLogin();
         }
     },
 
@@ -457,6 +557,33 @@ const App = {
         Dashboard.loadPublic();
     },
 
+    async _loadEmbed(storyId) {
+        try {
+            const data = await Api.get(`/api/stories/${storyId}/embed`);
+            // Hide all UI except viewer
+            document.getElementById('landing-page').classList.add('d-none');
+            document.getElementById('login-screen').classList.add('d-none');
+            document.getElementById('app').classList.add('d-none');
+            document.getElementById('main-navbar')?.classList.add('d-none');
+
+            // Apply embed theme override if specified
+            if (this.embedOptions.theme) {
+                data.story.settings = { ...(data.story.settings || {}), theme: this.embedOptions.theme };
+            }
+
+            // Add embed-mode class to viewer
+            const viewer = document.getElementById('story-viewer');
+            viewer.classList.add('embed-mode');
+            if (this.embedOptions.controls === 'minimal') {
+                viewer.classList.add('embed-minimal');
+            }
+
+            StoryViewer.load(data);
+        } catch (err) {
+            document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#94a3b8;font-family:sans-serif">Story not found</div>';
+        }
+    },
+
     // ══ Modal System ══════════════════════
     modal(opts) {
         return new Promise((resolve) => {
@@ -579,6 +706,22 @@ const App = {
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
+    },
+
+    /** Sanitize user-generated HTML (narratives, popups) via DOMPurify */
+    sanitize(html) {
+        if (!html) return '';
+        if (typeof DOMPurify !== 'undefined') {
+            return DOMPurify.sanitize(html, {
+                ALLOWED_TAGS: ['h1','h2','h3','h4','h5','h6','p','br','strong','b','em','i','u','s',
+                    'a','ul','ol','li','blockquote','pre','code','img','table','thead','tbody',
+                    'tr','th','td','hr','span','div','figure','figcaption','sup','sub','small'],
+                ALLOWED_ATTR: ['href','src','alt','title','class','style','target','width','height',
+                    'colspan','rowspan'],
+                ALLOW_DATA_ATTR: false,
+            });
+        }
+        return html;
     },
 
     formatDate(dateStr) {

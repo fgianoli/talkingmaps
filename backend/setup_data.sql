@@ -108,6 +108,24 @@ CREATE TABLE IF NOT EXISTS media (
 CREATE INDEX IF NOT EXISTS idx_media_owner ON media(owner_id);
 CREATE INDEX IF NOT EXISTS idx_media_story ON media(story_id);
 
+-- 3D Assets (point clouds, meshes, tilesets, terrain)
+CREATE TABLE IF NOT EXISTS assets_3d (
+    id SERIAL PRIMARY KEY,
+    asset_id VARCHAR(20) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(30) NOT NULL,   -- pointcloud, mesh, tileset, terrain, kml
+    format VARCHAR(10) NOT NULL,     -- .las, .glb, .zip, etc.
+    file_size BIGINT,
+    serve_url VARCHAR(500),
+    viewer_type VARCHAR(20),         -- cesium, potree
+    original_filename VARCHAR(500),
+    info JSONB DEFAULT '{}',         -- conversion results, bounds, point count, etc.
+    owner_id INTEGER,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_assets3d_owner ON assets_3d(owner_id);
+CREATE INDEX IF NOT EXISTS idx_assets3d_category ON assets_3d(category);
+
 -- Story analytics (view tracking)
 CREATE TABLE IF NOT EXISTS story_views (
     id SERIAL PRIMARY KEY,
@@ -119,6 +137,19 @@ CREATE TABLE IF NOT EXISTS story_views (
 );
 CREATE INDEX IF NOT EXISTS idx_views_story ON story_views(story_id);
 CREATE INDEX IF NOT EXISTS idx_views_date ON story_views(viewed_at);
+
+-- Story collaborators (per-story sharing with roles)
+CREATE TABLE IF NOT EXISTS story_collaborators (
+    id SERIAL PRIMARY KEY,
+    story_id INTEGER NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL,  -- soft ref to system.users
+    role VARCHAR(20) NOT NULL DEFAULT 'viewer',  -- 'editor', 'viewer'
+    created_at TIMESTAMP DEFAULT NOW(),
+    created_by INTEGER,  -- who invited them (soft ref)
+    UNIQUE(story_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_collaborators_story ON story_collaborators(story_id);
+CREATE INDEX IF NOT EXISTS idx_collaborators_user ON story_collaborators(user_id);
 
 -- Story version snapshots
 CREATE TABLE IF NOT EXISTS story_versions (

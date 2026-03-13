@@ -17,6 +17,13 @@ const StoryViewer = {
     _is3D: false,
     _chartInstances: [],
 
+    // Timeline state
+    _timelineInterval: null,
+    _timelinePlaying: false,
+
+    // Audio state
+    _currentAudio: null,
+
     // Layouts that show the map (2D or 3D)
     _mapLayouts: ['cover', 'side-left', 'side-right', 'center', 'full-map', 'globe-3d', 'potree-3d'],
     _3dLayouts: ['globe-3d', 'potree-3d'],
@@ -36,6 +43,17 @@ const StoryViewer = {
         // Apply story theme
         const theme = data.story.settings?.theme || 'light';
         viewer.setAttribute('data-theme', theme);
+
+        // Embed mode: hide toolbar/close button
+        if (App.embedMode) {
+            const toolbar = document.getElementById('viewer-toolbar');
+            if (toolbar) toolbar.classList.add('d-none');
+            const closeBtn = document.getElementById('viewer-close');
+            if (closeBtn) closeBtn.classList.add('d-none');
+        }
+
+        // Inject custom CSS if present
+        this._injectCustomCSS(data.story.settings?.custom_css);
 
         // Title
         document.getElementById('viewer-title').textContent = data.story.title;
@@ -70,6 +88,12 @@ const StoryViewer = {
             navigator.clipboard?.writeText(url);
             App.toast(I18n.t('editor.share_copied') || 'Link copied!', 'success');
         };
+
+        // Geocode search in viewer
+        this._setupViewerGeocode();
+
+        // Build Table of Contents (chapters)
+        this._buildTOC();
 
         // Handle hotspot links (data-tm-link clicks)
         document.getElementById('viewer-narrative').addEventListener('click', (e) => {
@@ -107,17 +131,72 @@ const StoryViewer = {
 
         // Load initial slide
         setTimeout(() => this._onSlideEnter(0), 500);
+
+        // Autoplay: auto-scroll slides every 8 seconds
+        if (App.embedMode && App.embedOptions.autoplay) {
+            this._startAutoplay();
+        }
+    },
+
+    _injectCustomCSS(css) {
+        this._removeCustomCSS();
+        if (!css || !css.trim()) return;
+        const style = document.createElement('style');
+        style.id = 'tm-custom-story-css';
+        style.textContent = css;
+        document.head.appendChild(style);
+    },
+
+    _removeCustomCSS() {
+        const existing = document.getElementById('tm-custom-story-css');
+        if (existing) existing.remove();
+    },
+
+    _autoplayTimer: null,
+
+    _startAutoplay() {
+        this._stopAutoplay();
+        this._autoplayTimer = setInterval(() => {
+            const next = this._currentSlide + 1;
+            if (next < this._slides.length) {
+                this.goTo(next);
+            } else {
+                this.goTo(0); // loop back to start
+            }
+        }, 8000);
+    },
+
+    _stopAutoplay() {
+        if (this._autoplayTimer) {
+            clearInterval(this._autoplayTimer);
+            this._autoplayTimer = null;
+        }
     },
 
     destroy() {
+        TmMap.disableCompare();
         TmMap.destroy();
         Cesium3D.destroy();
         TmCharts.destroyAll();
+        this._removeCustomCSS();
+        this._stopAutoplay();
         if (this._observer) this._observer.disconnect();
         document.removeEventListener('keydown', this._keyHandler);
+        // Remove TOC elements
+        document.getElementById('viewer-toc-toggle')?.remove();
+        document.getElementById('viewer-toc-panel')?.remove();
+        // Cleanup timeline
+        this._stopTimeline();
+        document.getElementById('viewer-timeline-control')?.remove();
+        // Cleanup audio
+        if (this._currentAudio) {
+            this._currentAudio.pause();
+            this._currentAudio = null;
+        }
         this._data = null;
         this._slides = [];
         this._chartInstances = [];
+        this._chapters = [];
     },
 
     goTo(index) {
@@ -171,6 +250,7 @@ const StoryViewer = {
             slideEl.className = `viewer-slide slide-layout-${layout}`;
             slideEl.dataset.slideIndex = idx;
             slideEl.dataset.layout = layout;
+            slideEl.dataset.transition = slide.style_overrides?.transition || 'fade';
 
             // Content block with card style and text alignment
             const content = document.createElement('div');
@@ -179,15 +259,15 @@ const StoryViewer = {
             content.className = `viewer-slide-content viewer-card-${cardStyle}`;
             if (textAlign !== 'left') content.style.textAlign = textAlign;
 
-            // Title
+            // Title (sanitized)
             if (slide.title && layout !== 'full-map') {
                 const titleTag = layout === 'separator' ? 'h1' : 'h2';
-                content.innerHTML += `<${titleTag}>${slide.title}</${titleTag}>`;
+                content.innerHTML += `<${titleTag}>${App.escHtml(slide.title)}</${titleTag}>`;
             }
 
-            // Narrative HTML
+            // Narrative HTML (sanitized via DOMPurify)
             if (slide.narrative && layout !== 'separator') {
-                content.innerHTML += slide.narrative;
+                content.innerHTML += App.sanitize(slide.narrative);
             }
 
             // Process embedded elements in narrative
@@ -204,11 +284,18 @@ const StoryViewer = {
 
                 const mediaSide = document.createElement('div');
                 mediaSide.className = 'viewer-text-media-media';
-                const isVideo = /\.(mp4|webm|ogg)/i.test(slide.background_media);
+                const bgMedia = this._sanitizeUrl(slide.background_media);
+                const isVideo = /\.(mp4|webm|ogg)/i.test(bgMedia);
                 if (isVideo) {
-                    mediaSide.innerHTML = `<video src="${slide.background_media}" autoplay muted loop playsinline style="width:100%;height:100%;object-fit:cover;border-radius:12px"></video>`;
+                    const vid = document.createElement('video');
+                    vid.src = bgMedia; vid.autoplay = true; vid.muted = true; vid.loop = true; vid.playsInline = true;
+                    vid.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:12px';
+                    mediaSide.appendChild(vid);
                 } else {
-                    mediaSide.innerHTML = `<img src="${slide.background_media}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px">`;
+                    const img = document.createElement('img');
+                    img.src = bgMedia; img.alt = '';
+                    img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:12px';
+                    mediaSide.appendChild(img);
                 }
 
                 wrapper.appendChild(textSide);
@@ -219,11 +306,14 @@ const StoryViewer = {
 
                 // Background media (for non text-media layouts)
                 if (slide.background_media && layout !== 'text-media') {
-                    const bgStyle = `background-image:url('${slide.background_media}');background-size:cover;background-position:center;`;
-                    slideEl.style.cssText += bgStyle;
+                    const safeUrl = this._sanitizeUrl(slide.background_media);
+                    slideEl.style.backgroundImage = `url('${safeUrl}')`;
+                    slideEl.style.backgroundSize = 'cover';
+                    slideEl.style.backgroundPosition = 'center';
                     if (slide.background_opacity !== null && slide.background_opacity !== undefined) {
+                        const opacity = Math.max(0, Math.min(1, parseFloat(slide.background_opacity) || 1));
                         const overlay = document.createElement('div');
-                        overlay.style.cssText = `position:absolute;inset:0;background:rgba(0,0,0,${1 - slide.background_opacity});pointer-events:none;`;
+                        overlay.style.cssText = `position:absolute;inset:0;background:rgba(0,0,0,${1 - opacity});pointer-events:none;`;
                         slideEl.insertBefore(overlay, slideEl.firstChild);
                     }
                 }
@@ -377,6 +467,17 @@ const StoryViewer = {
             }
         }
 
+        // Map comparison (swipe)
+        const compare = slide.style_overrides?.compare;
+        if (compare?.enabled && compare.basemap_id && hasMap && !is3DLayout) {
+            const basemap = (this._data.basemaps || []).find(b => b.id == compare.basemap_id);
+            if (basemap) {
+                TmMap.enableCompare(basemap);
+            }
+        } else {
+            TmMap.disableCompare();
+        }
+
         // Layer visibility for this slide
         if (slide.layer_visibility && this._data.layers) {
             this._data.layers.forEach(l => {
@@ -417,10 +518,41 @@ const StoryViewer = {
             } catch { /* ok */ }
         }
 
+        // Animate slide content entrance
+        const slideEl = document.querySelector(`[data-slide-index="${index}"]`);
+        if (slideEl) {
+            const content = slideEl.querySelector('.viewer-slide-content');
+            if (content) {
+                content.classList.remove('slide-animate-in');
+                void content.offsetWidth; // force reflow
+                content.classList.add('slide-animate-in');
+            }
+        }
+
         // Highlight active slide
         document.querySelectorAll('.viewer-slide').forEach((el, i) => {
             el.classList.toggle('active', i === index);
         });
+
+        // Update TOC highlight
+        this._updateTOCHighlight(index);
+
+        // ── Timeline ──
+        this._stopTimeline();
+        document.getElementById('viewer-timeline-control')?.remove();
+        const timeline = slide.map_config?.timeline;
+        if (timeline?.enabled && timeline.layer_id && timeline.date_field && hasMap) {
+            this._initTimeline(slide, timeline);
+        }
+
+        // ── Audio ──
+        if (this._currentAudio) {
+            this._currentAudio.pause();
+            this._currentAudio = null;
+        }
+        if (slide.audio_url) {
+            this._initSlideAudio(slide, index);
+        }
 
         // Auto-hide toolbar after a few seconds
         this._autoHideToolbar();
@@ -509,7 +641,6 @@ const StoryViewer = {
         const geojson = slide.style_overrides?.drawn_features;
 
         if (this._drawnSourceAdded) {
-            // Update existing source
             const src = map.getSource('viewer-drawn');
             if (src) {
                 src.setData(geojson || { type: 'FeatureCollection', features: [] });
@@ -519,19 +650,65 @@ const StoryViewer = {
 
         if (!geojson?.features?.length) return;
 
-        // Add source and layers for drawn features
         map.addSource('viewer-drawn', { type: 'geojson', data: geojson });
         map.addLayer({ id: 'viewer-drawn-fill', type: 'fill', source: 'viewer-drawn',
             filter: ['==', '$type', 'Polygon'],
-            paint: { 'fill-color': '#4f6df5', 'fill-opacity': 0.2 } });
+            paint: {
+                'fill-color': ['coalesce', ['get', 'color'], '#4f6df5'],
+                'fill-opacity': ['coalesce', ['get', 'fill_opacity'], 0.2],
+            } });
         map.addLayer({ id: 'viewer-drawn-line', type: 'line', source: 'viewer-drawn',
             filter: ['any', ['==', '$type', 'LineString'], ['==', '$type', 'Polygon']],
-            paint: { 'line-color': '#4f6df5', 'line-width': 3 } });
+            paint: {
+                'line-color': ['coalesce', ['get', 'color'], '#4f6df5'],
+                'line-width': ['coalesce', ['get', 'stroke_width'], 3],
+            } });
         this._drawnSourceAdded = true;
+
+        // Click popup for drawn features
+        map.on('click', 'viewer-drawn-fill', (e) => this._showDrawnPopup(e));
+        map.on('click', 'viewer-drawn-line', (e) => this._showDrawnPopup(e));
+        map.on('mouseenter', 'viewer-drawn-fill', () => { map.getCanvas().style.cursor = 'pointer'; });
+        map.on('mouseleave', 'viewer-drawn-fill', () => { map.getCanvas().style.cursor = ''; });
+        map.on('mouseenter', 'viewer-drawn-line', () => { map.getCanvas().style.cursor = 'pointer'; });
+        map.on('mouseleave', 'viewer-drawn-line', () => { map.getCanvas().style.cursor = ''; });
+    },
+
+    _showDrawnPopup(e) {
+        const map = TmMap.getMap();
+        if (!map || !e.features?.length) return;
+        const props = e.features[0].properties || {};
+        if (!props.title && !props.popup_content) return;
+
+        const html = `
+            ${props.title ? `<strong style="font-size:15px">${App.escHtml(props.title)}</strong>` : ''}
+            ${props.popup_content ? `<div class="marker-popup-content">${App.sanitize(props.popup_content)}</div>` : ''}
+        `;
+        new maplibregl.Popup({ maxWidth: '340px' })
+            .setLngLat(e.lngLat)
+            .setHTML(html)
+            .addTo(map);
+    },
+
+    /** Validate URL: only allow relative paths or https: URLs */
+    _sanitizeUrl(url) {
+        if (!url) return '';
+        const s = String(url).trim();
+        if (s.startsWith('/')) return s;  // relative path OK
+        try {
+            const u = new URL(s);
+            if (u.protocol === 'https:' || u.protocol === 'http:') return s;
+        } catch { /* invalid URL */ }
+        return '';
     },
 
     // ── 3D Toggle ────────────────────────
     _toggle3D() {
+        if (typeof Cesium === 'undefined') {
+            App.toast('CesiumJS non caricato. Controlla la connessione.', 'warning');
+            return;
+        }
+
         this._is3D = !this._is3D;
         const mapEl = document.getElementById('viewer-map');
         const cesiumEl = document.getElementById('viewer-cesium');
@@ -544,22 +721,33 @@ const StoryViewer = {
             btn.classList.add('active');
 
             if (!Cesium3D.isActive()) {
-                const state = TmMap.getState();
-                Cesium3D.init('viewer-cesium', {
-                    camera: {
-                        position: [state.center.lng, state.center.lat, this._zoomToHeight(state.zoom)],
-                        heading: state.bearing || 0,
-                        pitch: -45,
-                    },
-                });
+                try {
+                    const state = TmMap.getState();
+                    const settings = this._data.story.settings || {};
+                    Cesium3D.init('viewer-cesium', {
+                        ionToken: settings.cesium_ion_token || '',
+                        camera: {
+                            position: [state.center.lng, state.center.lat, this._zoomToHeight(state.zoom)],
+                            heading: state.bearing || 0,
+                            pitch: -45,
+                        },
+                    });
 
-                const slide = this._slides[this._currentSlide];
-                const slideMarkers = (this._data.markers || []).filter(m => m.slide_id === slide?.id);
-                slideMarkers.forEach(m => Cesium3D.addMarker3D(m));
+                    const slide = this._slides[this._currentSlide];
+                    const slideMarkers = (this._data.markers || []).filter(m => m.slide_id === slide?.id);
+                    slideMarkers.forEach(m => Cesium3D.addMarker3D(m));
 
-                const settings = this._data.story.settings || {};
-                if (settings.tilesets) {
-                    settings.tilesets.forEach(t => Cesium3D.addTileset(t));
+                    if (settings.tilesets) {
+                        settings.tilesets.forEach(t => Cesium3D.addTileset(t));
+                    }
+                } catch (err) {
+                    console.error('Cesium 3D init error:', err);
+                    App.toast('Errore inizializzazione vista 3D', 'danger');
+                    // Revert to 2D
+                    this._is3D = false;
+                    mapEl.style.display = 'block';
+                    cesiumEl.style.display = 'none';
+                    btn.classList.remove('active');
                 }
             } else {
                 Cesium3D.syncFrom2D(TmMap.getState());
@@ -623,5 +811,193 @@ const StoryViewer = {
             }
         };
         document.addEventListener('keydown', this._keyHandler);
+    },
+
+    // ── Geocode Search ──────────────────
+    _viewerGeocodeDebounce: null,
+
+    _setupViewerGeocode() {
+        const toggle = document.getElementById('viewer-geocode-toggle');
+        const inputWrap = document.getElementById('viewer-geocode-input');
+        const searchInput = document.getElementById('viewer-geocode-search');
+        const resultsEl = document.getElementById('viewer-geocode-results');
+        if (!toggle || !inputWrap || !searchInput) return;
+
+        // Update placeholder and title from i18n
+        toggle.title = I18n.t('editor.geocode');
+        searchInput.placeholder = I18n.t('editor.geocode_ph');
+
+        toggle.onclick = () => {
+            if (inputWrap.style.display === 'none') {
+                inputWrap.style.display = 'block';
+                searchInput.focus();
+            } else {
+                inputWrap.style.display = 'none';
+                searchInput.value = '';
+                resultsEl.innerHTML = '';
+            }
+        };
+
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(this._viewerGeocodeDebounce);
+            const query = e.target.value.trim();
+            if (query.length < 2) { resultsEl.innerHTML = ''; return; }
+            this._viewerGeocodeDebounce = setTimeout(() => this._viewerGeocodeSearch(query), 300);
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                inputWrap.style.display = 'none';
+                searchInput.value = '';
+                resultsEl.innerHTML = '';
+                e.stopPropagation(); // prevent viewer close
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            const wrapper = document.getElementById('viewer-geocode-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                inputWrap.style.display = 'none';
+                searchInput.value = '';
+                resultsEl.innerHTML = '';
+            }
+        });
+    },
+
+    async _viewerGeocodeSearch(query) {
+        const resultsEl = document.getElementById('viewer-geocode-results');
+        const lang = I18n.getLang();
+        try {
+            const res = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(query)}`,
+                {
+                    headers: {
+                        'Accept-Language': lang,
+                        'User-Agent': 'TalkingMaps/2.0 (storymap viewer)',
+                    },
+                }
+            );
+            const data = await res.json();
+            if (!data.length) {
+                resultsEl.innerHTML = `<div class="viewer-geocode-result"><small>${I18n.t('editor.geocode_no_results')}</small></div>`;
+                return;
+            }
+            resultsEl.innerHTML = '';
+            data.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'viewer-geocode-result';
+                el.dataset.lat = parseFloat(item.lat) || 0;
+                el.dataset.lon = parseFloat(item.lon) || 0;
+                const span = document.createElement('span');
+                span.textContent = (item.display_name || '').split(',').slice(0, 2).join(',');
+                const small = document.createElement('small');
+                small.textContent = (item.display_name || '').split(',').slice(1, 3).join(',');
+                el.appendChild(span);
+                el.appendChild(small);
+                resultsEl.appendChild(el);
+            });
+
+            resultsEl.querySelectorAll('.viewer-geocode-result').forEach(el => {
+                el.addEventListener('click', () => {
+                    const lat = parseFloat(el.dataset.lat);
+                    const lon = parseFloat(el.dataset.lon);
+                    TmMap.flyTo({ center: [lon, lat], zoom: 14, duration: 1500 });
+                    document.getElementById('viewer-geocode-input').style.display = 'none';
+                    document.getElementById('viewer-geocode-search').value = '';
+                    resultsEl.innerHTML = '';
+                });
+            });
+        } catch { /* silently fail */ }
+    },
+
+    // ── Table of Contents (Chapters) ────
+    _chapters: [],
+
+    _buildTOC() {
+        // Build chapters array from slides
+        const chapters = [];
+        const ungrouped = [];
+        let currentChapter = null;
+
+        this._slides.forEach((slide, idx) => {
+            const chapterName = slide.style_overrides?.chapter;
+            if (chapterName) {
+                if (chapterName !== currentChapter) {
+                    chapters.push({ name: chapterName, slides: [] });
+                    currentChapter = chapterName;
+                }
+                chapters[chapters.length - 1].slides.push({ index: idx, title: slide.title || I18n.t('editor.untitled') });
+            } else {
+                ungrouped.push({ index: idx, title: slide.title || I18n.t('editor.untitled') });
+                currentChapter = null;
+            }
+        });
+
+        this._chapters = chapters;
+
+        // Only show TOC if there are chapters
+        if (chapters.length === 0) return;
+
+        const viewer = document.getElementById('story-viewer');
+
+        // Create TOC toggle button
+        const tocBtn = document.createElement('button');
+        tocBtn.className = 'viewer-toc-btn';
+        tocBtn.id = 'viewer-toc-toggle';
+        tocBtn.title = I18n.t('viewer.toc');
+        tocBtn.innerHTML = '<i class="bi bi-list-ul"></i>';
+        viewer.appendChild(tocBtn);
+
+        // Create TOC panel
+        const tocPanel = document.createElement('div');
+        tocPanel.className = 'viewer-toc-panel';
+        tocPanel.id = 'viewer-toc-panel';
+
+        let panelHTML = `<button class="viewer-toc-close" id="viewer-toc-close"><i class="bi bi-x-lg"></i></button>`;
+        panelHTML += `<div class="viewer-toc-title">${I18n.t('viewer.toc_title')}</div>`;
+
+        chapters.forEach((ch) => {
+            panelHTML += `<div class="toc-chapter-title">${ch.name}</div>`;
+            ch.slides.forEach(s => {
+                panelHTML += `<div class="toc-slide-item" data-toc-slide="${s.index}">${s.title}</div>`;
+            });
+        });
+
+        if (ungrouped.length > 0) {
+            panelHTML += `<div class="toc-ungrouped-title">${I18n.t('editor.no_chapter')}</div>`;
+            ungrouped.forEach(s => {
+                panelHTML += `<div class="toc-slide-item" data-toc-slide="${s.index}">${s.title}</div>`;
+            });
+        }
+
+        tocPanel.innerHTML = panelHTML;
+        viewer.appendChild(tocPanel);
+
+        // Toggle panel
+        tocBtn.addEventListener('click', () => {
+            tocPanel.classList.toggle('open');
+        });
+
+        // Close button
+        document.getElementById('viewer-toc-close').addEventListener('click', () => {
+            tocPanel.classList.remove('open');
+        });
+
+        // Click slide items to navigate
+        tocPanel.querySelectorAll('.toc-slide-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const idx = parseInt(item.dataset.tocSlide);
+                this.goTo(idx);
+                tocPanel.classList.remove('open');
+            });
+        });
+    },
+
+    _updateTOCHighlight(index) {
+        const panel = document.getElementById('viewer-toc-panel');
+        if (!panel) return;
+        panel.querySelectorAll('.toc-slide-item').forEach(item => {
+            item.classList.toggle('active', parseInt(item.dataset.tocSlide) === index);
+        });
     },
 };

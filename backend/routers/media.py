@@ -119,15 +119,24 @@ async def upload_media(
 
 @router.delete("/{media_id}")
 async def delete_media(media_id: int, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(text("SELECT file_path, thumbnail_path FROM media WHERE id = :id"), {"id": media_id})
+    # Ownership check: only owner or admin
+    if user["role"] != "admin":
+        result = await db.execute(text("SELECT file_path, thumbnail_path FROM media WHERE id = :id AND owner_id = :uid"), {"id": media_id, "uid": user["id"]})
+    else:
+        result = await db.execute(text("SELECT file_path, thumbnail_path FROM media WHERE id = :id"), {"id": media_id})
     row = result.fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="Media non trovato")
+        raise HTTPException(status_code=404, detail="Media non trovato o non autorizzato")
 
-    # Delete files from disk
+    # Delete files from disk (with path traversal protection)
+    upload_root = os.path.normpath(settings.UPLOAD_DIR)
     for path in [row[0], row[1]]:
         if path:
-            full = os.path.join(settings.UPLOAD_DIR, path.lstrip("/uploads/"))
+            # Strip the /uploads/ prefix safely
+            relative = path.replace("/uploads/", "", 1) if path.startswith("/uploads/") else path.lstrip("/")
+            full = os.path.normpath(os.path.join(upload_root, relative))
+            if not full.startswith(upload_root):
+                continue  # path traversal attempt — skip
             if os.path.exists(full):
                 os.remove(full)
 

@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+import os
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel
+from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db, get_system_db
@@ -19,6 +21,11 @@ class LoginRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
+
+
+class ProfileUpdateRequest(BaseModel):
+    display_name: Optional[str] = None
+    email: Optional[str] = None
 
 
 class GoogleLoginRequest(BaseModel):
@@ -142,7 +149,7 @@ async def logout(user: dict = Depends(get_current_user)):
 @router.get("/me")
 async def me(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_system_db)):
     result = await db.execute(
-        text("SELECT id, username, display_name, email, role, created_at FROM users WHERE id = :id"),
+        text("SELECT id, username, display_name, email, avatar, role, created_at, storage_used_mb, storage_limit_mb FROM users WHERE id = :id"),
         {"id": user["id"]},
     )
     row = result.mappings().fetchone()
@@ -161,3 +168,60 @@ async def change_password(req: ChangePasswordRequest, user: dict = Depends(get_c
     await db.execute(text("UPDATE users SET password_hash = :p, updated_at = NOW() WHERE id = :id"), {"p": new_hash, "id": user["id"]})
     await db.commit()
     return {"detail": "Password updated"}
+
+
+@router.put("/profile")
+async def update_profile(req: ProfileUpdateRequest, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_system_db)):
+    updates = []
+    params = {"id": user["id"]}
+    if req.display_name is not None:
+        updates.append("display_name = :display_name")
+        params["display_name"] = req.display_name
+    if req.email is not None:
+        updates.append("email = :email")
+        params["email"] = req.email
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    updates.append("updated_at = NOW()")
+    query = f"UPDATE users SET {', '.join(updates)} WHERE id = :id"
+    await db.execute(text(query), params)
+    await db.commit()
+    return {"detail": "Profile updated"}
+
+
+@router.post("/avatar")
+async def upload_avatar(file: UploadFile = File(...), user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_system_db)):
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image too large (max 5MB)")
+
+    try:
+        from PIL import Image
+        import io
+        img = Image.open(io.BytesIO(content))
+        img = img.convert("RGB")
+        img.thumbnail((200, 200), Image.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=85)
+        buf.seek(0)
+        processed = buf.read()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid image: {e}")
+
+    avatar_dir = os.path.join(settings.UPLOAD_DIR, "avatars")
+    os.makedirs(avatar_dir, exist_ok=True)
+    filename = f"{user['id']}.jpg"
+    filepath = os.path.join(avatar_dir, filename)
+    with open(filepath, "wb") as f:
+        f.write(processed)
+
+    avatar_url = f"/uploads/avatars/{filename}"
+    await db.execute(
+        text("UPDATE users SET avatar = :avatar, updated_at = NOW() WHERE id = :id"),
+        {"avatar": avatar_url, "id": user["id"]},
+    )
+    await db.commit()
+    return {"avatar": avatar_url}

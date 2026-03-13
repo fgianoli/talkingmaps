@@ -4,11 +4,35 @@ Inspired by https://github.com/ondata/ckan-mcp-server
 Allows users to search and import tabular/geographic data from CKAN instances.
 """
 import json
+import ipaddress
+import socket
+from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException, Query
 import httpx
 from core.security import get_current_user
 
 router = APIRouter()
+
+
+def _is_safe_url(url: str) -> bool:
+    """Block SSRF: reject private IPs, localhost, and non-http schemes."""
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+        if hostname in ("localhost", "127.0.0.1", "0.0.0.0", "::1"):
+            return False
+        for info in socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM):
+            ip = ipaddress.ip_address(info[4][0])
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+                return False
+        return True
+    except Exception:
+        return False
+
 
 # Well-known CKAN portals
 KNOWN_PORTALS = {
@@ -35,6 +59,8 @@ async def search_datasets(
     user: dict = Depends(get_current_user),
 ):
     """Search datasets on a CKAN portal."""
+    if not _is_safe_url(portal_url):
+        raise HTTPException(status_code=400, detail="URL non consentito (indirizzo privato o non valido)")
     api_url = f"{portal_url.rstrip('/')}/api/3/action/package_search"
     params = {"q": q, "rows": rows, "start": start}
     if format_filter:
@@ -81,6 +107,8 @@ async def get_resource(
     user: dict = Depends(get_current_user),
 ):
     """Fetch a CKAN resource (CSV, GeoJSON) and return its content."""
+    if not _is_safe_url(url):
+        raise HTTPException(status_code=400, detail="URL non consentito (indirizzo privato o non valido)")
     try:
         async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
             resp = await client.get(url)
@@ -142,6 +170,8 @@ async def import_as_layer(
 
     if not url:
         raise HTTPException(status_code=400, detail="URL risorsa mancante")
+    if not _is_safe_url(url):
+        raise HTTPException(status_code=400, detail="URL non consentito (indirizzo privato o non valido)")
 
     async with AsyncSessionLocal() as db:
         if fmt in ("WMS", "WFS"):

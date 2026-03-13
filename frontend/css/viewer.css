@@ -57,6 +57,67 @@
     text-align: center;
 }
 
+/* ── Viewer Geocode Search ────────────── */
+.viewer-geocode-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.viewer-geocode-input {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 280px;
+    z-index: 110;
+    margin-top: 4px;
+}
+
+.viewer-geocode-input input {
+    background: rgba(15,23,42,0.9);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    border-radius: 6px;
+    font-size: 13px;
+    width: 100%;
+    padding: 6px 10px;
+}
+
+.viewer-geocode-input input::placeholder {
+    color: rgba(255,255,255,0.5);
+}
+
+.viewer-geocode-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: rgba(15,23,42,0.95);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 0 0 6px 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 111;
+}
+
+.viewer-geocode-result {
+    padding: 8px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.9);
+}
+
+.viewer-geocode-result:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+.viewer-geocode-result small {
+    color: rgba(255,255,255,0.5);
+    display: block;
+    font-size: 11px;
+}
+
 /* ── Map Container ────────────────────── */
 #viewer-map-container {
     position: absolute;
@@ -121,6 +182,37 @@
     box-shadow: 0 10px 40px rgba(0,0,0,0.15);
     border: 1px solid rgba(255,255,255,0.3);
     color: #1e293b;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.viewer-slide-content.slide-animate-in {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ── Transition variants ──────────── */
+[data-transition="slide-up"] .viewer-slide-content {
+    transform: translateY(40px);
+}
+[data-transition="slide-up"] .viewer-slide-content.slide-animate-in {
+    transform: translateY(0);
+}
+
+[data-transition="slide-left"] .viewer-slide-content {
+    transform: translateX(-40px);
+}
+[data-transition="slide-left"] .viewer-slide-content.slide-animate-in {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+[data-transition="zoom"] .viewer-slide-content {
+    transform: scale(0.9);
+}
+[data-transition="zoom"] .viewer-slide-content.slide-animate-in {
+    opacity: 1;
+    transform: scale(1);
 }
 
 .viewer-slide-content h1,
@@ -553,6 +645,46 @@
     border-radius: 4px;
 }
 
+/* ── Map Compare (Swipe) ─────────── */
+#map-compare-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 5;
+}
+
+.map-compare-divider {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: white;
+    cursor: ew-resize;
+    z-index: 10;
+    box-shadow: 0 0 8px rgba(0,0,0,0.4);
+    pointer-events: auto;
+}
+
+.map-compare-divider::after {
+    content: '\22EE';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #333;
+    font-size: 16px;
+    background: white;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 6px rgba(0,0,0,0.3);
+}
+
 /* ── Active slide indicator ───────── */
 .viewer-slide.active {
     z-index: 2;
@@ -665,3 +797,71 @@
 #story-viewer[data-theme="cool"] #viewer-toolbar { background: rgba(12,74,110,0.8); }
 #story-viewer[data-theme="cool"] .slide-layout-text-only { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); }
 #story-viewer[data-theme="cool"] .slide-layout-separator { background: linear-gradient(135deg, #0c4a6e, #075985); }
+
+/* ═══════════════════════════════════════
+   TABLE OF CONTENTS (TOC)
+   ═══════════════════════════════════════ */
+.viewer-toc-btn { position: fixed; top: 16px; right: 16px; z-index: 1000; background: rgba(0,0,0,0.7); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 18px; backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; }
+.viewer-toc-btn:hover { background: rgba(0,0,0,0.9); }
+.viewer-toc-panel { position: fixed; top: 0; right: -320px; width: 320px; height: 100vh; background: rgba(20,20,30,0.95); backdrop-filter: blur(10px); z-index: 999; transition: right 0.3s ease; padding: 60px 20px 20px; overflow-y: auto; }
+.viewer-toc-panel.open { right: 0; }
+.viewer-toc-close { position: absolute; top: 16px; right: 16px; background: none; border: none; color: rgba(255,255,255,0.6); font-size: 20px; cursor: pointer; }
+.viewer-toc-close:hover { color: white; }
+.viewer-toc-title { color: rgba(255,255,255,0.5); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 16px; }
+.toc-chapter-title { color: #60a5fa; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.toc-slide-item { padding: 8px 12px; color: rgba(255,255,255,0.7); cursor: pointer; border-radius: 6px; font-size: 13px; transition: all 0.2s; }
+.toc-slide-item:hover { background: rgba(255,255,255,0.1); color: white; }
+.toc-slide-item.active { background: rgba(79,109,245,0.3); color: white; }
+.toc-ungrouped-title { color: rgba(255,255,255,0.35); font-size: 12px; font-weight: 600; margin: 16px 0 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+/* ═══════════════════════════════════════
+   EMBED MODE
+   Full-viewport, no margins, no chrome
+   ═══════════════════════════════════════ */
+#story-viewer.embed-mode {
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+}
+
+#story-viewer.embed-mode #viewer-toolbar {
+    display: none !important;
+}
+
+#story-viewer.embed-mode #viewer-close {
+    display: none !important;
+}
+
+#story-viewer.embed-mode .viewer-slide {
+    padding-top: 20px;
+}
+
+#story-viewer.embed-mode.embed-minimal #viewer-nav {
+    display: none !important;
+}
+
+#story-viewer.embed-mode.embed-minimal .viewer-legend {
+    display: none !important;
+}
+
+#story-viewer.embed-mode.embed-minimal #viewer-basemap-selector {
+    display: none !important;
+}
+
+#story-viewer.embed-mode.embed-minimal #viewer-basemap-btn {
+    display: none !important;
+}
+
+/* ── Timeline Control ────────────────── */
+.timeline-control { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); border-radius: 12px; padding: 8px 16px; display: flex; align-items: center; gap: 12px; z-index: 20; min-width: 300px; }
+.timeline-control button { background: none; border: none; color: white; cursor: pointer; font-size: 18px; padding: 0; line-height: 1; }
+.timeline-control input[type=range] { flex: 1; accent-color: #4f6df5; }
+.timeline-label { color: white; font-size: 13px; font-weight: 600; min-width: 60px; text-align: center; }
+
+/* ── Slide Audio Control ─────────────── */
+.slide-audio-control { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: rgba(0,0,0,0.6); border-radius: 8px; margin-top: 8px; }
+.slide-audio-control button { background: none; border: none; color: white; cursor: pointer; font-size: 16px; }
+.slide-audio-control input[type=range] { flex: 1; height: 4px; accent-color: #4f6df5; }
+.slide-audio-time { color: rgba(255,255,255,0.7); font-size: 11px; min-width: 40px; }

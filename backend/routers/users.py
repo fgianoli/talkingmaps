@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db, get_system_db
-from core.security import hash_password, require_admin
+from core.security import hash_password, require_admin, get_current_user
 
 router = APIRouter()
 
@@ -14,6 +14,22 @@ class UserCreate(BaseModel):
     display_name: str | None = None
     email: str | None = None
     role: str = "editor"
+
+
+@router.get("/search")
+async def search_users(
+    q: str = Query(..., min_length=2, max_length=100),
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_system_db),
+):
+    """Search users by username, display_name or email. For sharing features."""
+    result = await db.execute(text(
+        "SELECT id, username, display_name, email, avatar FROM users "
+        "WHERE active = TRUE AND id != :me AND "
+        "(username ILIKE :q OR display_name ILIKE :q OR email ILIKE :q) "
+        "ORDER BY username LIMIT 10"
+    ), {"q": f"%{q}%", "me": user["id"]})
+    return [dict(r) for r in result.mappings().all()]
 
 
 @router.get("/")

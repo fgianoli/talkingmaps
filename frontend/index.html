@@ -12,8 +12,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
 
     <!-- Bootstrap 5.3 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" crossorigin="anonymous">
 
     <!-- MapLibre GL JS -->
     <link href="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.css" rel="stylesheet">
@@ -82,6 +82,7 @@ docker compose up -d
 
         <div class="landing-footer">
             <p id="landing-authors"></p>
+            <p id="landing-sponsor" style="margin-top:8px; font-size:15px;"></p>
             <p style="margin-top:8px">
                 <a href="https://github.com/fgianoli/talkingmaps" target="_blank">
                     <i class="bi bi-github"></i> GitHub
@@ -109,19 +110,36 @@ docker compose up -d
                 <div id="login-error" class="text-danger mt-2 d-none" style="font-size:13px"></div>
             </form>
 
-            <!-- Google Sign-In -->
-            <div class="google-signin-divider" id="google-divider">
-                <span id="google-divider-text"></span>
+            <!-- OAuth Sign-In -->
+            <div class="oauth-divider" id="oauth-divider">
+                <span id="oauth-divider-text"></span>
             </div>
-            <button class="btn-google" id="btn-google-login">
-                <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
-                    <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
-                    <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.997 8.997 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-                    <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 2.58 9 3.58z" fill="#EA4335"/>
-                </svg>
-                <span id="google-btn-text"></span>
-            </button>
+            <div class="oauth-buttons" id="oauth-buttons">
+                <button class="btn-oauth btn-oauth-google" id="btn-google-login">
+                    <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+                        <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+                        <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.997 8.997 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+                        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 2.58 9 3.58z" fill="#EA4335"/>
+                    </svg>
+                    <span>Google</span>
+                </button>
+                <button class="btn-oauth btn-oauth-microsoft" id="btn-microsoft-login">
+                    <svg width="18" height="18" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                        <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                        <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                        <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                    </svg>
+                    <span>Microsoft</span>
+                </button>
+                <button class="btn-oauth btn-oauth-github" id="btn-github-login">
+                    <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                    </svg>
+                    <span>GitHub</span>
+                </button>
+            </div>
 
             <div class="login-footer">
                 <a href="#" id="btn-explore-public"><span id="explore-public-text"></span> <i class="bi bi-arrow-right"></i></a>
@@ -157,8 +175,10 @@ docker compose up -d
                             <li><a class="dropdown-item" href="#" id="btn-dashboard"><i class="bi bi-grid-1x2 me-2"></i><span class="nav-text-dashboard"></span></a></li>
                             <li><a class="dropdown-item" href="#" id="btn-layers-catalog"><i class="bi bi-layers me-2"></i><span class="nav-text-layers"></span></a></li>
                             <li><a class="dropdown-item" href="#" id="btn-media-library"><i class="bi bi-image me-2"></i><span class="nav-text-media"></span></a></li>
+                            <li><a class="dropdown-item" href="#" id="btn-account"><i class="bi bi-person-gear me-2"></i><span class="nav-text-account">Account</span></a></li>
                             <li><a class="dropdown-item admin-only" href="#" id="btn-users-admin"><i class="bi bi-people me-2"></i><span class="nav-text-users"></span></a></li>
                             <li><a class="dropdown-item admin-only" href="#" id="btn-basemaps-admin"><i class="bi bi-map me-2"></i><span class="nav-text-basemaps"></span></a></li>
+                            <li><a class="dropdown-item admin-only" href="#" id="btn-settings-admin"><i class="bi bi-gear me-2"></i><span class="nav-text-settings"></span></a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="#" id="btn-logout"><i class="bi bi-box-arrow-right me-2"></i><span class="nav-text-logout"></span></a></li>
                         </ul>
@@ -174,6 +194,8 @@ docker compose up -d
             <div id="panel-media" class="app-panel d-none"></div>
             <div id="panel-users" class="app-panel d-none"></div>
             <div id="panel-basemaps" class="app-panel d-none"></div>
+            <div id="panel-settings" class="app-panel d-none"></div>
+            <div class="app-panel d-none" id="panel-account"></div>
         </div>
     </div>
 
@@ -185,6 +207,16 @@ docker compose up -d
             </button>
             <span id="viewer-title"></span>
             <div class="viewer-toolbar-right">
+                <div class="viewer-geocode-wrapper" id="viewer-geocode-wrapper">
+                    <button class="btn btn-sm btn-light" id="viewer-geocode-toggle" title="Search place">
+                        <i class="bi bi-search"></i>
+                    </button>
+                    <div class="viewer-geocode-input" id="viewer-geocode-input" style="display:none">
+                        <input type="text" class="form-control form-control-sm" id="viewer-geocode-search"
+                               placeholder="Search a place..." autocomplete="off">
+                        <div class="viewer-geocode-results" id="viewer-geocode-results"></div>
+                    </div>
+                </div>
                 <button class="btn btn-sm btn-light" id="viewer-toggle-3d" title="Vista 3D">
                     <i class="bi bi-badge-3d"></i>
                 </button>
@@ -216,14 +248,15 @@ docker compose up -d
     <!-- Toast -->
     <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toast-container"></div>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.js"></script>
-    <script src="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Cesium.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
-    <script src="https://unpkg.com/@mapbox/mapbox-gl-draw@1.4.3/dist/mapbox-gl-draw.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.bundle.min.js"></script>
+    <!-- Scripts (crossorigin for SRI/CSP compliance) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.js" crossorigin="anonymous"></script>
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Cesium.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@mapbox/mapbox-gl-draw@1.4.3/dist/mapbox-gl-draw.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js" crossorigin="anonymous"></script>
 
     <!-- App modules (order matters: i18n first) -->
     <script src="js/i18n.js"></script>

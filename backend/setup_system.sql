@@ -9,11 +9,13 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL DEFAULT '',
     display_name VARCHAR(255),
     email VARCHAR(255),
+    avatar VARCHAR(500) DEFAULT '',
     role VARCHAR(20) NOT NULL DEFAULT 'viewer',
     active BOOLEAN NOT NULL DEFAULT TRUE,
     auth_provider VARCHAR(20) DEFAULT 'local',
     storage_used_mb NUMERIC(10,2) DEFAULT 0,
     storage_limit_mb NUMERIC(10,2) DEFAULT 100,
+    ai_settings JSONB DEFAULT '{}',
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );

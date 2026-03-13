@@ -81,6 +81,12 @@ const Api = {
     logout() { return this.post('/api/auth/logout', {}); },
     me() { return this.get('/api/auth/me'); },
     changePassword(current, newPw) { return this.put('/api/auth/change-password', { current_password: current, new_password: newPw }); },
+    updateProfile(data) { return this.put('/api/auth/profile', data); },
+    uploadAvatar(file) {
+        const form = new FormData();
+        form.append('file', file);
+        return this._fetch('/api/auth/avatar', { method: 'POST', body: form });
+    },
 
     // ── Stories ──────────────────────────
     listStories(status) { return this.get('/api/stories/' + (status ? `?status=${status}` : '')); },
@@ -92,6 +98,35 @@ const Api = {
     updateStory(id, data) { return this.put(`/api/stories/${id}`, data); },
     deleteStory(id) { return this.del(`/api/stories/${id}`); },
     duplicateStory(id) { return this.post(`/api/stories/${id}/duplicate`, {}); },
+    getStoryAnalytics(id) { return this.get(`/api/stories/${id}/analytics`); },
+
+    // Versions
+    createVersion(storyId, message) { return this.post(`/api/stories/${storyId}/versions`, { message }); },
+    listVersions(storyId) { return this.get(`/api/stories/${storyId}/versions`); },
+    restoreVersion(storyId, versionId) { return this.post(`/api/stories/${storyId}/versions/${versionId}/restore`, {}); },
+
+    // Templates
+    saveAsTemplate(storyId) { return this.post(`/api/stories/${storyId}/save-as-template`, {}); },
+    listTemplates() { return this.get('/api/stories/templates/list'); },
+
+    async exportStoryJSON(id) {
+        const resp = await fetch(`/api/stories/${id}/export`, {
+            headers: { 'Authorization': `Bearer ${this._token}` }
+        });
+        if (!resp.ok) throw new Error('Export failed');
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `talkingmaps-story-${id}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    },
+    importStory(file) {
+        const form = new FormData();
+        form.append('file', file);
+        return this._fetch('/api/stories/import', { method: 'POST', body: form });
+    },
 
     // ── Slides ───────────────────────────
     listSlides(storyId) { return this.get(`/api/slides/story/${storyId}`); },
@@ -120,6 +155,17 @@ const Api = {
         form.append('file', file);
         return this._fetch('/api/layers/upload-geojson', { method: 'POST', body: form });
     },
+
+    // ── 3D Assets ──────────────────────────
+    list3DAssets() { return this.get('/api/3d/'); },
+    upload3D(file, name) {
+        const form = new FormData();
+        form.append('file', file);
+        if (name) form.append('name', name);
+        return this._fetch('/api/3d/upload', { method: 'POST', body: form });
+    },
+    delete3DAsset(assetId) { return this.del(`/api/3d/${assetId}`); },
+    getStorageQuota() { return this.get('/api/3d/quota'); },
 
     // ── Symbology ────────────────────────
     listSymbologies(layerId) { return this.get('/api/symbology/' + (layerId ? `?layer_id=${layerId}` : '')); },
@@ -151,9 +197,39 @@ const Api = {
     toggleBasemap(id) { return this.put(`/api/basemaps/${id}/toggle`, {}); },
     deleteBasemap(id) { return this.del(`/api/basemaps/${id}`); },
 
+    // ── Collaborators ───────────────────
+    listCollaborators(storyId) { return this.get(`/api/stories/${storyId}/collaborators`); },
+    addCollaborator(storyId, userId, role) { return this.post(`/api/stories/${storyId}/collaborators`, { user_id: userId, role }); },
+    updateCollaborator(storyId, userId, role) { return this.put(`/api/stories/${storyId}/collaborators/${userId}`, { role }); },
+    removeCollaborator(storyId, userId) { return this.del(`/api/stories/${storyId}/collaborators/${userId}`); },
+
     // ── Users ────────────────────────────
+    searchUsers(q) { return this.get(`/api/users/search?q=${encodeURIComponent(q)}`); },
     listUsers() { return this.get('/api/users/'); },
     createUser(data) { return this.post('/api/users/', data); },
     toggleUser(id) { return this.put(`/api/users/${id}/toggle`, {}); },
     resetPassword(id, password) { return this.put(`/api/users/${id}/reset-password`, { password }); },
+
+    // Settings
+    listSettings() { return this.get('/api/settings/'); },
+    updateSetting(key, value) { return this.put(`/api/settings/${key}`, { value }); },
+
+    // ── AI ────────────────────────────
+    getAISettings() { return this.get('/api/ai/settings'); },
+    updateAISettings(data) { return this.put('/api/ai/settings', data); },
+    getAIProviders() { return this.get('/api/ai/providers'); },
+    generateText(data) { return this.post('/api/ai/generate', data); },
+    generateImage(data) { return this.post('/api/ai/generate-image', data); },
+
+    // Geodata (Wikipedia, OSM)
+    wikiNearby(lat, lng, radius = 5000, lang = 'it') { return this.get(`/api/geodata/wikipedia/nearby?lat=${lat}&lng=${lng}&radius=${radius}&lang=${lang}`); },
+    wikiSearch(q, lang = 'it') { return this.get(`/api/geodata/wikipedia/search?q=${encodeURIComponent(q)}&lang=${lang}`); },
+    osmNearby(lat, lng, radius = 1000, category = 'all') { return this.get(`/api/geodata/osm/nearby?lat=${lat}&lng=${lng}&radius=${radius}&category=${category}`); },
+    osmCustomQuery(query) { return this.post('/api/geodata/osm/custom-query', { query }); },
+    geocode(q, lang = 'it') { return this.get(`/api/geodata/geocode?q=${encodeURIComponent(q)}&lang=${lang}`); },
+    reverseGeocode(lat, lng, lang = 'it') { return this.get(`/api/geodata/reverse-geocode?lat=${lat}&lng=${lng}&lang=${lang}`); },
+
+    // Profile
+    updateProfile(data) { return this.put('/api/auth/profile', data); },
+    uploadAvatar(file) { const fd = new FormData(); fd.append('file', file); return this.upload('/api/auth/avatar', fd); },
 };

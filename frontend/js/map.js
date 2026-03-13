@@ -45,6 +45,7 @@ const TmMap = {
     getMap() { return this._map; },
 
     destroy() {
+        this.disableCompare();
         if (this._map) {
             this._map.remove();
             this._map = null;
@@ -354,7 +355,7 @@ const TmMap = {
     // ── Drawing Tools (MapboxDraw) ─────────
     _draw: null,
 
-    initDraw(onChange) {
+    initDraw(onChange, onSelect) {
         if (!this._map || this._draw) return this._draw;
         if (typeof MapboxDraw === 'undefined') {
             console.warn('MapboxDraw not loaded');
@@ -366,18 +367,18 @@ const TmMap = {
             styles: [
                 // Line
                 { id: 'gl-draw-line', type: 'line', filter: ['all', ['==', '$type', 'LineString'], ['!=', 'mode', 'static']],
-                  paint: { 'line-color': '#4f6df5', 'line-width': 3, 'line-dasharray': [2, 1] }},
+                  paint: { 'line-color': ['coalesce', ['get', 'user_color'], '#4f6df5'], 'line-width': ['coalesce', ['get', 'user_stroke_width'], 3], 'line-dasharray': [2, 1] }},
                 { id: 'gl-draw-line-static', type: 'line', filter: ['all', ['==', '$type', 'LineString'], ['==', 'mode', 'static']],
-                  paint: { 'line-color': '#4f6df5', 'line-width': 3 }},
+                  paint: { 'line-color': ['coalesce', ['get', 'user_color'], '#4f6df5'], 'line-width': ['coalesce', ['get', 'user_stroke_width'], 3] }},
                 // Polygon
                 { id: 'gl-draw-polygon-fill', type: 'fill', filter: ['all', ['==', '$type', 'Polygon'], ['!=', 'mode', 'static']],
-                  paint: { 'fill-color': '#4f6df5', 'fill-opacity': 0.15 }},
+                  paint: { 'fill-color': ['coalesce', ['get', 'user_color'], '#4f6df5'], 'fill-opacity': ['coalesce', ['get', 'user_fill_opacity'], 0.15] }},
                 { id: 'gl-draw-polygon-stroke', type: 'line', filter: ['all', ['==', '$type', 'Polygon'], ['!=', 'mode', 'static']],
-                  paint: { 'line-color': '#4f6df5', 'line-width': 2, 'line-dasharray': [2, 1] }},
+                  paint: { 'line-color': ['coalesce', ['get', 'user_color'], '#4f6df5'], 'line-width': ['coalesce', ['get', 'user_stroke_width'], 2], 'line-dasharray': [2, 1] }},
                 { id: 'gl-draw-polygon-fill-static', type: 'fill', filter: ['all', ['==', '$type', 'Polygon'], ['==', 'mode', 'static']],
-                  paint: { 'fill-color': '#4f6df5', 'fill-opacity': 0.2 }},
+                  paint: { 'fill-color': ['coalesce', ['get', 'user_color'], '#4f6df5'], 'fill-opacity': ['coalesce', ['get', 'user_fill_opacity'], 0.2] }},
                 { id: 'gl-draw-polygon-stroke-static', type: 'line', filter: ['all', ['==', '$type', 'Polygon'], ['==', 'mode', 'static']],
-                  paint: { 'line-color': '#4f6df5', 'line-width': 2 }},
+                  paint: { 'line-color': ['coalesce', ['get', 'user_color'], '#4f6df5'], 'line-width': ['coalesce', ['get', 'user_stroke_width'], 2] }},
                 // Vertices
                 { id: 'gl-draw-point', type: 'circle', filter: ['all', ['==', '$type', 'Point'], ['==', 'meta', 'vertex']],
                   paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#4f6df5', 'circle-stroke-width': 2 }},
@@ -391,7 +392,18 @@ const TmMap = {
             this._map.on('draw.update', onChange);
             this._map.on('draw.delete', onChange);
         }
+        if (onSelect) {
+            this._map.on('draw.selectionchange', onSelect);
+        }
         return this._draw;
+    },
+
+    updateDrawFeature(featureId, properties) {
+        if (!this._draw) return;
+        const feat = this._draw.get(featureId);
+        if (!feat) return;
+        feat.properties = { ...feat.properties, ...properties };
+        this._draw.add(feat);
     },
 
     getDraw() { return this._draw; },
@@ -426,6 +438,114 @@ const TmMap = {
             this._map.removeControl(this._draw);
             this._draw = null;
         }
+    },
+
+    // ── Map Comparison (Swipe) ────────────
+    _compareMap: null,
+    _compareDivider: null,
+    _compareContainer: null,
+    _compareDragging: false,
+
+    enableCompare(basemap) {
+        if (!this._map) return;
+        this.disableCompare();
+
+        const mapContainer = this._map.getContainer().parentElement;
+
+        // Create overlay container for the second map
+        const overlay = document.createElement('div');
+        overlay.id = 'map-compare-overlay';
+        overlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;z-index:5;pointer-events:none;';
+        mapContainer.appendChild(overlay);
+        this._compareContainer = overlay;
+
+        // Set initial clip to right half
+        const midX = mapContainer.offsetWidth / 2;
+        overlay.style.clipPath = `inset(0 0 0 ${midX}px)`;
+
+        // Create second map
+        const style = this._buildStyle(basemap);
+        this._compareMap = new maplibregl.Map({
+            container: overlay,
+            style: style,
+            center: this._map.getCenter(),
+            zoom: this._map.getZoom(),
+            bearing: this._map.getBearing(),
+            pitch: this._map.getPitch(),
+            maxPitch: 85,
+            interactive: false,
+            attributionControl: false,
+        });
+
+        // Sync maps
+        this._syncCompareMap = () => {
+            if (!this._compareMap) return;
+            this._compareMap.jumpTo({
+                center: this._map.getCenter(),
+                zoom: this._map.getZoom(),
+                bearing: this._map.getBearing(),
+                pitch: this._map.getPitch(),
+            });
+        };
+        this._map.on('move', this._syncCompareMap);
+
+        // Create draggable divider
+        const divider = document.createElement('div');
+        divider.className = 'map-compare-divider';
+        divider.style.left = midX + 'px';
+        divider.title = I18n?.t('viewer.compare_drag') || 'Drag to compare';
+        mapContainer.appendChild(divider);
+        this._compareDivider = divider;
+
+        // Drag logic
+        const onMove = (clientX) => {
+            const rect = mapContainer.getBoundingClientRect();
+            let x = clientX - rect.left;
+            x = Math.max(0, Math.min(x, rect.width));
+            divider.style.left = x + 'px';
+            overlay.style.clipPath = `inset(0 0 0 ${x}px)`;
+        };
+
+        const onMouseMove = (e) => { if (this._compareDragging) onMove(e.clientX); };
+        const onTouchMove = (e) => { if (this._compareDragging && e.touches.length) onMove(e.touches[0].clientX); };
+        const onEnd = () => { this._compareDragging = false; document.body.style.cursor = ''; };
+
+        divider.addEventListener('mousedown', (e) => { e.preventDefault(); this._compareDragging = true; document.body.style.cursor = 'ew-resize'; });
+        divider.addEventListener('touchstart', (e) => { e.preventDefault(); this._compareDragging = true; }, { passive: false });
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('touchmove', onTouchMove);
+        document.addEventListener('mouseup', onEnd);
+        document.addEventListener('touchend', onEnd);
+
+        // Store listeners for cleanup
+        this._compareListeners = { onMouseMove, onTouchMove, onEnd };
+    },
+
+    disableCompare() {
+        if (this._compareMap) {
+            if (this._syncCompareMap) {
+                this._map?.off('move', this._syncCompareMap);
+                this._syncCompareMap = null;
+            }
+            this._compareMap.remove();
+            this._compareMap = null;
+        }
+        if (this._compareContainer) {
+            this._compareContainer.remove();
+            this._compareContainer = null;
+        }
+        if (this._compareDivider) {
+            this._compareDivider.remove();
+            this._compareDivider = null;
+        }
+        if (this._compareListeners) {
+            document.removeEventListener('mousemove', this._compareListeners.onMouseMove);
+            document.removeEventListener('touchmove', this._compareListeners.onTouchMove);
+            document.removeEventListener('mouseup', this._compareListeners.onEnd);
+            document.removeEventListener('touchend', this._compareListeners.onEnd);
+            this._compareListeners = null;
+        }
+        this._compareDragging = false;
     },
 
     // ── COG (Cloud Optimized GeoTIFF) Protocol ──
@@ -530,5 +650,181 @@ const TmMap = {
             }
         });
         this._cogProtocolRegistered = true;
+    },
+
+    // ── Measurement Tools ─────────────────
+    _measureState: null, // { mode: 'distance'|'area', points: [[lng,lat],...], listeners: {} }
+
+    _haversineDistance(coord1, coord2) {
+        const R = 6371000;
+        const toRad = d => d * Math.PI / 180;
+        const dLat = toRad(coord2[1] - coord1[1]);
+        const dLon = toRad(coord2[0] - coord1[0]);
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(coord1[1])) * Math.cos(toRad(coord2[1])) * Math.sin(dLon / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    },
+
+    _polygonArea(coords) {
+        let area = 0;
+        const toRad = d => d * Math.PI / 180;
+        const R = 6371000;
+        for (let i = 0; i < coords.length; i++) {
+            const j = (i + 1) % coords.length;
+            area += toRad(coords[j][0] - coords[i][0]) * (2 + Math.sin(toRad(coords[i][1])) + Math.sin(toRad(coords[j][1])));
+        }
+        return Math.abs(area * R * R / 2);
+    },
+
+    _formatDistance(meters) {
+        if (meters >= 1000) return (meters / 1000).toFixed(2) + ' km';
+        return meters.toFixed(1) + ' m';
+    },
+
+    _formatArea(sqMeters) {
+        if (sqMeters >= 1e6) return (sqMeters / 1e6).toFixed(3) + ' km\u00b2';
+        if (sqMeters >= 1e4) return (sqMeters / 1e4).toFixed(2) + ' ha';
+        return sqMeters.toFixed(1) + ' m\u00b2';
+    },
+
+    _cleanupMeasureListeners() {
+        if (!this._measureState || !this._map) return;
+        const ls = this._measureState.listeners;
+        if (ls.onClick) this._map.off('click', ls.onClick);
+        if (ls.onDblClick) this._map.off('dblclick', ls.onDblClick);
+        if (ls.onMouseMove) this._map.off('mousemove', ls.onMouseMove);
+        this._map.getCanvas().style.cursor = '';
+        this._measureState = null;
+    },
+
+    _updateMeasureSources() {
+        if (!this._map || !this._measureState) return;
+        const pts = this._measureState.points;
+        const mode = this._measureState.mode;
+
+        if (mode === 'distance') {
+            const lineData = { type: 'Feature', geometry: { type: 'LineString', coordinates: pts }, properties: {} };
+            const pointData = { type: 'FeatureCollection', features: pts.map((p, i) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: p }, properties: { idx: i } })) };
+            if (this._map.getSource('measure-line')) this._map.getSource('measure-line').setData(lineData);
+            if (this._map.getSource('measure-points')) this._map.getSource('measure-points').setData(pointData);
+
+            // Compute total distance
+            let total = 0;
+            for (let i = 1; i < pts.length; i++) total += this._haversineDistance(pts[i - 1], pts[i]);
+            // Update label at last point
+            if (pts.length >= 2) {
+                const labelData = { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: pts[pts.length - 1] }, properties: { label: this._formatDistance(total) } }] };
+                if (this._map.getSource('measure-labels')) this._map.getSource('measure-labels').setData(labelData);
+            }
+        } else if (mode === 'area') {
+            const ring = pts.length >= 3 ? [...pts, pts[0]] : pts;
+            const polyData = { type: 'Feature', geometry: { type: pts.length >= 3 ? 'Polygon' : 'LineString', coordinates: pts.length >= 3 ? [ring] : pts }, properties: {} };
+            const outlineData = { type: 'Feature', geometry: { type: 'LineString', coordinates: ring }, properties: {} };
+            if (this._map.getSource('measure-polygon')) this._map.getSource('measure-polygon').setData(polyData);
+            if (this._map.getSource('measure-polygon-outline')) this._map.getSource('measure-polygon-outline').setData(outlineData);
+
+            if (pts.length >= 3) {
+                const area = this._polygonArea(pts);
+                // Centroid for label
+                let cx = 0, cy = 0;
+                pts.forEach(p => { cx += p[0]; cy += p[1]; });
+                cx /= pts.length; cy /= pts.length;
+                const labelData = { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [cx, cy] }, properties: { label: this._formatArea(area) } }] };
+                if (this._map.getSource('measure-labels')) this._map.getSource('measure-labels').setData(labelData);
+            }
+        }
+    },
+
+    _ensureMeasureSources(mode) {
+        if (!this._map) return;
+        const empty = { type: 'FeatureCollection', features: [] };
+        const emptyLine = { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} };
+
+        if (mode === 'distance') {
+            if (!this._map.getSource('measure-line')) {
+                this._map.addSource('measure-line', { type: 'geojson', data: emptyLine });
+                this._map.addLayer({ id: 'measure-line-layer', type: 'line', source: 'measure-line', paint: { 'line-color': '#ff4444', 'line-width': 3, 'line-dasharray': [2, 1] } });
+            }
+            if (!this._map.getSource('measure-points')) {
+                this._map.addSource('measure-points', { type: 'geojson', data: empty });
+                this._map.addLayer({ id: 'measure-points-layer', type: 'circle', source: 'measure-points', paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#ff4444', 'circle-stroke-width': 2 } });
+            }
+        } else if (mode === 'area') {
+            if (!this._map.getSource('measure-polygon')) {
+                this._map.addSource('measure-polygon', { type: 'geojson', data: empty });
+                this._map.addLayer({ id: 'measure-polygon-layer', type: 'fill', source: 'measure-polygon', paint: { 'fill-color': '#ff4444', 'fill-opacity': 0.15 } });
+            }
+            if (!this._map.getSource('measure-polygon-outline')) {
+                this._map.addSource('measure-polygon-outline', { type: 'geojson', data: emptyLine });
+                this._map.addLayer({ id: 'measure-polygon-outline-layer', type: 'line', source: 'measure-polygon-outline', paint: { 'line-color': '#ff4444', 'line-width': 2, 'line-dasharray': [2, 1] } });
+            }
+        }
+
+        // Shared label source
+        if (!this._map.getSource('measure-labels')) {
+            this._map.addSource('measure-labels', { type: 'geojson', data: empty });
+            this._map.addLayer({ id: 'measure-labels-layer', type: 'symbol', source: 'measure-labels', layout: { 'text-field': ['get', 'label'], 'text-size': 14, 'text-offset': [0, -1.5], 'text-anchor': 'bottom', 'text-allow-overlap': true }, paint: { 'text-color': '#ffffff', 'text-halo-color': '#000000', 'text-halo-width': 2 } });
+        }
+    },
+
+    startMeasureDistance() {
+        if (!this._map) return;
+        this._cleanupMeasureListeners();
+        this._ensureMeasureSources('distance');
+        this._measureState = { mode: 'distance', points: [], listeners: {} };
+        this._map.getCanvas().style.cursor = 'crosshair';
+
+        const onClick = (e) => {
+            this._measureState.points.push([e.lngLat.lng, e.lngLat.lat]);
+            this._updateMeasureSources();
+        };
+        const onDblClick = (e) => {
+            e.preventDefault();
+            this._cleanupMeasureListeners();
+            // Show clear button
+            if (typeof StoryEditor !== 'undefined' && StoryEditor._showMeasureClearBtn) StoryEditor._showMeasureClearBtn();
+        };
+
+        this._measureState.listeners.onClick = onClick;
+        this._measureState.listeners.onDblClick = onDblClick;
+        this._map.on('click', onClick);
+        this._map.on('dblclick', onDblClick);
+    },
+
+    startMeasureArea() {
+        if (!this._map) return;
+        this._cleanupMeasureListeners();
+        this._ensureMeasureSources('area');
+        this._measureState = { mode: 'area', points: [], listeners: {} };
+        this._map.getCanvas().style.cursor = 'crosshair';
+
+        const onClick = (e) => {
+            this._measureState.points.push([e.lngLat.lng, e.lngLat.lat]);
+            this._updateMeasureSources();
+        };
+        const onDblClick = (e) => {
+            e.preventDefault();
+            this._cleanupMeasureListeners();
+            if (typeof StoryEditor !== 'undefined' && StoryEditor._showMeasureClearBtn) StoryEditor._showMeasureClearBtn();
+        };
+
+        this._measureState.listeners.onClick = onClick;
+        this._measureState.listeners.onDblClick = onDblClick;
+        this._map.on('click', onClick);
+        this._map.on('dblclick', onDblClick);
+    },
+
+    clearMeasurements() {
+        if (!this._map) return;
+        this._cleanupMeasureListeners();
+        const empty = { type: 'FeatureCollection', features: [] };
+        const emptyLine = { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} };
+
+        // Remove sources and layers
+        ['measure-line-layer', 'measure-points-layer', 'measure-polygon-layer', 'measure-polygon-outline-layer', 'measure-labels-layer'].forEach(id => {
+            try { if (this._map.getLayer(id)) this._map.removeLayer(id); } catch {}
+        });
+        ['measure-line', 'measure-points', 'measure-polygon', 'measure-polygon-outline', 'measure-labels'].forEach(id => {
+            try { if (this._map.getSource(id)) this._map.removeSource(id); } catch {}
+        });
     },
 };

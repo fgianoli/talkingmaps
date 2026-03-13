@@ -75,6 +75,12 @@ async def create_layer(req: LayerCreate, user: dict = Depends(require_editor), d
 
 @router.put("/{layer_id}")
 async def update_layer(layer_id: int, req: LayerUpdate, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
+    # Ownership check
+    if user["role"] != "admin":
+        owner_check = await db.execute(text("SELECT owner_id FROM layers WHERE id = :id"), {"id": layer_id})
+        owner_row = owner_check.fetchone()
+        if not owner_row or owner_row[0] != user["id"]:
+            raise HTTPException(status_code=403, detail="Non autorizzato a modificare questo layer")
     sets = []
     params = {"id": layer_id}
     if req.name is not None:
@@ -107,9 +113,13 @@ async def update_layer(layer_id: int, req: LayerUpdate, user: dict = Depends(req
 
 @router.delete("/{layer_id}")
 async def delete_layer(layer_id: int, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(text("DELETE FROM layers WHERE id = :id RETURNING id"), {"id": layer_id})
+    # Ownership check
+    if user["role"] != "admin":
+        result = await db.execute(text("DELETE FROM layers WHERE id = :id AND owner_id = :uid RETURNING id"), {"id": layer_id, "uid": user["id"]})
+    else:
+        result = await db.execute(text("DELETE FROM layers WHERE id = :id RETURNING id"), {"id": layer_id})
     if not result.fetchone():
-        raise HTTPException(status_code=404, detail="Layer non trovato")
+        raise HTTPException(status_code=404, detail="Layer non trovato o non autorizzato")
     await db.commit()
     return {"detail": "Layer eliminato"}
 

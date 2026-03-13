@@ -105,6 +105,20 @@
     font-size: 11px;
 }
 
+.slide-meta {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.slide-meta small {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 11px;
+    color: var(--tm-text-muted);
+}
+
 .editor-slide-thumb .slide-actions {
     display: flex;
     gap: 2px;
@@ -684,6 +698,62 @@
     margin: 0 2px;
 }
 
+/* ── Geocode Search ──────────────────── */
+.editor-geocode-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.editor-geocode-input {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 300px;
+    z-index: 100;
+    margin-top: 4px;
+}
+
+.editor-geocode-input input {
+    background: var(--tm-surface);
+    border: 1px solid var(--tm-border);
+    color: var(--tm-text);
+    border-radius: 6px;
+    font-size: 13px;
+    width: 100%;
+}
+
+.editor-geocode-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--tm-surface);
+    border: 1px solid var(--tm-border);
+    border-radius: 0 0 6px 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 101;
+}
+
+.editor-geocode-result {
+    padding: 8px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--tm-border);
+    color: var(--tm-text);
+}
+
+.editor-geocode-result:hover {
+    background: var(--tm-primary-soft);
+}
+
+.editor-geocode-result small {
+    color: var(--tm-text-muted);
+    display: block;
+    font-size: 11px;
+}
+
 /* ── Legend in viewer ─────────────────── */
 .viewer-legend {
     position: absolute;
@@ -900,4 +970,56 @@
     text-transform: uppercase;
     color: var(--tm-text-muted);
     letter-spacing: 0.5px;
+}
+
+/* ── Chapter headers in slide list ───── */
+.slide-chapter-header {
+    background: rgba(79,109,245,0.15);
+    color: #60a5fa;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-left: 3px solid #4f6df5;
+    margin-top: 4px;
+}
+
+/* ── Measurement tools ───────────────── */
+.measure-label {
+    background: rgba(0,0,0,0.75);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    pointer-events: none;
+}
+
+/* ── Attribute Table ─────────────────── */
+.attr-table-wrapper {
+    max-height: 400px;
+    overflow: auto;
+}
+
+.attr-table-wrapper table {
+    font-size: 12px;
+}
+
+.attr-table-wrapper th {
+    position: sticky;
+    top: 0;
+    background: var(--tm-surface, #fff);
+    z-index: 1;
+}
+
+.attr-table-wrapper td[contenteditable="true"] {
+    cursor: text;
+    min-width: 60px;
+}
+
+.attr-table-wrapper td[contenteditable="true"]:focus {
+    outline: 2px solid var(--tm-primary);
+    outline-offset: -2px;
+    background: var(--tm-primary-soft, #eef2ff);
 }

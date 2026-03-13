@@ -19,8 +19,19 @@ const Cesium3D = {
             Cesium.Ion.defaultAccessToken = opts.ionToken;
         }
 
+        // Only use world terrain if we have a valid Ion token
+        const hasToken = !!(opts.ionToken || Cesium.Ion.defaultAccessToken);
+        let terrainProvider;
+        if (opts.terrain === false) {
+            terrainProvider = undefined;
+        } else if (hasToken) {
+            terrainProvider = Cesium.Terrain.fromWorldTerrain();
+        } else {
+            terrainProvider = undefined; // fallback: no terrain without token
+        }
+
         this._viewer = new Cesium.Viewer(containerId, {
-            terrain: opts.terrain !== false ? Cesium.Terrain.fromWorldTerrain() : undefined,
+            terrain: terrainProvider,
             baseLayerPicker: false,
             geocoder: false,
             homeButton: false,
