@@ -152,6 +152,67 @@
 }
 
 /* ═══════════════════════════════════════
+   CARD STYLE VARIANTS
+   (chosen per-slide in the editor)
+   ═══════════════════════════════════════ */
+
+/* Default: card style (already styled above) */
+
+/* Full-width: stretches across the entire narrative column */
+.viewer-card-full-width {
+    border-radius: 0;
+    width: 100vw;
+    max-width: 100vw;
+    margin-left: calc(-50vw + 50%);
+    padding: 40px 10vw;
+    box-shadow: none;
+    border: none;
+    background: rgba(255,255,255,0.96);
+}
+
+/* Transparent: text floats directly on map */
+.viewer-card-transparent {
+    background: transparent;
+    backdrop-filter: none;
+    box-shadow: none;
+    border: none;
+    color: white;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+}
+
+.viewer-card-transparent h1,
+.viewer-card-transparent h2,
+.viewer-card-transparent h3 {
+    color: white;
+}
+
+.viewer-card-transparent p {
+    color: rgba(255,255,255,0.9);
+}
+
+.viewer-card-transparent a {
+    color: #93c5fd;
+}
+
+/* ── Marker popup styles ─────────────── */
+.marker-popup-content {
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #475569;
+}
+
+.marker-popup-content img {
+    max-width: 100%;
+    border-radius: 6px;
+    margin: 8px 0;
+}
+
+.marker-popup-content a {
+    color: #4f6df5;
+}
+
+/* ═══════════════════════════════════════
    PER-SLIDE LAYOUT CLASSES
    Each slide positions its own content
    independently from other slides
@@ -529,3 +590,62 @@
         height: 40px;
     }
 }
+
+/* ═══════════════════════════════════════
+   STORY THEMES
+   Applied via data-theme on #story-viewer
+   ═══════════════════════════════════════ */
+
+/* Light (default) — no extra rules needed */
+
+/* Dark */
+#story-viewer[data-theme="dark"] {
+    background: #0f172a;
+}
+#story-viewer[data-theme="dark"] .viewer-slide-content {
+    background: rgba(30,41,59,0.95);
+    color: #e2e8f0;
+    border-color: rgba(255,255,255,0.08);
+}
+#story-viewer[data-theme="dark"] .viewer-slide-content h1,
+#story-viewer[data-theme="dark"] .viewer-slide-content h2,
+#story-viewer[data-theme="dark"] .viewer-slide-content h3 { color: #f1f5f9; }
+#story-viewer[data-theme="dark"] .viewer-slide-content p { color: #94a3b8; }
+#story-viewer[data-theme="dark"] .viewer-slide-content a { color: #93c5fd; }
+#story-viewer[data-theme="dark"] #viewer-toolbar { background: rgba(2,6,23,0.8); }
+#story-viewer[data-theme="dark"] .slide-layout-text-only { background: linear-gradient(135deg, #0f172a, #1e293b); }
+#story-viewer[data-theme="dark"] .slide-layout-text-only .viewer-slide-content { background: rgba(30,41,59,0.98); }
+#story-viewer[data-theme="dark"] .slide-layout-text-media { background: linear-gradient(135deg, #0f172a, #1e293b); }
+#story-viewer[data-theme="dark"] .viewer-text-media-wrapper { background: #1e293b; }
+
+/* Warm */
+#story-viewer[data-theme="warm"] {
+    background: #451a03;
+}
+#story-viewer[data-theme="warm"] .viewer-slide-content {
+    background: rgba(255,251,235,0.96);
+    border-color: rgba(180,83,9,0.1);
+}
+#story-viewer[data-theme="warm"] .viewer-slide-content h1,
+#story-viewer[data-theme="warm"] .viewer-slide-content h2 { color: #78350f; }
+#story-viewer[data-theme="warm"] .viewer-slide-content p { color: #92400e; }
+#story-viewer[data-theme="warm"] .viewer-slide-content a { color: #d97706; }
+#story-viewer[data-theme="warm"] #viewer-toolbar { background: rgba(69,26,3,0.8); }
+#story-viewer[data-theme="warm"] .slide-layout-text-only { background: linear-gradient(135deg, #fffbeb, #fef3c7); }
+#story-viewer[data-theme="warm"] .slide-layout-separator { background: linear-gradient(135deg, #78350f, #92400e); }
+
+/* Cool */
+#story-viewer[data-theme="cool"] {
+    background: #0c4a6e;
+}
+#story-viewer[data-theme="cool"] .viewer-slide-content {
+    background: rgba(240,249,255,0.96);
+    border-color: rgba(14,165,233,0.1);
+}
+#story-viewer[data-theme="cool"] .viewer-slide-content h1,
+#story-viewer[data-theme="cool"] .viewer-slide-content h2 { color: #0c4a6e; }
+#story-viewer[data-theme="cool"] .viewer-slide-content p { color: #0369a1; }
+#story-viewer[data-theme="cool"] .viewer-slide-content a { color: #0ea5e9; }
+#story-viewer[data-theme="cool"] #viewer-toolbar { background: rgba(12,74,110,0.8); }
+#story-viewer[data-theme="cool"] .slide-layout-text-only { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); }
+#story-viewer[data-theme="cool"] .slide-layout-separator { background: linear-gradient(135deg, #0c4a6e, #075985); }

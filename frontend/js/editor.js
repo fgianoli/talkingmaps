@@ -50,10 +50,13 @@ const StoryEditor = {
         const t = I18n.t.bind(I18n);
         const panel = document.getElementById('panel-editor');
         panel.innerHTML = `
-            <div class="editor-slides-panel">
+            <div class="editor-slides-panel" style="resize:horizontal;overflow:auto;min-width:180px;max-width:400px">
                 <div class="editor-slides-header">
                     <h3><i class="bi bi-collection"></i> ${t('editor.slides')}</h3>
-                    <div>
+                    <div style="display:flex;align-items:center;gap:4px">
+                        <span class="editor-autosave-indicator" id="editor-autosave-status">
+                            <i class="bi bi-cloud-check"></i> <span>${t('editor.autosaved')}</span>
+                        </span>
                         <button class="btn btn-sm btn-outline-light" id="editor-add-slide" title="${t('editor.add_slide')}">
                             <i class="bi bi-plus"></i>
                         </button>
@@ -76,6 +79,11 @@ const StoryEditor = {
                 <div class="editor-map-tools" id="editor-map-tools">
                     <button class="btn" id="editor-capture-view" title="${t('editor.capture')}"><i class="bi bi-camera"></i></button>
                     <button class="btn" id="editor-add-marker" title="${t('editor.add_marker')}"><i class="bi bi-geo-alt"></i></button>
+                    <div class="editor-map-tools-sep"></div>
+                    <button class="btn" id="editor-draw-line" title="${t('editor.draw_line')}"><i class="bi bi-bezier2"></i></button>
+                    <button class="btn" id="editor-draw-polygon" title="${t('editor.draw_polygon')}"><i class="bi bi-pentagon"></i></button>
+                    <button class="btn" id="editor-draw-delete" title="${t('editor.draw_delete')}"><i class="bi bi-eraser"></i></button>
+                    <div class="editor-map-tools-sep"></div>
                     <button class="btn" id="editor-manage-layers" title="${t('editor.manage_layers')}"><i class="bi bi-layers"></i></button>
                 </div>
                 <div class="editor-map-info" id="editor-map-info">zoom: - | center: -</div>
@@ -89,11 +97,13 @@ const StoryEditor = {
                 </div>
             </div>
 
-            <div class="editor-props-panel">
-                <div class="editor-props-header">
-                    <h3><i class="bi bi-sliders"></i> ${t('editor.props')}</h3>
+            <div class="editor-props-panel" style="resize:horizontal;overflow:auto;min-width:260px;max-width:600px;direction:rtl">
+                <div style="direction:ltr">
+                    <div class="editor-props-header">
+                        <h3><i class="bi bi-sliders"></i> ${t('editor.props')}</h3>
+                    </div>
+                    <div class="editor-props-body" id="editor-props-body"></div>
                 </div>
-                <div class="editor-props-body" id="editor-props-body"></div>
             </div>
         `;
 
@@ -128,6 +138,27 @@ const StoryEditor = {
             document.getElementById('editor-map-info').textContent =
                 `zoom: ${z} | center: ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)}`;
         });
+
+        // Init drawing tools
+        TmMap.initDraw(() => this._onDrawChange());
+    },
+
+    _onDrawChange() {
+        // Save drawn features to current slide's style_overrides
+        const slide = this._slides[this._currentSlideIdx];
+        if (!slide) return;
+        const features = TmMap.getDrawFeatures();
+        slide.style_overrides = { ...(slide.style_overrides || {}), drawn_features: features };
+    },
+
+    async _setStoryTheme(themeId) {
+        if (!this._story) return;
+        this._story.settings = { ...(this._story.settings || {}), theme: themeId };
+        try {
+            await Api.updateStory(this._storyId, { settings: this._story.settings });
+            document.querySelectorAll('.theme-option').forEach(o => o.classList.toggle('active', o.dataset.theme === themeId));
+            App.toast(I18n.t('editor.theme_saved'), 'success');
+        } catch (err) { App.toast(err.message, 'danger'); }
     },
 
     // ── Map / No-map toggle ──────────────
@@ -178,7 +209,7 @@ const StoryEditor = {
                         <small><i class="bi ${icon}"></i> ${I18n.t('layout.' + (slide.layout || 'side-left'))}</small>
                     </div>
                     <div class="slide-actions">
-                        ${idx > 0 ? `<button class="btn btn-sm btn-outline-danger" onclick="StoryEditor._deleteSlide(${idx})" title="${I18n.t('action.delete')}"><i class="bi bi-trash"></i></button>` : ''}
+                        ${this._slides.length > 1 ? `<button class="btn btn-sm btn-outline-danger" onclick="StoryEditor._deleteSlide(${idx})" title="${I18n.t('action.delete')}"><i class="bi bi-trash"></i></button>` : ''}
                     </div>
                 </div>
             `;
@@ -216,7 +247,11 @@ const StoryEditor = {
         }
 
         const markers = (this._data?.markers || []).filter(m => m.slide_id === slide.id);
-        TmMap.addMarkers(markers);
+        TmMap.addMarkers(markers, (m) => this._editMarker(m.id));
+
+        // Load drawn features for this slide
+        TmMap.setDrawFeatures(slide.style_overrides?.drawn_features || null);
+
         this._renderProps(slide);
     },
 
@@ -231,7 +266,27 @@ const StoryEditor = {
         // All available layouts
         const allLayouts = ['cover', 'side-left', 'side-right', 'center', 'full-map', 'full-media', 'text-only', 'text-media', 'separator'];
 
+        const currentTheme = this._story?.settings?.theme || 'light';
         body.innerHTML = `
+            <!-- ═══ STORY THEME ═══ -->
+            <div class="prop-section prop-section-compact">
+                <div class="prop-section-title"><i class="bi bi-palette"></i> ${t('editor.story_theme')}</div>
+                <div class="theme-selector">
+                    ${[
+                        { id: 'light', label: t('editor.theme_light'), icon: 'bi-sun', colors: '#f8fafc,#e2e8f0' },
+                        { id: 'dark', label: t('editor.theme_dark'), icon: 'bi-moon-stars', colors: '#1e293b,#334155' },
+                        { id: 'warm', label: t('editor.theme_warm'), icon: 'bi-brightness-high', colors: '#fef3c7,#fde68a' },
+                        { id: 'cool', label: t('editor.theme_cool'), icon: 'bi-snow', colors: '#e0f2fe,#bae6fd' },
+                    ].map(th => `
+                        <div class="theme-option ${currentTheme === th.id ? 'active' : ''}" data-theme="${th.id}"
+                             onclick="StoryEditor._setStoryTheme('${th.id}')">
+                            <div class="theme-swatch" style="background:linear-gradient(135deg, ${th.colors.split(',')[0]}, ${th.colors.split(',')[1]})"></div>
+                            <span>${th.label}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
             <!-- ═══ QUICK ACTIONS BAR ═══ -->
             <div class="editor-quick-actions">
                 <div class="prop-section-title"><i class="bi bi-lightning"></i> ${t('editor.quick_actions')}</div>
@@ -279,8 +334,26 @@ const StoryEditor = {
                         <button class="btn" onclick="document.execCommand('italic')" title="Italic"><i class="bi bi-type-italic"></i></button>
                         <button class="btn" onclick="document.execCommand('insertUnorderedList')" title="List"><i class="bi bi-list-ul"></i></button>
                         <button class="btn" onclick="document.execCommand('insertOrderedList')" title="Numbered list"><i class="bi bi-list-ol"></i></button>
-                        <button class="btn" onclick="document.execCommand('formatBlock', false, 'h2')" title="Heading"><i class="bi bi-type-h2"></i></button>
+                        <button class="btn" onclick="document.execCommand('formatBlock', false, 'h2')" title="H2"><i class="bi bi-type-h2"></i></button>
+                        <button class="btn" onclick="document.execCommand('formatBlock', false, 'h3')" title="H3"><i class="bi bi-type-h3"></i></button>
                         <button class="btn" onclick="document.execCommand('formatBlock', false, 'blockquote')" title="Quote"><i class="bi bi-quote"></i></button>
+                        <span class="narrative-toolbar-sep"></span>
+                        <select class="narrative-font-select" onchange="document.execCommand('fontName', false, this.value)" title="${t('editor.font')}">
+                            <option value="Inter">Inter</option>
+                            <option value="Playfair Display">Playfair</option>
+                            <option value="Georgia">Georgia</option>
+                            <option value="Arial">Arial</option>
+                            <option value="Courier New">Courier</option>
+                        </select>
+                        <select class="narrative-size-select" onchange="document.execCommand('fontSize', false, this.value)" title="${t('editor.font_size')}">
+                            <option value="2">S</option>
+                            <option value="3" selected>M</option>
+                            <option value="4">L</option>
+                            <option value="5">XL</option>
+                        </select>
+                        <input type="color" class="narrative-color-pick" onchange="document.execCommand('foreColor', false, this.value)"
+                               value="#1e293b" title="${t('editor.text_color')}">
+                        <span class="narrative-toolbar-sep"></span>
                         <button class="btn" onclick="StoryEditor._insertLink()" title="${t('editor.insert_link')}"><i class="bi bi-link-45deg"></i></button>
                         <button class="btn" onclick="StoryEditor._insertImage()" title="${t('editor.insert_image')}"><i class="bi bi-image"></i></button>
                         <button class="btn" onclick="StoryEditor._insertIframe()" title="${t('editor.insert_iframe')}"><i class="bi bi-code-square"></i></button>
@@ -301,6 +374,31 @@ const StoryEditor = {
                     `).join('')}
                 </div>
             </div>
+
+            <!-- ═══ CARD STYLE (sidecar options) ═══ -->
+            ${!isSeparator ? `
+            <div class="prop-section">
+                <div class="prop-section-title"><i class="bi bi-aspect-ratio"></i> ${t('editor.card_style')}</div>
+                <div class="card-style-selector">
+                    ${['card', 'full-width', 'transparent'].map(s => `
+                        <div class="card-style-option ${(slide.style_overrides?.card_style || 'card') === s ? 'active' : ''}" data-style="${s}">
+                            <i class="bi bi-${s === 'card' ? 'card-text' : s === 'full-width' ? 'distribute-vertical' : 'transparency'}"></i>
+                            <span>${t('editor.card_' + s.replace('-', '_'))}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="prop-row mt-2">
+                    <label>${t('editor.text_align')}</label>
+                    <div class="btn-group w-100" role="group">
+                        ${['left', 'center', 'right'].map(a => `
+                            <button class="btn btn-sm btn-outline-light text-align-btn ${(slide.style_overrides?.text_align || 'left') === a ? 'active' : ''}" data-align="${a}">
+                                <i class="bi bi-text-${a}"></i>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+            ` : ''}
 
             ${hasMap ? `
             <!-- Map section (only for map layouts) -->
@@ -408,6 +506,30 @@ const StoryEditor = {
 
         document.getElementById('btn-capture-map-state')?.addEventListener('click', () => this._captureMapState());
         document.getElementById('editor-capture-view')?.addEventListener('click', () => this._captureMapState());
+
+        // Card style selector
+        body.querySelectorAll('.card-style-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                body.querySelectorAll('.card-style-option').forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                const s = this._slides[this._currentSlideIdx];
+                if (s) {
+                    s.style_overrides = { ...(s.style_overrides || {}), card_style: opt.dataset.style };
+                }
+            });
+        });
+
+        // Text alignment
+        body.querySelectorAll('.text-align-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                body.querySelectorAll('.text-align-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const s = this._slides[this._currentSlideIdx];
+                if (s) {
+                    s.style_overrides = { ...(s.style_overrides || {}), text_align: btn.dataset.align };
+                }
+            });
+        });
     },
 
     // ── Actions ──────────────────────────
@@ -456,6 +578,18 @@ const StoryEditor = {
                 updates.style_overrides = { ...(slide.style_overrides || {}), chart };
             } catch { /* invalid json */ }
         }
+
+        // Card style + text alignment + drawn features
+        const cardStyleEl = document.querySelector('.card-style-option.active');
+        const textAlignEl = document.querySelector('.text-align-btn.active');
+        const drawnFeatures = TmMap.getDrawFeatures();
+        updates.style_overrides = {
+            ...(slide.style_overrides || {}),
+            ...(updates.style_overrides || {}),
+            ...(cardStyleEl ? { card_style: cardStyleEl.dataset.style } : {}),
+            ...(textAlignEl ? { text_align: textAlignEl.dataset.align } : {}),
+            ...(drawnFeatures?.features?.length ? { drawn_features: drawnFeatures } : {}),
+        };
 
         if (Object.keys(updates).length > 0) {
             try {
@@ -636,21 +770,166 @@ const StoryEditor = {
                 if (btn) btn.classList.remove('active');
                 this._map.getCanvas().style.cursor = '';
 
-                const title = await App.prompt(I18n.t('editor.marker_title'), '', { title: I18n.t('editor.add_marker') });
+                const markerData = await this._showMarkerModal({
+                    lng: e.lngLat.lng, lat: e.lngLat.lat,
+                    title: '', popup_content: '', color: '#e74c3c', icon: 'marker',
+                });
+                if (!markerData) return;
+
                 const slide = this._slides[this._currentSlideIdx];
                 try {
-                    await Api.addMarker(slide.id, {
-                        lng: e.lngLat.lng, lat: e.lngLat.lat,
-                        title: title || '', popup_content: '', color: '#e74c3c',
-                    });
+                    await Api.addMarker(slide.id, markerData);
                     App.toast(I18n.t('editor.marker_added'), 'success');
-                    const fullSlide = await Api.getSlide(slide.id);
-                    TmMap.addMarkers(fullSlide.markers || []);
+                    await this._refreshMarkers();
                 } catch (err) { App.toast(err.message, 'danger'); }
             });
         } else {
             this._map.getCanvas().style.cursor = '';
         }
+    },
+
+    async _showMarkerModal(marker) {
+        const t = I18n.t.bind(I18n);
+        const isEdit = !!marker.id;
+        const result = await App.modal({
+            title: isEdit ? t('editor.edit_marker') : t('editor.add_marker'),
+            size: 'lg',
+            body: `
+                <div class="row g-3">
+                    <div class="col-8">
+                        <label class="form-label">${t('editor.marker_title')}</label>
+                        <input type="text" class="form-control" id="modal-marker-title"
+                               value="${App.escHtml(marker.title || '')}" placeholder="${t('editor.marker_title_ph')}">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">${t('editor.marker_color')}</label>
+                        <input type="color" class="form-control form-control-color w-100" id="modal-marker-color"
+                               value="${marker.color || '#e74c3c'}">
+                    </div>
+                </div>
+                <div class="mb-3 mt-3">
+                    <label class="form-label">${t('editor.marker_content')}</label>
+                    <div class="narrative-toolbar" style="margin-bottom:4px">
+                        <button class="btn" onclick="document.execCommand('bold')" title="Bold"><i class="bi bi-type-bold"></i></button>
+                        <button class="btn" onclick="document.execCommand('italic')" title="Italic"><i class="bi bi-type-italic"></i></button>
+                        <button class="btn" onclick="document.execCommand('createLink', false, prompt('URL:'))" title="Link"><i class="bi bi-link-45deg"></i></button>
+                        <button class="btn" onclick="document.execCommand('insertImage', false, prompt('Image URL:'))" title="Image"><i class="bi bi-image"></i></button>
+                    </div>
+                    <div class="narrative-editor" id="modal-marker-content" contenteditable="true"
+                         style="min-height:100px">${marker.popup_content || ''}</div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-4">
+                        <label class="form-label">${t('editor.marker_icon')}</label>
+                        <div class="marker-icon-grid" id="modal-marker-icon-grid">
+                            ${[
+                                { id: 'geo-alt-fill', label: 'Pin' },
+                                { id: 'star-fill', label: 'Stella' },
+                                { id: 'info-circle-fill', label: 'Info' },
+                                { id: 'camera-fill', label: 'Foto' },
+                                { id: 'building', label: 'Museo' },
+                                { id: 'cup-hot-fill', label: 'Cibo' },
+                                { id: 'tree-fill', label: 'Parco' },
+                                { id: 'bank2', label: 'Monum.' },
+                                { id: 'house-fill', label: 'Casa' },
+                                { id: 'heart-fill', label: 'Cuore' },
+                                { id: 'flag-fill', label: 'Band.' },
+                                { id: 'exclamation-triangle-fill', label: 'Avviso' },
+                                { id: 'music-note-beamed', label: 'Musica' },
+                                { id: 'book-fill', label: 'Libro' },
+                                { id: 'water', label: 'Acqua' },
+                                { id: 'bicycle', label: 'Bici' },
+                            ].map(ic => `
+                                <div class="marker-icon-option ${marker.icon === ic.id ? 'active' : ''}" data-icon="${ic.id}" title="${ic.label}"
+                                     onclick="document.querySelectorAll('.marker-icon-option').forEach(o=>o.classList.remove('active'));this.classList.add('active');document.getElementById('modal-marker-icon').value=this.dataset.icon">
+                                    <i class="bi bi-${ic.id}"></i>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <input type="hidden" id="modal-marker-icon" value="${marker.icon || 'geo-alt-fill'}">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">${t('editor.marker_size')}</label>
+                        <select class="form-select form-select-sm" id="modal-marker-size">
+                            ${['small', 'medium', 'large'].map(s =>
+                                `<option value="${s}" ${(marker.size || 'medium') === s ? 'selected' : ''}>${t('editor.marker_size_' + s)}</option>`
+                            ).join('')}
+                        </select>
+                        <label class="form-label mt-2">${t('editor.marker_shape')}</label>
+                        <select class="form-select form-select-sm" id="modal-marker-shape">
+                            ${['circle', 'square', 'diamond'].map(s =>
+                                `<option value="${s}" ${(marker.shape || 'circle') === s ? 'selected' : ''}>${t('editor.marker_shape_' + s)}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">${t('editor.marker_coords')}</label>
+                        <small class="form-text d-block">${marker.lat?.toFixed(5)}, ${marker.lng?.toFixed(5)}</small>
+                    </div>
+                </div>
+                ${isEdit ? `<div class="mt-3"><button class="btn btn-sm btn-outline-danger" id="modal-marker-delete"><i class="bi bi-trash"></i> ${t('action.delete')}</button></div>` : ''}
+            `,
+            confirmText: isEdit ? t('action.save') : t('action.confirm'),
+            onConfirm: () => ({
+                lng: marker.lng,
+                lat: marker.lat,
+                title: document.getElementById('modal-marker-title')?.value || '',
+                popup_content: document.getElementById('modal-marker-content')?.innerHTML || '',
+                color: document.getElementById('modal-marker-color')?.value || '#e74c3c',
+                icon: document.getElementById('modal-marker-icon')?.value || 'geo-alt-fill',
+                size: document.getElementById('modal-marker-size')?.value || 'medium',
+                shape: document.getElementById('modal-marker-shape')?.value || 'circle',
+            }),
+        });
+
+        // Hook delete button after modal opens
+        setTimeout(() => {
+            document.getElementById('modal-marker-delete')?.addEventListener('click', async () => {
+                if (marker.id) {
+                    const ok = await App.confirm(t('editor.marker_delete_confirm'), { danger: true });
+                    if (ok) {
+                        await Api.deleteMarker(marker.id);
+                        bootstrap.Modal.getInstance(document.querySelector('.modal.show'))?.hide();
+                        await this._refreshMarkers();
+                        App.toast(t('editor.marker_deleted'), 'success');
+                    }
+                }
+            });
+        }, 200);
+
+        return result;
+    },
+
+    async _editMarker(markerId) {
+        const slide = this._slides[this._currentSlideIdx];
+        const fullSlide = await Api.getSlide(slide.id);
+        const marker = (fullSlide.markers || []).find(m => m.id === markerId);
+        if (!marker) return;
+
+        // Decode packed icon field
+        if (marker.icon?.includes('|')) {
+            const parts = marker.icon.split('|');
+            marker.icon = parts[0];
+            marker.size = parts[1] || 'medium';
+            marker.shape = parts[2] || 'circle';
+        }
+
+        const updated = await this._showMarkerModal(marker);
+        if (!updated) return;
+
+        try {
+            await Api.updateMarker(markerId, updated);
+            App.toast(I18n.t('editor.marker_saved'), 'success');
+            await this._refreshMarkers();
+        } catch (err) { App.toast(err.message, 'danger'); }
+    },
+
+    async _refreshMarkers() {
+        const slide = this._slides[this._currentSlideIdx];
+        if (!slide) return;
+        const fullSlide = await Api.getSlide(slide.id);
+        const markers = fullSlide.markers || [];
+        TmMap.addMarkers(markers, (m) => this._editMarker(m.id));
     },
 
     // ── Events ───────────────────────────
@@ -665,6 +944,11 @@ const StoryEditor = {
         });
 
         document.getElementById('editor-manage-layers')?.addEventListener('click', () => this._openLayersModal());
+
+        // Drawing tools
+        document.getElementById('editor-draw-line')?.addEventListener('click', () => TmMap.startDrawLine());
+        document.getElementById('editor-draw-polygon')?.addEventListener('click', () => TmMap.startDrawPolygon());
+        document.getElementById('editor-draw-delete')?.addEventListener('click', () => TmMap.deleteDrawSelected());
 
         // Guide button
         document.getElementById('editor-show-guide')?.addEventListener('click', () => {
@@ -826,7 +1110,23 @@ const StoryEditor = {
 
     _startAutosave() {
         clearInterval(this._autosaveTimer);
-        this._autosaveTimer = setInterval(() => this._saveCurrentSlideProps(), 15000);
+        this._autosaveTimer = setInterval(() => this._doAutosave(), 15000);
+    },
+
+    async _doAutosave() {
+        const indicator = document.getElementById('editor-autosave-status');
+        if (indicator) {
+            indicator.className = 'editor-autosave-indicator saving';
+            indicator.innerHTML = `<i class="bi bi-cloud-arrow-up"></i> <span>${I18n.t('editor.saving')}</span>`;
+        }
+        await this._saveCurrentSlideProps();
+        if (indicator) {
+            indicator.className = 'editor-autosave-indicator saved';
+            indicator.innerHTML = `<i class="bi bi-cloud-check"></i> <span>${I18n.t('editor.autosaved')}</span>`;
+            setTimeout(() => {
+                indicator.className = 'editor-autosave-indicator';
+            }, 3000);
+        }
     },
 
     _layoutIcon(layout) {

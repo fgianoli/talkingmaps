@@ -244,21 +244,59 @@ const TmMap = {
     },
 
     // ── Markers ──────────────────────────
-    addMarkers(markers) {
+    _markerSizes: { small: 20, medium: 28, large: 38 },
+
+    // Decode packed icon field: "icon|size|shape"
+    _parseIcon(iconStr) {
+        if (!iconStr) return { icon: 'geo-alt-fill', size: 'medium', shape: 'circle' };
+        const parts = iconStr.split('|');
+        return {
+            icon: parts[0] || 'geo-alt-fill',
+            size: parts[1] || 'medium',
+            shape: parts[2] || 'circle',
+        };
+    },
+
+    addMarkers(markers, onClickCb) {
         this.clearMarkers();
         if (!this._map) return;
         markers.forEach(m => {
+            const parsed = this._parseIcon(m.icon);
+            const size = this._markerSizes[m.size || parsed.size] || this._markerSizes.medium;
+            const color = m.color || '#e74c3c';
+            const shape = m.shape || parsed.shape;
+            const icon = (m.icon && !m.icon.includes('|')) ? m.icon : parsed.icon;
+
             const el = document.createElement('div');
             el.className = 'tm-marker';
-            el.style.cssText = `width:24px;height:24px;border-radius:50%;background:${m.color || '#e74c3c'};border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);cursor:pointer;`;
+
+            const borderRadius = shape === 'circle' ? '50%' : shape === 'diamond' ? '4px' : '4px';
+            const rotation = shape === 'diamond' ? 'transform:rotate(45deg);' : '';
+            const iconRotation = shape === 'diamond' ? 'transform:rotate(-45deg);' : '';
+
+            el.style.cssText = `
+                width:${size}px;height:${size}px;border-radius:${borderRadius};
+                background:${color};border:3px solid white;
+                box-shadow:0 2px 8px rgba(0,0,0,0.4);cursor:pointer;
+                display:flex;align-items:center;justify-content:center;${rotation}
+            `;
+            el.innerHTML = `<i class="bi bi-${icon}" style="color:white;font-size:${Math.round(size * 0.45)}px;${iconRotation}"></i>`;
+
+            // Click to edit in editor mode
+            if (onClickCb) {
+                el.addEventListener('click', (e) => { e.stopPropagation(); onClickCb(m); });
+            }
 
             const marker = new maplibregl.Marker({ element: el })
                 .setLngLat([m.lng, m.lat])
                 .addTo(this._map);
 
-            if (m.title || m.popup_content) {
-                const popup = new maplibregl.Popup({ offset: 16, maxWidth: '300px' })
-                    .setHTML(`${m.title ? `<strong>${m.title}</strong>` : ''}${m.popup_content ? `<div>${m.popup_content}</div>` : ''}`);
+            if (!onClickCb && (m.title || m.popup_content)) {
+                const popup = new maplibregl.Popup({ offset: Math.round(size / 2), maxWidth: '340px' })
+                    .setHTML(`
+                        ${m.title ? `<strong style="font-size:15px">${m.title}</strong>` : ''}
+                        ${m.popup_content ? `<div class="marker-popup-content">${m.popup_content}</div>` : ''}
+                    `);
                 marker.setPopup(popup);
             }
 
@@ -301,5 +339,82 @@ const TmMap = {
             bearing: this._map.getBearing(),
             pitch: this._map.getPitch(),
         };
+    },
+
+    // ── Drawing Tools (MapboxDraw) ─────────
+    _draw: null,
+
+    initDraw(onChange) {
+        if (!this._map || this._draw) return this._draw;
+        if (typeof MapboxDraw === 'undefined') {
+            console.warn('MapboxDraw not loaded');
+            return null;
+        }
+        this._draw = new MapboxDraw({
+            displayControlsDefault: false,
+            controls: {},
+            styles: [
+                // Line
+                { id: 'gl-draw-line', type: 'line', filter: ['all', ['==', '$type', 'LineString'], ['!=', 'mode', 'static']],
+                  paint: { 'line-color': '#4f6df5', 'line-width': 3, 'line-dasharray': [2, 1] }},
+                { id: 'gl-draw-line-static', type: 'line', filter: ['all', ['==', '$type', 'LineString'], ['==', 'mode', 'static']],
+                  paint: { 'line-color': '#4f6df5', 'line-width': 3 }},
+                // Polygon
+                { id: 'gl-draw-polygon-fill', type: 'fill', filter: ['all', ['==', '$type', 'Polygon'], ['!=', 'mode', 'static']],
+                  paint: { 'fill-color': '#4f6df5', 'fill-opacity': 0.15 }},
+                { id: 'gl-draw-polygon-stroke', type: 'line', filter: ['all', ['==', '$type', 'Polygon'], ['!=', 'mode', 'static']],
+                  paint: { 'line-color': '#4f6df5', 'line-width': 2, 'line-dasharray': [2, 1] }},
+                { id: 'gl-draw-polygon-fill-static', type: 'fill', filter: ['all', ['==', '$type', 'Polygon'], ['==', 'mode', 'static']],
+                  paint: { 'fill-color': '#4f6df5', 'fill-opacity': 0.2 }},
+                { id: 'gl-draw-polygon-stroke-static', type: 'line', filter: ['all', ['==', '$type', 'Polygon'], ['==', 'mode', 'static']],
+                  paint: { 'line-color': '#4f6df5', 'line-width': 2 }},
+                // Vertices
+                { id: 'gl-draw-point', type: 'circle', filter: ['all', ['==', '$type', 'Point'], ['==', 'meta', 'vertex']],
+                  paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#4f6df5', 'circle-stroke-width': 2 }},
+                { id: 'gl-draw-point-mid', type: 'circle', filter: ['all', ['==', '$type', 'Point'], ['==', 'meta', 'midpoint']],
+                  paint: { 'circle-radius': 3, 'circle-color': '#4f6df5' }},
+            ],
+        });
+        this._map.addControl(this._draw);
+        if (onChange) {
+            this._map.on('draw.create', onChange);
+            this._map.on('draw.update', onChange);
+            this._map.on('draw.delete', onChange);
+        }
+        return this._draw;
+    },
+
+    getDraw() { return this._draw; },
+
+    setDrawFeatures(geojson) {
+        if (!this._draw) return;
+        this._draw.deleteAll();
+        if (geojson?.features) {
+            geojson.features.forEach(f => this._draw.add(f));
+        }
+    },
+
+    getDrawFeatures() {
+        if (!this._draw) return null;
+        return this._draw.getAll();
+    },
+
+    startDrawLine() {
+        if (this._draw) this._draw.changeMode('draw_line_string');
+    },
+
+    startDrawPolygon() {
+        if (this._draw) this._draw.changeMode('draw_polygon');
+    },
+
+    deleteDrawSelected() {
+        if (this._draw) this._draw.trash();
+    },
+
+    destroyDraw() {
+        if (this._draw && this._map) {
+            this._map.removeControl(this._draw);
+            this._draw = null;
+        }
     },
 };

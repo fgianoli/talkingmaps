@@ -39,8 +39,10 @@ class MarkerCreate(BaseModel):
     lat: float
     title: str | None = None
     popup_content: str | None = None
-    icon: str = "marker"
+    icon: str = "geo-alt-fill"
     color: str = "#e74c3c"
+    size: str = "medium"      # small, medium, large
+    shape: str = "circle"     # circle, square, diamond
 
 
 class ReorderRequest(BaseModel):
@@ -151,11 +153,13 @@ async def reorder_slides(req: ReorderRequest, user: dict = Depends(require_edito
 
 @router.post("/{slide_id}/markers")
 async def add_marker(slide_id: int, req: MarkerCreate, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
+    # Encode icon|size|shape into the icon column (avoids DB migration)
+    icon_packed = f"{req.icon}|{req.size}|{req.shape}"
     result = await db.execute(text(
         """INSERT INTO markers (slide_id, geom, title, popup_content, icon, color)
            VALUES (:sid, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326), :title, :popup, :icon, :color)
            RETURNING id"""
-    ), {"sid": slide_id, "lng": req.lng, "lat": req.lat, "title": req.title, "popup": req.popup_content, "icon": req.icon, "color": req.color})
+    ), {"sid": slide_id, "lng": req.lng, "lat": req.lat, "title": req.title, "popup": req.popup_content, "icon": icon_packed, "color": req.color})
     marker_id = result.fetchone()[0]
     await db.commit()
     return {"id": marker_id}
@@ -163,11 +167,12 @@ async def add_marker(slide_id: int, req: MarkerCreate, user: dict = Depends(requ
 
 @router.put("/markers/{marker_id}")
 async def update_marker(marker_id: int, req: MarkerCreate, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
+    icon_packed = f"{req.icon}|{req.size}|{req.shape}"
     result = await db.execute(text(
         """UPDATE markers SET geom = ST_SetSRID(ST_MakePoint(:lng, :lat), 4326),
            title = :title, popup_content = :popup, icon = :icon, color = :color
            WHERE id = :id RETURNING id"""
-    ), {"id": marker_id, "lng": req.lng, "lat": req.lat, "title": req.title, "popup": req.popup_content, "icon": req.icon, "color": req.color})
+    ), {"id": marker_id, "lng": req.lng, "lat": req.lat, "title": req.title, "popup": req.popup_content, "icon": icon_packed, "color": req.color})
     if not result.fetchone():
         raise HTTPException(status_code=404, detail="Marker non trovato")
     await db.commit()

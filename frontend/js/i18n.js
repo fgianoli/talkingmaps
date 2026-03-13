@@ -224,8 +224,56 @@ const I18n = {
             'editor.qa_layer': 'Aggiungi dati/layer',
             'editor.qa_marker': 'Piazza un marker',
             'editor.show_guide': 'Guida',
+            'editor.autosaved': 'Salvato',
+            'editor.saving': 'Salvataggio...',
+            'editor.story_theme': 'Tema storia',
+            'editor.theme_light': 'Chiaro',
+            'editor.theme_dark': 'Scuro',
+            'editor.theme_warm': 'Caldo',
+            'editor.theme_cool': 'Freddo',
+            'editor.theme_saved': 'Tema aggiornato',
+            'editor.font': 'Font',
+            'editor.font_size': 'Dimensione testo',
+            'editor.text_color': 'Colore testo',
             'editor.no_map_hint': 'Questa slide non ha la mappa. Scegli un layout con mappa se ti serve.',
             'editor.has_map_hint': 'Naviga la mappa e clicca "Cattura questa vista" per salvarla nella slide.',
+
+            // Card style & text
+            'editor.card_style': 'Stile pannello',
+            'editor.card_card': 'Card',
+            'editor.card_full_width': 'Piena larghezza',
+            'editor.card_transparent': 'Trasparente',
+            'editor.text_align': 'Allineamento testo',
+
+            // Markers
+            'editor.edit_marker': 'Modifica marker',
+            'editor.marker_title_ph': 'Nome del luogo...',
+            'editor.marker_content': 'Contenuto popup (testo, link, immagini)',
+            'editor.marker_color': 'Colore',
+            'editor.marker_icon': 'Icona',
+            'editor.marker_coords': 'Coordinate',
+            'editor.marker_saved': 'Marker aggiornato',
+            'editor.marker_deleted': 'Marker eliminato',
+            'editor.marker_delete_confirm': 'Eliminare questo marker?',
+
+            // Marker symbology
+            'editor.marker_size': 'Dimensione',
+            'editor.marker_size_small': 'Piccolo',
+            'editor.marker_size_medium': 'Medio',
+            'editor.marker_size_large': 'Grande',
+            'editor.marker_shape': 'Forma',
+            'editor.marker_shape_circle': 'Cerchio',
+            'editor.marker_shape_square': 'Quadrato',
+            'editor.marker_shape_diamond': 'Diamante',
+
+            // Drawing
+            'editor.draw_line': 'Disegna linea',
+            'editor.draw_polygon': 'Disegna area',
+            'editor.draw_delete': 'Elimina selezione',
+
+            // Legend
+            'editor.legend': 'Legenda',
+            'editor.legend_show': 'Mostra legenda',
 
             // Chart wizard
             'chartwiz.title': 'Crea grafico',
@@ -513,8 +561,56 @@ const I18n = {
             'editor.qa_layer': 'Add data/layer',
             'editor.qa_marker': 'Place a marker',
             'editor.show_guide': 'Guide',
+            'editor.autosaved': 'Saved',
+            'editor.saving': 'Saving...',
+            'editor.story_theme': 'Story theme',
+            'editor.theme_light': 'Light',
+            'editor.theme_dark': 'Dark',
+            'editor.theme_warm': 'Warm',
+            'editor.theme_cool': 'Cool',
+            'editor.theme_saved': 'Theme updated',
+            'editor.font': 'Font',
+            'editor.font_size': 'Font size',
+            'editor.text_color': 'Text color',
             'editor.no_map_hint': 'This slide has no map. Choose a map layout if you need one.',
             'editor.has_map_hint': 'Navigate the map and click "Capture this view" to save it for this slide.',
+
+            // Card style & text
+            'editor.card_style': 'Panel style',
+            'editor.card_card': 'Card',
+            'editor.card_full_width': 'Full width',
+            'editor.card_transparent': 'Transparent',
+            'editor.text_align': 'Text alignment',
+
+            // Markers
+            'editor.edit_marker': 'Edit marker',
+            'editor.marker_title_ph': 'Place name...',
+            'editor.marker_content': 'Popup content (text, links, images)',
+            'editor.marker_color': 'Color',
+            'editor.marker_icon': 'Icon',
+            'editor.marker_coords': 'Coordinates',
+            'editor.marker_saved': 'Marker updated',
+            'editor.marker_deleted': 'Marker deleted',
+            'editor.marker_delete_confirm': 'Delete this marker?',
+
+            // Marker symbology
+            'editor.marker_size': 'Size',
+            'editor.marker_size_small': 'Small',
+            'editor.marker_size_medium': 'Medium',
+            'editor.marker_size_large': 'Large',
+            'editor.marker_shape': 'Shape',
+            'editor.marker_shape_circle': 'Circle',
+            'editor.marker_shape_square': 'Square',
+            'editor.marker_shape_diamond': 'Diamond',
+
+            // Drawing
+            'editor.draw_line': 'Draw line',
+            'editor.draw_polygon': 'Draw area',
+            'editor.draw_delete': 'Delete selection',
+
+            // Legend
+            'editor.legend': 'Legend',
+            'editor.legend_show': 'Show legend',
 
             'chartwiz.title': 'Create chart',
             'chartwiz.tab_paste': 'Paste data',
@@ -796,8 +892,56 @@ const I18n = {
             'editor.qa_layer': 'Añadir datos/capa',
             'editor.qa_marker': 'Colocar marcador',
             'editor.show_guide': 'Guía',
+            'editor.autosaved': 'Guardado',
+            'editor.saving': 'Guardando...',
+            'editor.story_theme': 'Tema de la historia',
+            'editor.theme_light': 'Claro',
+            'editor.theme_dark': 'Oscuro',
+            'editor.theme_warm': 'Cálido',
+            'editor.theme_cool': 'Frío',
+            'editor.theme_saved': 'Tema actualizado',
+            'editor.font': 'Fuente',
+            'editor.font_size': 'Tamaño de texto',
+            'editor.text_color': 'Color de texto',
             'editor.no_map_hint': 'Esta diapositiva no tiene mapa. Elige un diseño con mapa si lo necesitas.',
             'editor.has_map_hint': 'Navega el mapa y haz clic en "Capturar vista" para guardarla.',
+
+            // Card style & text
+            'editor.card_style': 'Estilo del panel',
+            'editor.card_card': 'Tarjeta',
+            'editor.card_full_width': 'Ancho completo',
+            'editor.card_transparent': 'Transparente',
+            'editor.text_align': 'Alineación del texto',
+
+            // Markers
+            'editor.edit_marker': 'Editar marcador',
+            'editor.marker_title_ph': 'Nombre del lugar...',
+            'editor.marker_content': 'Contenido del popup (texto, enlaces, imágenes)',
+            'editor.marker_color': 'Color',
+            'editor.marker_icon': 'Icono',
+            'editor.marker_coords': 'Coordenadas',
+            'editor.marker_saved': 'Marcador actualizado',
+            'editor.marker_deleted': 'Marcador eliminado',
+            'editor.marker_delete_confirm': '¿Eliminar este marcador?',
+
+            // Marker symbology
+            'editor.marker_size': 'Tamaño',
+            'editor.marker_size_small': 'Pequeño',
+            'editor.marker_size_medium': 'Mediano',
+            'editor.marker_size_large': 'Grande',
+            'editor.marker_shape': 'Forma',
+            'editor.marker_shape_circle': 'Círculo',
+            'editor.marker_shape_square': 'Cuadrado',
+            'editor.marker_shape_diamond': 'Diamante',
+
+            // Drawing
+            'editor.draw_line': 'Dibujar línea',
+            'editor.draw_polygon': 'Dibujar área',
+            'editor.draw_delete': 'Eliminar selección',
+
+            // Legend
+            'editor.legend': 'Leyenda',
+            'editor.legend_show': 'Mostrar leyenda',
 
             'chartwiz.title': 'Crear gráfico',
             'chartwiz.tab_paste': 'Pegar datos',

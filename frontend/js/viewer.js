@@ -32,6 +32,10 @@ const StoryViewer = {
         const viewer = document.getElementById('story-viewer');
         viewer.classList.remove('d-none');
 
+        // Apply story theme
+        const theme = data.story.settings?.theme || 'light';
+        viewer.setAttribute('data-theme', theme);
+
         // Title
         document.getElementById('viewer-title').textContent = data.story.title;
         document.getElementById('viewer-progress').textContent = `1 / ${this._slides.length}`;
@@ -125,9 +129,12 @@ const StoryViewer = {
             slideEl.dataset.slideIndex = idx;
             slideEl.dataset.layout = layout;
 
-            // Content block
+            // Content block with card style and text alignment
             const content = document.createElement('div');
-            content.className = 'viewer-slide-content';
+            const cardStyle = slide.style_overrides?.card_style || 'card';
+            const textAlign = slide.style_overrides?.text_align || 'left';
+            content.className = `viewer-slide-content viewer-card-${cardStyle}`;
+            if (textAlign !== 'left') content.style.textAlign = textAlign;
 
             // Title
             if (slide.title && layout !== 'full-map') {
@@ -323,6 +330,12 @@ const StoryViewer = {
         const slideMarkers = (this._data.markers || []).filter(m => m.slide_id === slide.id);
         TmMap.addMarkers(slideMarkers);
 
+        // Drawn features (lines/polygons)
+        this._renderDrawnFeatures(slide);
+
+        // Legend
+        this._renderLegend(slide);
+
         // Lazy render charts
         const chartEl = document.querySelector(`[data-slide-index="${index}"] .slide-chart-container`);
         if (chartEl && chartEl.dataset.chartConfig && !chartEl.dataset.rendered) {
@@ -365,6 +378,95 @@ const StoryViewer = {
             clearTimeout(this._toolbarTimer);
             this._toolbarTimer = setTimeout(() => toolbar.classList.add('hidden'), 4000);
         };
+    },
+
+    // ── Legend ─────────────────────────────
+    _renderLegend(slide) {
+        document.getElementById('viewer-legend')?.remove();
+        const layout = slide.layout || 'side-left';
+        const hasMap = this._mapLayouts.includes(layout);
+        if (!hasMap) return;
+
+        const items = [];
+
+        // Visible layers
+        if (this._data.layers) {
+            this._data.layers.forEach(l => {
+                const vis = slide.layer_visibility?.[l.layer_id];
+                const isVis = vis !== undefined ? vis : l.visible;
+                if (!isVis) return;
+                const style = l.custom_style && Object.keys(l.custom_style).length ? l.custom_style : l.style_config;
+                const color = style?.paint?.['fill-color'] || style?.paint?.['line-color'] || style?.paint?.['circle-color'] || '#4f6df5';
+                const type = style?.type || l.layer_type || 'fill';
+                items.push({ label: l.layer_name, color, type });
+            });
+        }
+
+        // Drawn features
+        const drawn = slide.style_overrides?.drawn_features;
+        if (drawn?.features?.length) {
+            const hasLines = drawn.features.some(f => f.geometry?.type === 'LineString');
+            const hasPolys = drawn.features.some(f => f.geometry?.type === 'Polygon');
+            if (hasLines) items.push({ label: 'Linee', color: '#4f6df5', type: 'line' });
+            if (hasPolys) items.push({ label: 'Aree', color: '#4f6df5', type: 'fill' });
+        }
+
+        // Markers
+        const slideMarkers = (this._data.markers || []).filter(m => m.slide_id === slide.id);
+        if (slideMarkers.length > 0) {
+            const colors = [...new Set(slideMarkers.map(m => m.color || '#e74c3c'))];
+            colors.forEach(c => {
+                const markersOfColor = slideMarkers.filter(m => (m.color || '#e74c3c') === c);
+                const label = markersOfColor.length === 1 ? markersOfColor[0].title : `Marker (${markersOfColor.length})`;
+                items.push({ label, color: c, type: 'circle' });
+            });
+        }
+
+        if (items.length === 0) return;
+
+        const legend = document.createElement('div');
+        legend.id = 'viewer-legend';
+        legend.className = 'viewer-legend';
+        legend.innerHTML = `<h4><i class="bi bi-list-ul"></i> Legenda</h4>` +
+            items.map(it => {
+                const swatchClass = it.type === 'line' ? 'legend-swatch line' : 'legend-swatch';
+                return `<div class="legend-item">
+                    <div class="${swatchClass}" style="background:${it.color}${it.type === 'circle' ? ';border-radius:50%' : ''}"></div>
+                    <span class="legend-label">${it.label}</span>
+                </div>`;
+            }).join('');
+
+        document.getElementById('story-viewer').appendChild(legend);
+    },
+
+    // ── Drawn Features ────────────────────
+    _drawnSourceAdded: false,
+
+    _renderDrawnFeatures(slide) {
+        const map = TmMap.getMap();
+        if (!map) return;
+        const geojson = slide.style_overrides?.drawn_features;
+
+        if (this._drawnSourceAdded) {
+            // Update existing source
+            const src = map.getSource('viewer-drawn');
+            if (src) {
+                src.setData(geojson || { type: 'FeatureCollection', features: [] });
+                return;
+            }
+        }
+
+        if (!geojson?.features?.length) return;
+
+        // Add source and layers for drawn features
+        map.addSource('viewer-drawn', { type: 'geojson', data: geojson });
+        map.addLayer({ id: 'viewer-drawn-fill', type: 'fill', source: 'viewer-drawn',
+            filter: ['==', '$type', 'Polygon'],
+            paint: { 'fill-color': '#4f6df5', 'fill-opacity': 0.2 } });
+        map.addLayer({ id: 'viewer-drawn-line', type: 'line', source: 'viewer-drawn',
+            filter: ['any', ['==', '$type', 'LineString'], ['==', '$type', 'Polygon']],
+            paint: { 'line-color': '#4f6df5', 'line-width': 3 } });
+        this._drawnSourceAdded = true;
     },
 
     // ── 3D Toggle ────────────────────────
