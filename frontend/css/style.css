@@ -38,7 +38,7 @@
     --tm-shadow-md: 0 4px 12px rgba(0,0,0,0.06);
     --tm-shadow-lg: 0 10px 40px rgba(0,0,0,0.08);
     --tm-transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    --tm-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --tm-font: 'Ubuntu', -apple-system, BlinkMacSystemFont, sans-serif;
     --tm-font-display: 'Playfair Display', Georgia, serif;
     --tm-navbar-height: 56px;
 }

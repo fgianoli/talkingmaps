@@ -63,6 +63,9 @@ const StoryEditor = {
                         <button class="btn btn-sm btn-outline-light" id="editor-preview" title="${t('editor.preview')}">
                             <i class="bi bi-eye"></i>
                         </button>
+                        <button class="btn btn-sm btn-outline-light" id="editor-share" title="${t('editor.share')}">
+                            <i class="bi bi-share"></i>
+                        </button>
                         <button class="btn btn-sm btn-outline-light" id="editor-show-guide" title="${t('editor.show_guide')}">
                             <i class="bi bi-question-circle"></i>
                         </button>
@@ -149,6 +152,41 @@ const StoryEditor = {
         if (!slide) return;
         const features = TmMap.getDrawFeatures();
         slide.style_overrides = { ...(slide.style_overrides || {}), drawn_features: features };
+    },
+
+    _showShareModal() {
+        const t = I18n.t.bind(I18n);
+        const base = window.location.origin + window.location.pathname;
+        const viewUrl = `${base}#/view/${this._storyId}`;
+        const embedUrl = viewUrl;
+        const embedCode = `<iframe src="${embedUrl}" width="100%" height="600" frameborder="0" allow="fullscreen" style="border:none;border-radius:8px"></iframe>`;
+
+        App.modal({
+            title: t('editor.share'),
+            body: `
+                <div class="mb-3">
+                    <label class="form-label"><i class="bi bi-link-45deg"></i> ${t('editor.share_link')}</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="share-url" value="${viewUrl}" readonly>
+                        <button class="btn btn-outline-primary" onclick="navigator.clipboard.writeText(document.getElementById('share-url').value);this.innerHTML='<i class=\\'bi bi-check\\'></i>'">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label"><i class="bi bi-code-slash"></i> ${t('editor.share_embed')}</label>
+                    <div class="input-group">
+                        <textarea class="form-control" id="share-embed" rows="3" readonly style="font-family:monospace;font-size:11px">${App.escHtml(embedCode)}</textarea>
+                        <button class="btn btn-outline-primary" onclick="navigator.clipboard.writeText(document.getElementById('share-embed').value);this.innerHTML='<i class=\\'bi bi-check\\'></i>'" style="align-self:stretch">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                </div>
+                <small class="text-muted"><i class="bi bi-info-circle"></i> ${t('editor.share_note')}</small>
+            `,
+            confirmText: t('action.close') || 'OK',
+            onConfirm: () => true,
+        });
     },
 
     async _setStoryTheme(themeId) {
@@ -339,7 +377,7 @@ const StoryEditor = {
                         <button class="btn" onclick="document.execCommand('formatBlock', false, 'blockquote')" title="Quote"><i class="bi bi-quote"></i></button>
                         <span class="narrative-toolbar-sep"></span>
                         <select class="narrative-font-select" onchange="document.execCommand('fontName', false, this.value)" title="${t('editor.font')}">
-                            <option value="Inter">Inter</option>
+                            <option value="Ubuntu">Ubuntu</option>
                             <option value="Playfair Display">Playfair</option>
                             <option value="Georgia">Georgia</option>
                             <option value="Arial">Arial</option>
@@ -944,6 +982,7 @@ const StoryEditor = {
         });
 
         document.getElementById('editor-manage-layers')?.addEventListener('click', () => this._openLayersModal());
+        document.getElementById('editor-share')?.addEventListener('click', () => this._showShareModal());
 
         // Drawing tools
         document.getElementById('editor-draw-line')?.addEventListener('click', () => TmMap.startDrawLine());

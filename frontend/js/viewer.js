@@ -62,6 +62,14 @@ const StoryViewer = {
         // Basemap selector
         this._setupBasemapSelector(data.basemaps);
 
+        // Share button
+        document.getElementById('viewer-share-btn').onclick = () => {
+            const url = window.location.origin + window.location.pathname + '#/view/' + data.story.id;
+            const embed = `<iframe src="${url}" width="100%" height="600" frameborder="0" allow="fullscreen" style="border:none"></iframe>`;
+            navigator.clipboard?.writeText(url);
+            App.toast(I18n.t('editor.share_copied') || 'Link copied!', 'success');
+        };
+
         // Load initial slide
         setTimeout(() => this._onSlideEnter(0), 500);
     },
