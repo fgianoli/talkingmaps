@@ -31,6 +31,10 @@ class SlideUpdate(BaseModel):
     layer_visibility: dict | None = None
     background_media: str | None = None
     background_opacity: float | None = None
+    basemap_id: int | None = None
+    map_config: dict | None = None
+    audio_url: str | None = None
+    audio_autoplay: bool | None = None
     style_overrides: dict | None = None
 
 
@@ -100,13 +104,13 @@ async def update_slide(slide_id: int, req: SlideUpdate, user: dict = Depends(req
     sets = []
     params = {"id": slide_id}
 
-    for field in ["title", "narrative", "layout", "visible", "map_zoom", "map_bearing", "map_pitch", "map_animation", "background_media", "background_opacity"]:
+    for field in ["title", "narrative", "layout", "visible", "map_zoom", "map_bearing", "map_pitch", "map_animation", "background_media", "background_opacity", "basemap_id", "audio_url", "audio_autoplay"]:
         val = getattr(req, field, None)
         if val is not None:
             sets.append(f"{field} = :{field}")
             params[field] = val
 
-    for jfield in ["map_center", "map_bounds", "layer_visibility", "style_overrides"]:
+    for jfield in ["map_center", "map_bounds", "layer_visibility", "map_config", "style_overrides"]:
         val = getattr(req, jfield, None)
         if val is not None:
             sets.append(f"{jfield} = CAST(:{jfield} AS jsonb)")

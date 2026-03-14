@@ -475,11 +475,15 @@ const Dashboard = {
                 <div class="mb-3"><label class="form-label">${t('basemaps.name')}</label>
                     <input type="text" class="form-control" id="modal-bm-name" placeholder="OpenStreetMap"></div>
                 <div class="mb-3"><label class="form-label">${t('basemaps.type')}</label>
-                    <select class="form-select" id="modal-bm-type">
+                    <select class="form-select" id="modal-bm-type" onchange="document.getElementById('modal-bm-image-hint').classList.toggle('d-none', this.value !== 'image')">
                         <option value="xyz">xyz</option><option value="wms">wms</option><option value="wmts">wmts</option>
+                        <option value="image">${t('basemaps.type_image')}</option>
                     </select></div>
                 <div class="mb-3"><label class="form-label">${t('basemaps.url')}</label>
                     <input type="text" class="form-control" id="modal-bm-url" placeholder="https://tile.openstreetmap.org/{z}/{x}/{y}.png"></div>
+                <div class="mb-3 d-none" id="modal-bm-image-hint">
+                    <small class="text-muted">${t('basemaps.image_hint')}</small>
+                </div>
             `,
             confirmText: t('action.confirm'),
             onConfirm: () => ({

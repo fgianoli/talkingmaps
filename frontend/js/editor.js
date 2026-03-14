@@ -13,10 +13,10 @@ const StoryEditor = {
     _autosaveTimer: null,
     _sortable: null,
 
-    // Layouts that include a map (2D or 3D)
-    _mapLayouts: ['cover', 'side-left', 'side-right', 'center', 'full-map', 'globe-3d', 'potree-3d'],
+    // Layouts that include a map (2D or 3D) — cover is fullscreen without map
+    _mapLayouts: ['side-left', 'side-right', 'center', 'full-map', 'globe-3d', 'potree-3d'],
     // Layouts without a map
-    _noMapLayouts: ['text-only', 'text-media', 'full-media', 'separator'],
+    _noMapLayouts: ['cover', 'text-only', 'text-media', 'full-media', 'separator'],
     // 3D-specific layouts
     _3dLayouts: ['globe-3d', 'potree-3d'],
 
@@ -73,6 +73,12 @@ const StoryEditor = {
                         </button>
                         <button class="btn btn-sm btn-outline-light" id="editor-show-guide" title="${t('editor.show_guide')}">
                             <i class="bi bi-question-circle"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-light" id="editor-undo" title="${t('editor.undo')} (Ctrl+Z)" disabled>
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-light" id="editor-redo" title="${t('editor.redo')} (Ctrl+Shift+Z)" disabled>
+                            <i class="bi bi-arrow-clockwise"></i>
                         </button>
                     </div>
                 </div>
@@ -134,15 +140,36 @@ const StoryEditor = {
                     <div class="editor-props-body" id="editor-props-body"></div>
                 </div>
             </div>
+
+            <div class="editor-mobile-tabs" id="editor-mobile-tabs">
+                <button class="editor-mobile-tab active" data-mobile-tab="slides">
+                    <i class="bi bi-collection"></i>
+                    ${t('editor.slides')}
+                </button>
+                <button class="editor-mobile-tab" data-mobile-tab="map">
+                    <i class="bi bi-map"></i>
+                    ${t('editor.tab_map')}
+                </button>
+                <button class="editor-mobile-tab" data-mobile-tab="props">
+                    <i class="bi bi-sliders"></i>
+                    ${t('editor.props')}
+                </button>
+            </div>
         `;
 
         this._initEditorMap(data);
         this._initPropsResize();
+        this._initMobileTabs();
         this._renderSlidesList();
         if (this._slides.length > 0) this._selectSlide(0);
         this._bindEvents();
         this._setupSortable();
         this._startAutosave();
+
+        // Initialize undo/redo: reset history and push initial state
+        UndoManager.reset();
+        UndoManager.push(this._slides);
+        this._updateUndoRedoButtons();
     },
 
     _initEditorMap(data) {
@@ -575,6 +602,16 @@ const StoryEditor = {
         // Update map visibility based on layout
         this._updateMapVisibility();
 
+        // Apply per-slide basemap
+        if (this._currentSlideHasMap()) {
+            if (slide.basemap_id) {
+                const basemap = (this._data?.basemaps || []).find(b => b.id == slide.basemap_id);
+                if (basemap) TmMap.setBasemap(basemap);
+            } else {
+                TmMap.setBasemap((this._data?.basemaps || [])[0] || null);
+            }
+        }
+
         if (this._currentSlideHasMap() && slide.map_center) {
             TmMap.flyTo({
                 center: [slide.map_center.lng, slide.map_center.lat],
@@ -664,6 +701,7 @@ const StoryEditor = {
                             <button class="btn" onclick="StoryEditor._insertMapLink()" title="${t('editor.link_to_map')}"><i class="bi bi-geo-alt"></i></button>
                             <button class="btn" onclick="StoryEditor._insertImage()" title="${t('editor.insert_image')}"><i class="bi bi-image"></i></button>
                             <button class="btn" onclick="StoryEditor._insertIframe()" title="${t('editor.insert_iframe')}"><i class="bi bi-code-square"></i></button>
+                            <button class="btn" onclick="StoryEditor._insertExpressMap()" title="${t('editor.express_map')}"><i class="bi bi-pin-map"></i></button>
                             <div class="editor-map-tools-sep" style="display:inline-block;width:1px;height:16px;background:rgba(255,255,255,0.2);margin:0 4px;vertical-align:middle"></div>
                             <button class="btn" onclick="StoryEditor._aiAssist()" title="${t('editor.ai_assist')}"><i class="bi bi-robot"></i></button>
                         </div>
@@ -800,6 +838,51 @@ const StoryEditor = {
                     </div>
                     ` : ''}
                 </div>
+
+                <!-- Gallery -->
+                <div class="prop-section">
+                    <div class="prop-section-title"><i class="bi bi-images"></i> ${t('editor.gallery')}</div>
+                    ${(slide.style_overrides?.gallery?.images?.length) ? `
+                    <div class="prop-row">
+                        <label>${t('editor.gallery_images')} (${slide.style_overrides.gallery.images.length})</label>
+                    </div>
+                    <div id="gallery-thumbs-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+                        ${slide.style_overrides.gallery.images.map((img, i) => `
+                            <div class="gallery-editor-item" style="display:flex;align-items:center;gap:8px;padding:4px;border:1px solid var(--tm-border);border-radius:6px">
+                                <div style="position:relative;width:56px;height:56px;flex-shrink:0;border-radius:4px;overflow:hidden">
+                                    <img src="${App.escHtml(img.url)}" style="width:100%;height:100%;object-fit:cover">
+                                </div>
+                                <input type="text" class="form-control form-control-sm gallery-caption-inline" data-gallery-index="${i}"
+                                       value="${App.escHtml(img.caption || '')}" placeholder="${t('editor.gallery_caption')}"
+                                       style="flex:1;font-size:12px">
+                                <button class="btn btn-sm btn-outline-danger" style="flex-shrink:0;padding:2px 6px" onclick="StoryEditor._removeGalleryImage(${i})" title="${t('delete')}">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="prop-row" style="gap:4px">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="prop-gallery-autoplay" ${slide.style_overrides.gallery.autoplay ? 'checked' : ''}
+                                   onchange="StoryEditor._updateGalleryOption('autoplay', this.checked)">
+                            <label class="form-check-label" for="prop-gallery-autoplay">${t('editor.gallery_autoplay')}</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="prop-gallery-thumbs" ${slide.style_overrides.gallery.showThumbs !== false ? 'checked' : ''}
+                                   onchange="StoryEditor._updateGalleryOption('showThumbs', this.checked)">
+                            <label class="form-check-label" for="prop-gallery-thumbs">${t('editor.gallery_thumbnails')}</label>
+                        </div>
+                    </div>
+                    ` : `
+                    <small class="text-muted"><i class="bi bi-info-circle"></i> ${t('editor.gallery_empty')}</small>
+                    `}
+                    <div class="prop-row" style="margin-top:6px">
+                        <button class="btn btn-sm btn-outline-light w-100" onclick="StoryEditor._openGalleryPicker()">
+                            <i class="bi bi-plus-lg"></i> ${t('editor.gallery_add')}
+                        </button>
+                    </div>
+                </div>
+
             </div><!-- /tab:slide -->
 
             <!-- ═══════════ TAB: MAP ═══════════ -->
@@ -807,6 +890,15 @@ const StoryEditor = {
                 ${hasMap ? `
                 <div class="prop-section">
                     <div class="prop-section-title"><i class="bi bi-map"></i> ${t('editor.map_view')}</div>
+                    <div class="prop-row">
+                        <label>${t('editor.basemap')}</label>
+                        <select class="form-select" id="prop-slide-basemap">
+                            <option value="" ${!slide.basemap_id ? 'selected' : ''}>${t('editor.basemap_default')}</option>
+                            ${(this._data?.basemaps || []).map(b => `
+                                <option value="${b.id}" ${slide.basemap_id == b.id ? 'selected' : ''}>${b.name}</option>
+                            `).join('')}
+                        </select>
+                    </div>
                     <div class="editor-map-hint">
                         <i class="bi bi-info-circle"></i> ${t('editor.has_map_hint')}
                     </div>
@@ -998,6 +1090,32 @@ const StoryEditor = {
                     </div>
                 </div>
 
+                <!-- TimelineJS -->
+                <div class="prop-section">
+                    <div class="prop-section-title"><i class="bi bi-clock-history"></i> ${t('editor.timelinejs')}</div>
+                    <div id="timelinejs-events-list">
+                        ${(slide.style_overrides?.timelinejs?.events || []).map((evt, ei) => `
+                            <div class="timelinejs-event-item" data-event-index="${ei}" style="border:1px solid var(--tm-border);border-radius:8px;padding:8px;margin-bottom:8px;font-size:12px">
+                                <div class="d-flex gap-2 mb-1">
+                                    <input type="date" class="form-control form-control-sm tljs-date" value="${evt.date || ''}" placeholder="${t('editor.timelinejs_date')}" style="font-size:11px">
+                                    <button class="btn btn-sm btn-outline-danger" onclick="StoryEditor._removeTimelineJSEvent(${ei})" title="${t('editor.timelinejs_remove_event')}" style="padding:0 6px"><i class="bi bi-trash"></i></button>
+                                </div>
+                                <input type="text" class="form-control form-control-sm tljs-title mb-1" value="${App.escHtml(evt.title || '')}" placeholder="${t('editor.timelinejs_title')}" style="font-size:11px">
+                                <textarea class="form-control form-control-sm tljs-text mb-1" rows="2" placeholder="${t('editor.timelinejs_text')}" style="font-size:11px">${App.escHtml(evt.text || '')}</textarea>
+                                <input type="text" class="form-control form-control-sm tljs-media mb-1" value="${App.escHtml(evt.media_url || '')}" placeholder="${t('editor.timelinejs_media')}" style="font-size:11px">
+                                <div class="d-flex gap-2">
+                                    <input type="number" class="form-control form-control-sm tljs-lat" value="${evt.location?.lat || ''}" placeholder="${t('editor.timelinejs_lat')}" step="any" style="font-size:11px">
+                                    <input type="number" class="form-control form-control-sm tljs-lng" value="${evt.location?.lng || ''}" placeholder="${t('editor.timelinejs_lng')}" step="any" style="font-size:11px">
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    ${!(slide.style_overrides?.timelinejs?.events?.length) ? `<small class="text-muted">${t('editor.timelinejs_empty')}</small>` : ''}
+                    <button class="btn btn-sm btn-outline-light w-100 mt-1" onclick="StoryEditor._addTimelineJSEvent()">
+                        <i class="bi bi-plus-lg"></i> ${t('editor.timelinejs_add_event')}
+                    </button>
+                </div>
+
                 <!-- Point Cloud (Potree) -->
                 <div class="prop-section">
                     <div class="prop-section-title"><i class="bi bi-cloud-fill"></i> ${t('editor.potree_title')}</div>
@@ -1098,6 +1216,7 @@ const StoryEditor = {
 
         body.querySelectorAll('.layout-option').forEach(opt => {
             opt.addEventListener('click', () => {
+                this._undoPush();
                 body.querySelectorAll('.layout-option').forEach(o => o.classList.remove('active'));
                 opt.classList.add('active');
                 // Update slide layout and refresh map visibility
@@ -1115,6 +1234,10 @@ const StoryEditor = {
         document.getElementById('btn-capture-map-state')?.addEventListener('click', () => this._captureMapState());
         document.getElementById('editor-capture-view')?.addEventListener('click', () => this._captureMapState());
 
+        // Undo snapshot on title/narrative blur (not on every keystroke)
+        document.getElementById('prop-title')?.addEventListener('focus', () => this._undoPush());
+        document.getElementById('prop-narrative')?.addEventListener('focus', () => this._undoPush());
+
         // Custom CSS save
         document.getElementById('btn-save-custom-css')?.addEventListener('click', async () => {
             const css = document.getElementById('prop-custom-css')?.value || '';
@@ -1124,6 +1247,26 @@ const StoryEditor = {
                 App.toast(I18n.t('editor.autosaved'), 'success');
             } catch (err) { App.toast(err.message, 'danger'); }
         });
+
+        // Per-slide basemap selector
+        const slideBasemapEl = document.getElementById('prop-slide-basemap');
+        if (slideBasemapEl) {
+            slideBasemapEl.addEventListener('change', () => {
+                const s = this._slides[this._currentSlideIdx];
+                if (!s) return;
+                const val = slideBasemapEl.value;
+                s.basemap_id = val ? parseInt(val) : null;
+                // Apply basemap change in editor preview
+                if (val) {
+                    const basemap = (this._data?.basemaps || []).find(b => b.id == val);
+                    if (basemap) TmMap.setBasemap(basemap);
+                } else {
+                    // Reset to default (first basemap)
+                    const defaultBm = (this._data?.basemaps || [])[0] || null;
+                    TmMap.setBasemap(defaultBm);
+                }
+            });
+        }
 
         // Compare maps toggle
         const compareEnableEl = document.getElementById('prop-compare-enable');
@@ -1206,6 +1349,130 @@ const StoryEditor = {
         this._init3DUpload();
         // Load 3D assets list
         this._load3DAssets();
+
+        // ── Gallery inline caption editing ──
+        document.querySelectorAll('.gallery-caption-inline').forEach(input => {
+            input.addEventListener('change', () => {
+                const idx = parseInt(input.dataset.galleryIndex);
+                const s = this._slides[this._currentSlideIdx];
+                if (!s || !s.style_overrides?.gallery?.images?.[idx]) return;
+                this._undoPush();
+                s.style_overrides.gallery.images[idx].caption = input.value;
+                Api.updateSlide(s.id, { style_overrides: s.style_overrides }).catch(err => App.toast(err.message, 'danger'));
+            });
+        });
+
+        // ── Drag & Drop + Paste embed on narrative ──
+        this._setupNarrativeDragDrop();
+    },
+
+    /**
+     * Set up drag-and-drop media upload and paste-embed detection on #prop-narrative.
+     * Called from _renderProps() after binding other events.
+     */
+    _setupNarrativeDragDrop() {
+        const narrativeDnd = document.getElementById('prop-narrative');
+        if (!narrativeDnd) return;
+
+        // ── Drag & Drop media into narrative ──
+        narrativeDnd.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            narrativeDnd.classList.add('drag-over');
+        });
+        narrativeDnd.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            narrativeDnd.classList.add('drag-over');
+        });
+        narrativeDnd.addEventListener('dragleave', (e) => {
+            if (!narrativeDnd.contains(e.relatedTarget)) {
+                narrativeDnd.classList.remove('drag-over');
+            }
+        });
+        narrativeDnd.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            narrativeDnd.classList.remove('drag-over');
+            const files = Array.from(e.dataTransfer.files);
+            if (!files.length) return;
+
+            this._undoPush();
+
+            let range;
+            if (document.caretRangeFromPoint) {
+                range = document.caretRangeFromPoint(e.clientX, e.clientY);
+            } else if (document.caretPositionFromPoint) {
+                const pos = document.caretPositionFromPoint(e.clientX, e.clientY);
+                range = document.createRange();
+                range.setStart(pos.offsetNode, pos.offset);
+                range.collapse(true);
+            }
+
+            for (const file of files) {
+                const isImage = file.type.startsWith('image/');
+                const isVideo = file.type.startsWith('video/');
+                if (!isImage && !isVideo) continue;
+
+                try {
+                    App.toast(I18n.t('editor.narrative_drop_uploading'), 'info');
+                    const result = await Api.uploadMedia(file, this._storyId);
+                    let html;
+                    if (isImage) {
+                        html = `<img src="${result.url}" alt="${App.escHtml(file.name)}" style="max-width:100%;border-radius:8px;margin:12px 0">`;
+                    } else {
+                        html = `<video src="${result.url}" controls style="max-width:100%;border-radius:8px;margin:12px 0"></video>`;
+                    }
+                    if (range) {
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                        document.execCommand('insertHTML', false, html);
+                        range = sel.getRangeAt(0);
+                    } else {
+                        narrativeDnd.insertAdjacentHTML('beforeend', html);
+                    }
+                    App.toast(I18n.t('media.uploaded'), 'success');
+                } catch (err) {
+                    App.toast(err.message, 'danger');
+                }
+            }
+        });
+
+        // ── Paste embed detection (YouTube/Vimeo/SoundCloud) ──
+        narrativeDnd.addEventListener('paste', (e) => {
+            const text = (e.clipboardData || window.clipboardData).getData('text/plain').trim();
+            if (!text) return;
+
+            let embedHtml = null;
+
+            // YouTube: youtube.com/watch?v=ID or youtu.be/ID
+            const ytMatch = text.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w\-]+)/);
+            if (ytMatch) {
+                embedHtml = `<div class="slide-iframe-container"><iframe src="https://www.youtube.com/embed/${ytMatch[1]}" width="100%" height="315" frameborder="0" allowfullscreen style="border-radius:8px;margin:12px 0"></iframe></div>`;
+            }
+
+            // Vimeo: vimeo.com/ID
+            if (!embedHtml) {
+                const vimeoMatch = text.match(/vimeo\.com\/(\d+)/);
+                if (vimeoMatch) {
+                    embedHtml = `<div class="slide-iframe-container"><iframe src="https://player.vimeo.com/video/${vimeoMatch[1]}" width="100%" height="315" frameborder="0" allowfullscreen style="border-radius:8px;margin:12px 0"></iframe></div>`;
+                }
+            }
+
+            // SoundCloud: soundcloud.com/artist/track
+            if (!embedHtml) {
+                const scMatch = text.match(/soundcloud\.com\/[\w\-]+\/[\w\-]+/);
+                if (scMatch) {
+                    const encodedUrl = encodeURIComponent(text);
+                    embedHtml = `<div class="slide-iframe-container"><iframe width="100%" height="166" scrolling="no" frameborder="no" src="https://w.soundcloud.com/player/?url=${encodedUrl}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false" style="border-radius:8px;margin:12px 0"></iframe></div>`;
+                }
+            }
+
+            if (embedHtml) {
+                e.preventDefault();
+                document.execCommand('insertHTML', false, embedHtml);
+                App.toast(I18n.t('editor.embed_detected'), 'success');
+            }
+        });
     },
 
     // ── Audio Upload/Remove ─────────────
@@ -1243,11 +1510,217 @@ const StoryEditor = {
         } catch (err) { App.toast(err.message, 'danger'); }
     },
 
+    // ── Gallery ──────────────────────────
+    _openGalleryPicker() {
+        const slide = this._slides[this._currentSlideIdx];
+        if (!slide) return;
+        const t = I18n.t.bind(I18n);
+
+        const gallery = slide.style_overrides?.gallery || { images: [], autoplay: false, showThumbs: true };
+        const existingImages = gallery.images || [];
+
+        // Build modal
+        const modalHtml = `
+            <div class="modal fade" id="gallery-picker-modal" tabindex="-1">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">${t('editor.gallery')}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">${t('editor.gallery_images')}</label>
+                                <div id="gallery-picker-list" style="display:flex;flex-wrap:wrap;gap:8px;min-height:80px;padding:12px;border:1px dashed var(--tm-border);border-radius:8px">
+                                    ${existingImages.map((img, i) => `
+                                        <div class="gallery-picker-item" data-index="${i}" style="position:relative;width:80px;height:80px;border-radius:6px;overflow:hidden;border:2px solid var(--tm-border)">
+                                            <img src="${App.escHtml(img.url)}" style="width:100%;height:100%;object-fit:cover">
+                                            <button class="btn btn-sm" style="position:absolute;top:0;right:0;background:rgba(220,38,38,0.8);color:white;border:none;padding:0 4px;font-size:11px;line-height:1.6"
+                                                    onclick="this.closest('.gallery-picker-item').remove()">
+                                                <i class="bi bi-x"></i>
+                                            </button>
+                                            <input type="hidden" class="gallery-img-url" value="${App.escHtml(img.url)}">
+                                            <input type="hidden" class="gallery-img-caption" value="${App.escHtml(img.caption || '')}">
+                                        </div>
+                                    `).join('')}
+                                    ${existingImages.length === 0 ? `<span class="text-muted" style="font-size:13px" id="gallery-empty-hint">${t('editor.gallery_empty')}</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <button class="btn btn-sm btn-outline-primary me-2" id="gallery-upload-btn">
+                                    <i class="bi bi-upload"></i> Upload
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" id="gallery-media-btn">
+                                    <i class="bi bi-folder2-open"></i> Media Library
+                                </button>
+                            </div>
+                            <div id="gallery-caption-editor" class="mb-3" style="display:none">
+                                <label class="form-label">${t('editor.gallery_caption')}</label>
+                                <input type="text" class="form-control" id="gallery-caption-input" placeholder="${t('editor.gallery_caption')}">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">${t('cancel')}</button>
+                            <button type="button" class="btn btn-primary" id="gallery-save-btn">${t('save')}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove any existing modal
+        document.getElementById('gallery-picker-modal')?.remove();
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const modalEl = document.getElementById('gallery-picker-modal');
+        const modal = new bootstrap.Modal(modalEl);
+
+        // Upload button
+        document.getElementById('gallery-upload-btn').addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.multiple = true;
+            input.onchange = async () => {
+                const files = Array.from(input.files);
+                for (const file of files) {
+                    try {
+                        const result = await Api.uploadMedia(file, this._storyId);
+                        this._addGalleryItemToList(result.url, '');
+                    } catch (err) { App.toast(err.message, 'danger'); }
+                }
+            };
+            input.click();
+        });
+
+        // Media library button
+        document.getElementById('gallery-media-btn').addEventListener('click', async () => {
+            try {
+                const media = await Api.getMedia(this._storyId);
+                const images = media.filter(m => m.content_type?.startsWith('image/'));
+                if (images.length === 0) {
+                    App.toast(t('editor.gallery_empty'), 'warning');
+                    return;
+                }
+                // Show simple media picker within modal body
+                let pickerHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;max-height:250px;overflow-y:auto;padding:8px;border:1px solid var(--tm-border);border-radius:6px;margin-top:8px" id="gallery-media-grid">';
+                images.forEach(m => {
+                    pickerHtml += `<div class="gallery-media-option" data-url="${App.escHtml(m.url)}" style="width:72px;height:72px;border-radius:6px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:border-color 0.2s">
+                        <img src="${App.escHtml(m.url)}" style="width:100%;height:100%;object-fit:cover">
+                    </div>`;
+                });
+                pickerHtml += '</div>';
+                pickerHtml += '<button class="btn btn-sm btn-primary mt-2" id="gallery-media-confirm">OK</button>';
+
+                const captionEditor = document.getElementById('gallery-caption-editor');
+                // Remove any existing media grid
+                document.getElementById('gallery-media-grid')?.parentElement?.querySelectorAll('#gallery-media-grid, #gallery-media-confirm').forEach(el => el.remove());
+                captionEditor.insertAdjacentHTML('beforebegin', pickerHtml);
+
+                // Selection logic
+                document.querySelectorAll('.gallery-media-option').forEach(opt => {
+                    opt.addEventListener('click', () => {
+                        opt.style.borderColor = opt.style.borderColor === 'rgb(79, 109, 245)' ? 'transparent' : '#4f6df5';
+                        opt.classList.toggle('selected');
+                    });
+                });
+
+                document.getElementById('gallery-media-confirm').addEventListener('click', () => {
+                    document.querySelectorAll('.gallery-media-option.selected').forEach(opt => {
+                        this._addGalleryItemToList(opt.dataset.url, '');
+                    });
+                    document.getElementById('gallery-media-grid')?.remove();
+                    document.getElementById('gallery-media-confirm')?.remove();
+                });
+            } catch (err) { App.toast(err.message, 'danger'); }
+        });
+
+        // Save button
+        document.getElementById('gallery-save-btn').addEventListener('click', async () => {
+            const items = document.querySelectorAll('#gallery-picker-list .gallery-picker-item');
+            const images = Array.from(items).map(item => ({
+                url: item.querySelector('.gallery-img-url').value,
+                caption: item.querySelector('.gallery-img-caption').value || '',
+            }));
+
+            slide.style_overrides = {
+                ...(slide.style_overrides || {}),
+                gallery: {
+                    images,
+                    autoplay: slide.style_overrides?.gallery?.autoplay || false,
+                    showThumbs: slide.style_overrides?.gallery?.showThumbs !== false,
+                },
+            };
+
+            try {
+                await Api.updateSlide(slide.id, { style_overrides: slide.style_overrides });
+                this._renderProps(slide);
+                App.toast(I18n.t('saved'), 'success');
+            } catch (err) { App.toast(err.message, 'danger'); }
+
+            modal.hide();
+        });
+
+        modalEl.addEventListener('hidden.bs.modal', () => modalEl.remove());
+        modal.show();
+
+        // Make the list sortable
+        if (typeof Sortable !== 'undefined') {
+            new Sortable(document.getElementById('gallery-picker-list'), {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+            });
+        }
+    },
+
+    _addGalleryItemToList(url, caption) {
+        const list = document.getElementById('gallery-picker-list');
+        if (!list) return;
+        // Remove empty hint
+        document.getElementById('gallery-empty-hint')?.remove();
+        const idx = list.querySelectorAll('.gallery-picker-item').length;
+        const html = `
+            <div class="gallery-picker-item" data-index="${idx}" style="position:relative;width:80px;height:80px;border-radius:6px;overflow:hidden;border:2px solid var(--tm-border)">
+                <img src="${App.escHtml(url)}" style="width:100%;height:100%;object-fit:cover">
+                <button class="btn btn-sm" style="position:absolute;top:0;right:0;background:rgba(220,38,38,0.8);color:white;border:none;padding:0 4px;font-size:11px;line-height:1.6"
+                        onclick="this.closest('.gallery-picker-item').remove()">
+                    <i class="bi bi-x"></i>
+                </button>
+                <input type="hidden" class="gallery-img-url" value="${App.escHtml(url)}">
+                <input type="hidden" class="gallery-img-caption" value="${App.escHtml(caption || '')}">
+            </div>
+        `;
+        list.insertAdjacentHTML('beforeend', html);
+    },
+
+    async _removeGalleryImage(index) {
+        const slide = this._slides[this._currentSlideIdx];
+        if (!slide || !slide.style_overrides?.gallery?.images) return;
+        slide.style_overrides.gallery.images.splice(index, 1);
+        if (slide.style_overrides.gallery.images.length === 0) {
+            delete slide.style_overrides.gallery;
+        }
+        try {
+            await Api.updateSlide(slide.id, { style_overrides: slide.style_overrides });
+            this._renderProps(slide);
+        } catch (err) { App.toast(err.message, 'danger'); }
+    },
+
+    async _updateGalleryOption(key, value) {
+        const slide = this._slides[this._currentSlideIdx];
+        if (!slide || !slide.style_overrides?.gallery) return;
+        slide.style_overrides.gallery[key] = value;
+        try {
+            await Api.updateSlide(slide.id, { style_overrides: slide.style_overrides });
+        } catch (err) { App.toast(err.message, 'danger'); }
+    },
+
     // ── Actions ──────────────────────────
     _captureMapState() {
         const state = TmMap.getState();
         const slide = this._slides[this._currentSlideIdx];
         if (!slide) return;
+        this._undoPush();
         slide.map_center = state.center;
         slide.map_zoom = state.zoom;
         slide.map_bearing = state.bearing;
@@ -1330,6 +1803,25 @@ const StoryEditor = {
         const chapterEl = document.getElementById('prop-chapter');
         const chapterVal = chapterEl?.value?.trim() || null;
 
+        // TimelineJS events collection
+        const tljsItems = document.querySelectorAll('.timelinejs-event-item');
+        let tljsConfig = slide.style_overrides?.timelinejs || null;
+        if (tljsItems.length > 0) {
+            const tljsEvents = [];
+            tljsItems.forEach(item => {
+                const date = item.querySelector('.tljs-date')?.value || '';
+                const title = item.querySelector('.tljs-title')?.value || '';
+                const text = item.querySelector('.tljs-text')?.value || '';
+                const media_url = item.querySelector('.tljs-media')?.value || '';
+                const lat = parseFloat(item.querySelector('.tljs-lat')?.value);
+                const lng = parseFloat(item.querySelector('.tljs-lng')?.value);
+                const evt = { date, title, text, media_url };
+                if (!isNaN(lat) && !isNaN(lng)) evt.location = { lat, lng };
+                tljsEvents.push(evt);
+            });
+            tljsConfig = { events: tljsEvents, options: tljsConfig?.options || {} };
+        }
+
         updates.style_overrides = {
             ...(slide.style_overrides || {}),
             ...(updates.style_overrides || {}),
@@ -1340,6 +1832,7 @@ const StoryEditor = {
             tileset3d: tilesetConfig,
             transition: transitionVal,
             chapter: chapterVal,
+            timelinejs: tljsConfig,
         };
 
         // Timeline config
@@ -1354,6 +1847,16 @@ const StoryEditor = {
                 speed: document.getElementById('prop-timeline-speed')?.value || 'medium',
             };
             updates.map_config = { ...(slide.map_config || {}), timeline };
+        }
+
+        // Per-slide basemap
+        const basemapEl = document.getElementById('prop-slide-basemap');
+        if (basemapEl) {
+            const bmVal = basemapEl.value ? parseInt(basemapEl.value) : null;
+            if (bmVal !== slide.basemap_id) {
+                updates.basemap_id = bmVal;
+                slide.basemap_id = bmVal;
+            }
         }
 
         // Audio config
@@ -1431,6 +1934,7 @@ const StoryEditor = {
 
     async _createSlide(layout) {
         try {
+            this._undoPush();
             const result = await Api.createSlide({ story_id: this._storyId, title: '', layout: layout || 'side-left' });
             const fullSlide = await Api.getSlide(result.id);
             this._slides.push(fullSlide);
@@ -1443,6 +1947,7 @@ const StoryEditor = {
     async _deleteSlide(idx) {
         const ok = await App.confirm(I18n.t('editor.slide_delete_confirm'), { danger: true });
         if (!ok) return;
+        this._undoPush();
         const slide = this._slides[idx];
         try {
             await Api.deleteSlide(slide.id);
@@ -1456,6 +1961,7 @@ const StoryEditor = {
     async _duplicateSlide(idx) {
         const source = this._slides[idx];
         if (!source) return;
+        this._undoPush();
         try {
             const result = await Api.createSlide({
                 story_id: this._storyId,
@@ -1539,6 +2045,146 @@ const StoryEditor = {
         if (editor) {
             editor.innerHTML += `<div class="slide-iframe-container"><iframe src="${App.escHtml(url)}" style="width:100%;height:400px;border:none;" allow="fullscreen" loading="lazy"></iframe></div>`;
         }
+    },
+
+    // ── TimelineJS Event Management ─────
+    async _addTimelineJSEvent() {
+        const slide = this._slides[this._currentSlideIdx];
+        if (!slide) return;
+        this._undoPush();
+        if (!slide.style_overrides) slide.style_overrides = {};
+        if (!slide.style_overrides.timelinejs) slide.style_overrides.timelinejs = { events: [], options: {} };
+        slide.style_overrides.timelinejs.events.push({
+            date: '', title: '', text: '', media_url: '', location: null
+        });
+        try {
+            await Api.updateSlide(slide.id, { style_overrides: slide.style_overrides });
+        } catch (err) { console.error('TimelineJS save failed:', err); }
+        this._renderProps(slide);
+    },
+
+    async _removeTimelineJSEvent(index) {
+        const slide = this._slides[this._currentSlideIdx];
+        if (!slide?.style_overrides?.timelinejs?.events) return;
+        this._undoPush();
+        slide.style_overrides.timelinejs.events.splice(index, 1);
+        try {
+            await Api.updateSlide(slide.id, { style_overrides: slide.style_overrides });
+        } catch (err) { console.error('TimelineJS save failed:', err); }
+        this._renderProps(slide);
+    },
+
+    // ── Express Map Inline ──────────────
+    async _insertExpressMap() {
+        const t = I18n.t.bind(I18n);
+        // Get current map center as defaults
+        let defLat = 45.464, defLng = 9.19, defZoom = 12;
+        try {
+            const state = TmMap.getState();
+            if (state?.center) { defLng = state.center[0].toFixed(5); defLat = state.center[1].toFixed(5); defZoom = Math.round(state.zoom); }
+        } catch {}
+
+        const html = `
+            <div class="modal fade" id="express-map-modal" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><i class="bi bi-pin-map"></i> ${t('editor.express_map_title')}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-2 mb-2">
+                                <div class="col-6">
+                                    <label class="form-label" style="font-size:12px">${t('editor.express_map_lat')}</label>
+                                    <input type="number" class="form-control form-control-sm" id="exmap-lat" value="${defLat}" step="any">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label" style="font-size:12px">${t('editor.express_map_lng')}</label>
+                                    <input type="number" class="form-control form-control-sm" id="exmap-lng" value="${defLng}" step="any">
+                                </div>
+                            </div>
+                            <div class="row g-2 mb-2">
+                                <div class="col-6">
+                                    <label class="form-label" style="font-size:12px">${t('editor.express_map_zoom')}</label>
+                                    <input type="number" class="form-control form-control-sm" id="exmap-zoom" value="${defZoom}" min="1" max="22">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label" style="font-size:12px">${t('editor.express_map_size')}</label>
+                                    <select class="form-select form-select-sm" id="exmap-size">
+                                        <option value="small">${t('editor.express_map_size_small')}</option>
+                                        <option value="medium" selected>${t('editor.express_map_size_medium')}</option>
+                                        <option value="large">${t('editor.express_map_size_large')}</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="exmap-marker" checked>
+                                <label class="form-check-label" for="exmap-marker" style="font-size:12px">${t('editor.express_map_marker')}</label>
+                            </div>
+                            <div id="exmap-preview" style="width:100%;height:200px;border-radius:8px;border:1px solid var(--tm-border);background:#1e293b;position:relative;overflow:hidden"></div>
+                            <small class="text-muted" style="font-size:11px">Click the preview to update coordinates</small>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">${t('action.cancel')}</button>
+                            <button type="button" class="btn btn-sm btn-primary" id="exmap-insert-btn">${t('editor.express_map_insert')}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+        document.getElementById('express-map-modal')?.remove();
+        document.body.insertAdjacentHTML('beforeend', html);
+
+        const modalEl = document.getElementById('express-map-modal');
+        const modal = new bootstrap.Modal(modalEl);
+
+        // Init preview map
+        let previewMap = null;
+        let previewMarker = null;
+        modalEl.addEventListener('shown.bs.modal', () => {
+            const lat = parseFloat(document.getElementById('exmap-lat').value) || defLat;
+            const lng = parseFloat(document.getElementById('exmap-lng').value) || defLng;
+            const zoom = parseInt(document.getElementById('exmap-zoom').value) || defZoom;
+            previewMap = new maplibregl.Map({
+                container: 'exmap-preview',
+                style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+                center: [lng, lat],
+                zoom: zoom,
+            });
+            previewMarker = new maplibregl.Marker().setLngLat([lng, lat]).addTo(previewMap);
+            previewMap.on('click', (e) => {
+                document.getElementById('exmap-lat').value = e.lngLat.lat.toFixed(5);
+                document.getElementById('exmap-lng').value = e.lngLat.lng.toFixed(5);
+                previewMarker.setLngLat(e.lngLat);
+            });
+            previewMap.on('zoomend', () => {
+                document.getElementById('exmap-zoom').value = Math.round(previewMap.getZoom());
+            });
+        });
+
+        modalEl.addEventListener('hidden.bs.modal', () => {
+            if (previewMap) { previewMap.remove(); previewMap = null; }
+            modalEl.remove();
+        });
+
+        document.getElementById('exmap-insert-btn').onclick = () => {
+            const lat = document.getElementById('exmap-lat').value;
+            const lng = document.getElementById('exmap-lng').value;
+            const zoom = document.getElementById('exmap-zoom').value;
+            const marker = document.getElementById('exmap-marker').checked;
+            const size = document.getElementById('exmap-size').value;
+
+            const placeholder = `<div class="express-map" data-lat="${App.escHtml(lat)}" data-lng="${App.escHtml(lng)}" data-zoom="${App.escHtml(zoom)}" data-marker="${marker}" data-size="${App.escHtml(size)}" contenteditable="false" style="background:#e2e8f0;border:2px dashed #94a3b8;border-radius:8px;padding:16px;text-align:center;margin:8px 0;color:#475569;font-size:12px"><i class="bi bi-pin-map" style="font-size:20px;display:block;margin-bottom:4px"></i>Mini-map: ${lat}, ${lng} (zoom ${zoom})</div>`;
+
+            const editor = document.getElementById('prop-narrative');
+            if (editor) {
+                editor.focus();
+                document.execCommand('insertHTML', false, placeholder);
+            }
+            modal.hide();
+        };
+
+        modal.show();
     },
 
     // ── Link to map element ──────────────
@@ -1940,6 +2586,46 @@ const StoryEditor = {
         TmMap.addMarkers(markers, (m) => this._editMarker(m.id));
     },
 
+    // ── Undo / Redo ─────────────────────
+    /**
+     * Snapshot slides state before a significant change.
+     * Call this BEFORE mutating this._slides.
+     */
+    _undoPush() {
+        UndoManager.push(this._slides);
+        this._updateUndoRedoButtons();
+    },
+
+    _updateUndoRedoButtons() {
+        const undoBtn = document.getElementById('editor-undo');
+        const redoBtn = document.getElementById('editor-redo');
+        if (undoBtn) undoBtn.disabled = !UndoManager.canUndo();
+        if (redoBtn) redoBtn.disabled = !UndoManager.canRedo();
+    },
+
+    _applyUndoRedo(restoredSlides) {
+        if (!restoredSlides) return;
+        this._slides = restoredSlides;
+        // Clamp current slide index
+        if (this._currentSlideIdx >= this._slides.length) {
+            this._currentSlideIdx = Math.max(0, this._slides.length - 1);
+        }
+        this._renderSlidesList();
+        const slide = this._slides[this._currentSlideIdx];
+        if (slide) this._renderProps(slide);
+        this._updateUndoRedoButtons();
+    },
+
+    _performUndo() {
+        const state = UndoManager.undo();
+        this._applyUndoRedo(state);
+    },
+
+    _performRedo() {
+        const state = UndoManager.redo();
+        this._applyUndoRedo(state);
+    },
+
     // ── Events ───────────────────────────
     _bindEvents() {
         document.getElementById('editor-add-slide')?.addEventListener('click', () => this._addSlide());
@@ -1955,6 +2641,26 @@ const StoryEditor = {
         document.getElementById('editor-wiki-osm-btn')?.addEventListener('click', () => this._showWikiOsmModal());
         document.getElementById('editor-share')?.addEventListener('click', () => this._showShareModal());
         document.getElementById('editor-versions')?.addEventListener('click', () => this._showVersionsModal());
+
+        // Undo / Redo buttons
+        document.getElementById('editor-undo')?.addEventListener('click', () => this._performUndo());
+        document.getElementById('editor-redo')?.addEventListener('click', () => this._performRedo());
+
+        // Undo / Redo keyboard shortcuts
+        this._undoKeyHandler = (e) => {
+            // Only act when editor panel is visible
+            if (document.getElementById('panel-editor')?.classList.contains('d-none')) return;
+            if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+                if (e.key === 'z' && !e.shiftKey) {
+                    e.preventDefault();
+                    this._performUndo();
+                } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
+                    e.preventDefault();
+                    this._performRedo();
+                }
+            }
+        };
+        document.addEventListener('keydown', this._undoKeyHandler);
 
         // Drawing tools
         document.getElementById('editor-draw-line')?.addEventListener('click', () => TmMap.startDrawLine());
@@ -2235,6 +2941,7 @@ const StoryEditor = {
             animation: 200, ghostClass: 'dragging', handle: '.editor-slide-thumb',
             onEnd: async (evt) => {
                 if (evt.oldIndex === evt.newIndex) return;
+                this._undoPush();
                 const [moved] = this._slides.splice(evt.oldIndex, 1);
                 this._slides.splice(evt.newIndex, 0, moved);
                 try {
@@ -2317,6 +3024,41 @@ const StoryEditor = {
             handle.classList.add('dragging');
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('mouseup', onMouseUp);
+        });
+    },
+
+    // ── Mobile Tab Switching ──
+    _initMobileTabs() {
+        const tabs = document.getElementById('editor-mobile-tabs');
+        if (!tabs) return;
+
+        const slidesPanel = document.querySelector('#panel-editor .editor-slides-panel');
+        const mapArea = document.getElementById('editor-map-area');
+        const propsWrapper = document.querySelector('#panel-editor .editor-props-wrapper');
+
+        // Set initial state: show map by default on mobile
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        if (isMobile && slidesPanel) {
+            slidesPanel.classList.add('mobile-active');
+            mapArea?.classList.remove('mobile-active');
+            propsWrapper?.classList.remove('mobile-active');
+        }
+
+        tabs.addEventListener('click', (e) => {
+            const btn = e.target.closest('.editor-mobile-tab');
+            if (!btn) return;
+
+            const tab = btn.dataset.mobileTab;
+            tabs.querySelectorAll('.editor-mobile-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            slidesPanel?.classList.remove('mobile-active');
+            mapArea?.classList.remove('mobile-active');
+            propsWrapper?.classList.remove('mobile-active');
+
+            if (tab === 'slides') slidesPanel?.classList.add('mobile-active');
+            else if (tab === 'map') { mapArea?.classList.add('mobile-active'); if (this._map) setTimeout(() => this._map.resize(), 50); }
+            else if (tab === 'props') propsWrapper?.classList.add('mobile-active');
         });
     },
 

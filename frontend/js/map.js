@@ -72,11 +72,30 @@ const TmMap = {
         }
 
         const config = basemap.config || {};
+
+        // Image basemap: use MapLibre image source (for paintings, historical maps, floor plans)
+        if (basemap.type === 'image') {
+            // config.coordinates = [[topLeftLng, topLeftLat], [topRightLng, topRightLat],
+            //                       [bottomRightLng, bottomRightLat], [bottomLeftLng, bottomLeftLat]]
+            const coords = config.coordinates || [[-180, 85], [180, 85], [180, -85], [-180, -85]];
+            return {
+                version: 8,
+                sources: {
+                    'basemap': {
+                        type: 'image',
+                        url: basemap.url,
+                        coordinates: coords,
+                    }
+                },
+                layers: [{ id: 'basemap-tiles', type: 'raster', source: 'basemap' }],
+            };
+        }
+
         return {
             version: 8,
             sources: {
                 'basemap': {
-                    type: basemap.type === 'wms' ? 'raster' : 'raster',
+                    type: 'raster',
                     tiles: basemap.type === 'wms'
                         ? [this._buildWmsUrl(basemap.url, config)]
                         : [basemap.url],
@@ -489,29 +508,50 @@ const TmMap = {
         };
         this._map.on('move', this._syncCompareMap);
 
-        // Create draggable divider
+        // Create draggable divider with handle
         const divider = document.createElement('div');
         divider.className = 'map-compare-divider';
         divider.style.left = midX + 'px';
         divider.title = I18n?.t('viewer.compare_drag') || 'Drag to compare';
+
+        // Add handle icon
+        const handle = document.createElement('div');
+        handle.className = 'map-compare-handle';
+        handle.innerHTML = '<i class="bi bi-arrows-expand"></i>';
+        divider.appendChild(handle);
+
         mapContainer.appendChild(divider);
         this._compareDivider = divider;
+
+        // Add basemap labels
+        const mainBasemapObj = (this._basemaps || []).find(b => b.id === this._currentBasemap || b.name === this._currentBasemap);
+        const labelLeft = document.createElement('div');
+        labelLeft.className = 'map-compare-label map-compare-label-left';
+        labelLeft.textContent = mainBasemapObj?.name || this._currentBasemap || I18n?.t('viewer.compare_left') || 'Base';
+        mapContainer.appendChild(labelLeft);
+
+        const labelRight = document.createElement('div');
+        labelRight.className = 'map-compare-label map-compare-label-right';
+        labelRight.textContent = basemap.name || I18n?.t('viewer.compare_right') || 'Compare';
+        mapContainer.appendChild(labelRight);
+
+        this._compareLabels = [labelLeft, labelRight];
 
         // Drag logic
         const onMove = (clientX) => {
             const rect = mapContainer.getBoundingClientRect();
             let x = clientX - rect.left;
-            x = Math.max(0, Math.min(x, rect.width));
+            x = Math.max(40, Math.min(x, rect.width - 40));
             divider.style.left = x + 'px';
             overlay.style.clipPath = `inset(0 0 0 ${x}px)`;
         };
 
-        const onMouseMove = (e) => { if (this._compareDragging) onMove(e.clientX); };
+        const onMouseMove = (e) => { if (this._compareDragging) { e.preventDefault(); onMove(e.clientX); } };
         const onTouchMove = (e) => { if (this._compareDragging && e.touches.length) onMove(e.touches[0].clientX); };
-        const onEnd = () => { this._compareDragging = false; document.body.style.cursor = ''; };
+        const onEnd = () => { this._compareDragging = false; document.body.style.cursor = ''; divider.classList.remove('dragging'); };
 
-        divider.addEventListener('mousedown', (e) => { e.preventDefault(); this._compareDragging = true; document.body.style.cursor = 'ew-resize'; });
-        divider.addEventListener('touchstart', (e) => { e.preventDefault(); this._compareDragging = true; }, { passive: false });
+        divider.addEventListener('mousedown', (e) => { e.preventDefault(); this._compareDragging = true; document.body.style.cursor = 'ew-resize'; divider.classList.add('dragging'); });
+        divider.addEventListener('touchstart', (e) => { e.preventDefault(); this._compareDragging = true; divider.classList.add('dragging'); }, { passive: false });
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('touchmove', onTouchMove);
         document.addEventListener('mouseup', onEnd);
@@ -537,6 +577,10 @@ const TmMap = {
         if (this._compareDivider) {
             this._compareDivider.remove();
             this._compareDivider = null;
+        }
+        if (this._compareLabels) {
+            this._compareLabels.forEach(l => l.remove());
+            this._compareLabels = null;
         }
         if (this._compareListeners) {
             document.removeEventListener('mousemove', this._compareListeners.onMouseMove);

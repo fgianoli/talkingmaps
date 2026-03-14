@@ -41,6 +41,10 @@ CREATE TABLE IF NOT EXISTS slides (
     layer_visibility JSONB DEFAULT '{}',
     background_media VARCHAR(500),
     background_opacity NUMERIC(3,2) DEFAULT 1.0,
+    basemap_id INTEGER,
+    map_config JSONB DEFAULT '{}',
+    audio_url VARCHAR(500),
+    audio_autoplay BOOLEAN DEFAULT FALSE,
     style_overrides JSONB DEFAULT '{}',
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()

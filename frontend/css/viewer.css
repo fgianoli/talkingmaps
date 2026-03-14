@@ -167,7 +167,7 @@
     display: flex;
     align-items: center;
     padding: 80px 24px 40px;
-    pointer-events: auto;
+    pointer-events: none;
     scroll-snap-align: start;
     position: relative;
 }
@@ -185,6 +185,7 @@
     opacity: 0;
     transform: translateY(20px);
     transition: opacity 0.6s ease, transform 0.6s ease;
+    pointer-events: auto;
 }
 .viewer-slide-content.slide-animate-in {
     opacity: 1;
@@ -341,16 +342,46 @@
     text-align: center;
 }
 
-/* ── Cover ─────────────────────────── */
+/* ── Cover (fullscreen, hides map) ─── */
 .slide-layout-cover {
     align-items: center;
     justify-content: center;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+    pointer-events: auto;
 }
 
 .slide-layout-cover .viewer-slide-content {
     text-align: center;
-    max-width: 600px;
-    background: rgba(255,255,255,0.92);
+    max-width: 700px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: white;
+    backdrop-filter: blur(20px);
+}
+
+.slide-layout-cover .viewer-slide-content h1,
+.slide-layout-cover .viewer-slide-content h2 {
+    color: white;
+    font-size: 2.5rem;
+}
+
+.slide-layout-cover .viewer-slide-content p {
+    color: rgba(255,255,255,0.85);
+    font-size: 1.1rem;
+}
+
+.slide-layout-cover .viewer-slide-content a {
+    color: #93c5fd;
+}
+
+/* Cover with background media gets dark overlay */
+.slide-layout-cover[style*="background-image"] {
+    background: none;
+}
+
+.slide-layout-cover[style*="background-image"] .viewer-slide-content {
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(8px);
 }
 
 /* ── Full Map (no content card) ────── */
@@ -396,6 +427,13 @@
    ═══════════════════════════════════════ */
 
 /* ── Text Only ─────────────────────── */
+.slide-layout-text-only,
+.slide-layout-text-media,
+.slide-layout-full-media,
+.slide-layout-separator {
+    pointer-events: auto;
+}
+
 .slide-layout-text-only {
     justify-content: center;
     background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
@@ -629,6 +667,7 @@
     animation: scrollBounce 2s infinite;
     color: rgba(255,255,255,0.5);
     font-size: 24px;
+    pointer-events: auto;
 }
 
 @keyframes scrollBounce {
@@ -663,26 +702,69 @@
     background: white;
     cursor: ew-resize;
     z-index: 10;
-    box-shadow: 0 0 8px rgba(0,0,0,0.4);
+    box-shadow: 0 0 12px rgba(0,0,0,0.5);
     pointer-events: auto;
+    transition: box-shadow 0.2s;
 }
 
-.map-compare-divider::after {
-    content: '\22EE';
+.map-compare-divider.dragging {
+    box-shadow: 0 0 20px rgba(79,109,245,0.6);
+    background: #4f6df5;
+}
+
+.map-compare-handle {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: #333;
-    font-size: 16px;
+    width: 40px;
+    height: 40px;
     background: white;
     border-radius: 50%;
-    width: 24px;
-    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 0 6px rgba(0,0,0,0.3);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+    color: #4f6df5;
+    font-size: 18px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    pointer-events: none;
+}
+
+.map-compare-handle i {
+    transform: rotate(90deg);
+}
+
+.map-compare-divider:hover .map-compare-handle,
+.map-compare-divider.dragging .map-compare-handle {
+    transform: translate(-50%, -50%) scale(1.15);
+    box-shadow: 0 4px 20px rgba(79,109,245,0.4);
+}
+
+.map-compare-label {
+    position: absolute;
+    top: 60px;
+    z-index: 11;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+    white-space: nowrap;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.map-compare-label-left {
+    left: 12px;
+}
+
+.map-compare-label-right {
+    right: 12px;
 }
 
 /* ── Active slide indicator ───────── */
@@ -865,3 +947,173 @@
 .slide-audio-control button { background: none; border: none; color: white; cursor: pointer; font-size: 16px; }
 .slide-audio-control input[type=range] { flex: 1; height: 4px; accent-color: #4f6df5; }
 .slide-audio-time { color: rgba(255,255,255,0.7); font-size: 11px; min-width: 40px; }
+
+/* ═══════════════════════════════════════
+   GALLERY / SLIDESHOW
+   ═══════════════════════════════════════ */
+.tm-gallery {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 16px 0;
+    outline: none;
+}
+
+.tm-gallery-main {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tm-gallery-main img {
+    object-fit: contain;
+    width: 100%;
+    height: 100%;
+    user-select: none;
+}
+
+.tm-gallery-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.45);
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    transition: background 0.2s, opacity 0.2s;
+    opacity: 0.7;
+    z-index: 5;
+}
+
+.tm-gallery-nav:hover {
+    background: rgba(0, 0, 0, 0.7);
+    opacity: 1;
+}
+
+.tm-gallery-prev {
+    left: 8px;
+}
+
+.tm-gallery-next {
+    right: 8px;
+}
+
+.tm-gallery-caption {
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #475569;
+    background: rgba(248, 250, 252, 0.9);
+    text-align: center;
+}
+
+.tm-gallery-thumbs {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 4px;
+    padding: 6px;
+    background: rgba(248, 250, 252, 0.9);
+}
+
+.tm-gallery-thumb {
+    flex-shrink: 0;
+    width: 60px;
+    height: 60px;
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.2s, border-color 0.2s;
+    border: 2px solid transparent;
+}
+
+.tm-gallery-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.tm-gallery-thumb.active {
+    opacity: 1;
+    border-color: #4f6df5;
+}
+
+.tm-gallery-thumb:hover {
+    opacity: 0.85;
+}
+
+.tm-gallery-counter {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.55);
+    color: white;
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.slide-gallery-container {
+    width: 100%;
+    margin: 12px 0;
+}
+
+/* ── TimelineJS Container ─────────── */
+.slide-timelinejs-container {
+    width: 100%;
+    min-height: 350px;
+    margin: 16px 0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* ── Express Map (inline mini-map) ── */
+.express-map {
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 12px 0;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.express-map-small {
+    width: 100%;
+    max-width: 280px;
+    height: 180px;
+}
+
+.express-map-medium {
+    width: 100%;
+    max-width: 450px;
+    height: 280px;
+}
+
+.express-map-large {
+    width: 100%;
+    max-width: 100%;
+    height: 380px;
+}
+
+/* Center express maps in centered text */
+[style*="text-align: center"] .express-map,
+[style*="text-align:center"] .express-map {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.express-map .maplibregl-canvas {
+    border-radius: 8px;
+}

@@ -380,6 +380,12 @@
     box-shadow: 0 0 0 3px var(--tm-primary-soft);
 }
 
+.narrative-editor.drag-over {
+    outline: 3px dashed var(--tm-primary);
+    outline-offset: -3px;
+    background: rgba(79,109,245,0.05);
+}
+
 .narrative-toolbar {
     display: flex;
     gap: 2px;
@@ -642,15 +648,163 @@
 }
 
 @media (max-width: 768px) {
-    .editor-slides-panel {
-        max-height: 120px;
+    /* ── Mobile: tab-based panel switching ── */
+    #panel-editor {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr auto;
     }
+
+    .editor-slides-panel,
+    .editor-map-area,
+    .editor-props-wrapper {
+        display: none;
+    }
+
+    .editor-slides-panel.mobile-active,
+    .editor-map-area.mobile-active,
+    .editor-props-wrapper.mobile-active {
+        display: flex;
+    }
+
+    .editor-map-area.mobile-active {
+        display: block;
+    }
+
+    .editor-slides-panel {
+        border-right: none;
+        border-bottom: none;
+        max-height: none;
+        height: 100%;
+    }
+
+    .editor-slides-panel.mobile-active {
+        flex-direction: column;
+    }
+
+    .editor-slides-list {
+        flex-direction: column;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
     .editor-slide-thumb {
-        width: 120px;
+        width: 100%;
+        flex-shrink: 0;
+        margin: 0 0 4px;
         padding: 8px;
     }
+
+    .editor-slide-thumb .slide-actions {
+        opacity: 1;
+    }
+
+    .editor-props-wrapper {
+        border-left: none;
+        border-top: none;
+        max-height: none;
+        height: 100%;
+        flex-direction: column;
+    }
+
+    .editor-props-resize-handle {
+        display: none;
+    }
+
     .editor-props-body {
         padding: 12px;
+    }
+
+    /* ── Mobile bottom tab bar ── */
+    .editor-mobile-tabs {
+        display: flex !important;
+        order: 2;
+    }
+
+    /* ── Narrative toolbar: wrap on small screens ── */
+    .narrative-toolbar {
+        flex-wrap: wrap;
+        gap: 2px;
+    }
+
+    .narrative-toolbar .btn {
+        padding: 3px 6px;
+        font-size: 12px;
+    }
+
+    .narrative-toolbar-sep {
+        display: none;
+    }
+
+    /* ── Layout selector: 2 columns on mobile ── */
+    .layout-selector {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* ── Quick actions: 2 columns ── */
+    .quick-actions-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* ── Props tabs: scroll horizontally ── */
+    .editor-props-tabs {
+        padding: 0 8px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .editor-props-tab {
+        padding: 6px 10px;
+        font-size: 11px;
+    }
+}
+
+/* ── Mobile tab bar (hidden on desktop) ── */
+.editor-mobile-tabs {
+    display: none;
+    background: var(--tm-surface);
+    border-top: 1px solid var(--tm-border);
+    padding: 0;
+    gap: 0;
+    z-index: 20;
+}
+
+.editor-mobile-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 4px;
+    border: none;
+    background: transparent;
+    color: var(--tm-text-muted);
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.editor-mobile-tab i {
+    font-size: 18px;
+}
+
+.editor-mobile-tab.active {
+    color: var(--tm-primary);
+    background: var(--tm-primary-soft);
+}
+
+/* ── Full-screen modals on mobile ── */
+@media (max-width: 768px) {
+    .tm-modal-overlay .tm-modal {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        height: 100vh;
+        max-height: 100vh;
+        border-radius: 0;
+        margin: 0;
+    }
+
+    .tm-modal-body {
+        max-height: calc(100vh - 120px);
     }
 }
 

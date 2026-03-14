@@ -11,7 +11,7 @@ router = APIRouter()
 
 class BasemapCreate(BaseModel):
     name: str
-    type: str  # xyz, wms, wmts, style
+    type: str  # xyz, wms, wmts, style, image
     url: str
     config: dict = {}
     thumbnail: str | None = None

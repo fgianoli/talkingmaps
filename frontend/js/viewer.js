@@ -24,8 +24,8 @@ const StoryViewer = {
     // Audio state
     _currentAudio: null,
 
-    // Layouts that show the map (2D or 3D)
-    _mapLayouts: ['cover', 'side-left', 'side-right', 'center', 'full-map', 'globe-3d', 'potree-3d'],
+    // Layouts that show the map (2D or 3D) — cover hides the map (fullscreen copertina)
+    _mapLayouts: ['side-left', 'side-right', 'center', 'full-map', 'globe-3d', 'potree-3d'],
     _3dLayouts: ['globe-3d', 'potree-3d'],
 
     /**
@@ -128,6 +128,9 @@ const StoryViewer = {
                 }
             }
         });
+
+        // Make map interactive: pointer events pass through empty slide areas
+        this._setupMapInteractivity();
 
         // Load initial slide
         setTimeout(() => this._onSlideEnter(0), 500);
@@ -371,6 +374,117 @@ const StoryViewer = {
             badge.textContent = '3D';
             contentEl.querySelector('h2')?.appendChild(badge);
         }
+
+        // Gallery / Slideshow
+        if (overrides.gallery && overrides.gallery.images?.length) {
+            const galleryContainer = document.createElement('div');
+            galleryContainer.className = 'slide-gallery-container';
+            contentEl.appendChild(galleryContainer);
+            TmGallery.render(galleryContainer, overrides.gallery.images, overrides.gallery);
+        }
+
+        // TimelineJS
+        if (overrides.timelinejs && overrides.timelinejs.events?.length) {
+            const tljsContainer = document.createElement('div');
+            tljsContainer.className = 'slide-timelinejs-container';
+            tljsContainer.id = `timelinejs-${slideIdx}`;
+            tljsContainer.style.cssText = 'width:100%;height:400px;margin:16px 0;border-radius:var(--tm-radius-sm);overflow:hidden;';
+            contentEl.appendChild(tljsContainer);
+            // Defer initialization to allow DOM to settle
+            setTimeout(() => this._initTimelineJS(tljsContainer, overrides.timelinejs), 200);
+        }
+
+        // Express Map inline (scan for .express-map divs in narrative)
+        setTimeout(() => {
+            const expressMaps = contentEl.querySelectorAll('.express-map');
+            expressMaps.forEach((el, i) => {
+                this._initExpressMap(el, slideIdx, i);
+            });
+        }, 100);
+    },
+
+    /**
+     * Initialize a TimelineJS instance
+     */
+    _initTimelineJS(container, config) {
+        if (typeof TL === 'undefined') {
+            console.warn('TimelineJS (TL) not loaded');
+            return;
+        }
+        // Convert our simple format to TimelineJS format
+        const tljsData = {
+            events: config.events.map(evt => {
+                const tljsEvt = {};
+                // Parse date
+                if (evt.date) {
+                    const parts = evt.date.split('-');
+                    tljsEvt.start_date = { year: parts[0] || '', month: parts[1] || '', day: parts[2] || '' };
+                }
+                tljsEvt.text = { headline: evt.title || '', text: evt.text || '' };
+                if (evt.media_url) {
+                    tljsEvt.media = { url: evt.media_url };
+                }
+                // Store location as custom property for map interaction
+                if (evt.location && evt.location.lat && evt.location.lng) {
+                    tljsEvt._tm_location = evt.location;
+                }
+                return tljsEvt;
+            })
+        };
+
+        try {
+            const timeline = new TL.Timeline(container.id, tljsData, config.options || {});
+            // Listen for slide changes — fly to location if available
+            timeline.on('change', (data) => {
+                const evtIndex = data?.unique_id ? tljsData.events.findIndex(e => e.unique_id === data.unique_id) : -1;
+                // Also try by index from the current_slide
+                const idx = timeline.current_id ? tljsData.events.findIndex(e => e.unique_id === timeline.current_id) : -1;
+                const finalIdx = evtIndex >= 0 ? evtIndex : idx;
+                if (finalIdx >= 0 && tljsData.events[finalIdx]?._tm_location) {
+                    const loc = tljsData.events[finalIdx]._tm_location;
+                    if (this._map) {
+                        this._map.flyTo({ center: [loc.lng, loc.lat], zoom: 14, duration: 1500 });
+                    }
+                }
+            });
+        } catch (err) {
+            console.error('TimelineJS init failed:', err);
+        }
+    },
+
+    /**
+     * Initialize an inline Express Map (mini-map)
+     */
+    _initExpressMap(el, slideIdx, mapIdx) {
+        if (el.dataset.initialized) return;
+        el.dataset.initialized = 'true';
+        const lat = parseFloat(el.dataset.lat) || 0;
+        const lng = parseFloat(el.dataset.lng) || 0;
+        const zoom = parseFloat(el.dataset.zoom) || 10;
+        const showMarker = el.dataset.marker === 'true';
+        const size = el.dataset.size || 'medium';
+
+        // Clear placeholder content
+        el.innerHTML = '';
+        el.classList.add(`express-map-${size}`);
+        el.id = `express-map-${slideIdx}-${mapIdx}`;
+
+        try {
+            const miniMap = new maplibregl.Map({
+                container: el.id,
+                style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+                center: [lng, lat],
+                zoom: zoom,
+                interactive: true,
+                attributionControl: false,
+            });
+            if (showMarker) {
+                new maplibregl.Marker().setLngLat([lng, lat]).addTo(miniMap);
+            }
+        } catch (err) {
+            console.error('Express map init failed:', err);
+            el.innerHTML = `<div style="padding:16px;text-align:center;color:#94a3b8"><i class="bi bi-exclamation-triangle"></i> Map failed to load</div>`;
+        }
     },
 
     _sanitizeUrl(url) {
@@ -432,6 +546,16 @@ const StoryViewer = {
             this._toggle3D();
         } else if (!is3DLayout && this._is3D) {
             this._toggle3D();
+        }
+
+        // Per-slide basemap
+        if (hasMap && !is3DLayout) {
+            if (slide.basemap_id) {
+                const basemap = (this._data.basemaps || []).find(b => b.id == slide.basemap_id);
+                if (basemap) TmMap.setBasemap(basemap);
+            } else {
+                TmMap.setBasemap((this._data.basemaps || [])[0] || null);
+            }
         }
 
         // Camera animation (only for map layouts)
@@ -811,6 +935,42 @@ const StoryViewer = {
             }
         };
         document.addEventListener('keydown', this._keyHandler);
+    },
+
+    // ── Map Interactivity ────────────────
+    _setupMapInteractivity() {
+        const narrative = document.getElementById('viewer-narrative');
+        const mapContainer = document.getElementById('viewer-map-container');
+        if (!narrative || !mapContainer) return;
+
+        // When pointer is over empty slide area (not content), let map handle it
+        narrative.addEventListener('pointerdown', (e) => {
+            // If target is the slide itself (not content card or interactive element), forward to map
+            if (e.target.closest('.viewer-slide-content, .scroll-hint, .viewer-text-media-wrapper, .viewer-legend, button, a, input, select, textarea')) return;
+            // Temporarily disable pointer events on narrative so map gets the event
+            narrative.style.pointerEvents = 'none';
+            // Re-enable on pointer up or after a short delay
+            const restore = () => {
+                narrative.style.pointerEvents = '';
+                document.removeEventListener('pointerup', restore);
+                document.removeEventListener('pointercancel', restore);
+            };
+            document.addEventListener('pointerup', restore);
+            document.addEventListener('pointercancel', restore);
+            // Also restore after drag/pan ends (safety net)
+            setTimeout(restore, 5000);
+        });
+
+        // Forward wheel events on empty areas to the map for zoom
+        narrative.addEventListener('wheel', (e) => {
+            if (e.target.closest('.viewer-slide-content, .viewer-text-media-wrapper')) return;
+            // Check if the current slide has a map
+            const slide = this._slides[this._currentSlide];
+            if (!slide || !this._mapLayouts.includes(slide.layout || 'side-left')) return;
+            // Forward wheel to map by temporarily hiding narrative from events
+            narrative.style.pointerEvents = 'none';
+            requestAnimationFrame(() => { narrative.style.pointerEvents = ''; });
+        }, { passive: true });
     },
 
     // ── Geocode Search ──────────────────

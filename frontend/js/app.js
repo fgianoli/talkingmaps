@@ -513,11 +513,47 @@ const App = {
                 { title: 'Conclusion', layout: 'center', narrative: '<p>Key takeaways.</p>' },
             ],
         },
+        city_tour: {
+            icon: 'bi-buildings',
+            slides: [
+                { title: '', layout: 'cover', narrative: '<h1>Discovering the City</h1><p>An interactive walking tour through history, architecture, and culture. Scroll down to begin your journey.</p>' },
+                { title: 'The Historic Center', layout: 'side-left', narrative: '<h2>The Historic Center</h2><p>Every great city has a beating heart. The historic center is where centuries of stories overlap: cobblestone streets, ornate facades, and hidden courtyards waiting to be discovered.</p><p>Navigate the map to explore the area, or zoom in to see individual landmarks.</p>' },
+                { title: 'Markets & Local Life', layout: 'side-right', narrative: '<h2>Markets & Local Life</h2><p>The best way to understand a city is through its markets. Here the aromas, colors, and sounds tell a story that no guidebook can capture.</p><p><em>Tip: add markers on the map to highlight your favorite stalls and shops.</em></p>' },
+                { title: 'Panoramic Views', layout: 'side-left', narrative: '<h2>Panoramic Views</h2><p>Climb to the highest point for a breathtaking panorama. From up here, the urban fabric reveals its logic: the river, the main squares, the green corridors connecting neighborhoods.</p>' },
+                { title: '', layout: 'separator', narrative: '<h1>Until Next Time</h1><p>Thank you for exploring with us. Every city has infinite stories to tell.</p>' },
+            ],
+        },
+        historical_journey: {
+            icon: 'bi-hourglass-split',
+            slides: [
+                { title: '', layout: 'cover', narrative: '<h1>A Journey Through Time</h1><p>Explore how this place has transformed across the centuries. Maps, data, and narratives guide you through the key turning points.</p>' },
+                { title: 'The Origins', layout: 'center', narrative: '<h2>The Origins</h2><p>Every place has a beginning. Archaeological evidence and early maps reveal the first settlements, the choice of location, and the natural resources that shaped early life here.</p><p>Use the map comparison tool to overlay historical maps with the modern view.</p>' },
+                { title: 'Growth & Transformation', layout: 'side-left', narrative: '<h2>Growth & Transformation</h2><p>As centuries passed, the landscape changed dramatically. New roads, buildings, and infrastructure reshaped the territory. Add layers to visualize land use changes over time.</p>' },
+                { title: 'The Modern Era', layout: 'side-right', narrative: '<h2>The Modern Era</h2><p>Today, the traces of the past coexist with contemporary life. Understanding this layered history helps us appreciate what we see and plan for the future.</p><p><em>Consider adding charts to show population growth or land use statistics.</em></p>' },
+            ],
+        },
+        photo_story: {
+            icon: 'bi-camera',
+            slides: [
+                { title: '', layout: 'cover', narrative: '<h1>A Visual Story</h1><p>Let your images speak. This template is designed for photo essays and visual narratives. Replace the placeholder text with your captions.</p>' },
+                { title: 'The Scene', layout: 'full-media', narrative: '<h2>Set the Scene</h2><p>Upload a striking image as the background for this slide. The caption appears at the bottom.</p>' },
+                { title: 'Details', layout: 'text-media', narrative: '<h2>The Details</h2><p>Pair your narrative with a photo side by side. This layout works well for explaining context, showing before/after shots, or adding depth to your visual story.</p>' },
+                { title: 'The Map Connection', layout: 'side-left', narrative: '<h2>Where It Happened</h2><p>Place your photos on the map with markers. Each marker can contain an image and a description, turning the map into a geo-referenced photo album.</p>' },
+            ],
+        },
+        data_story: {
+            icon: 'bi-bar-chart-line',
+            slides: [
+                { title: '', layout: 'cover', narrative: '<h1>Data-Driven Insights</h1><p>Numbers tell stories too. This template helps you combine maps, charts, and narrative to present data in a compelling way.</p>' },
+                { title: 'The Data', layout: 'side-left', narrative: '<h2>Exploring the Data</h2><p>Use the chart wizard to create a visualization from your dataset. Bar charts, line graphs, pie charts -- choose what best represents your data.</p><p><em>Tip: paste data directly from a spreadsheet, or load a CSV file.</em></p>' },
+                { title: 'Spatial Patterns', layout: 'full-map', narrative: '' },
+            ],
+        },
     },
 
     async createNewStory() {
         const t = I18n.t.bind(I18n);
-        const templates = ['sidecar', 'tour', 'narrative', 'presentation'];
+        const templates = ['sidecar', 'tour', 'narrative', 'presentation', 'city_tour', 'historical_journey', 'photo_story', 'data_story'];
 
         const templateCards = templates.map(key => {
             const tmpl = this._storyTemplates[key];
