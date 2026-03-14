@@ -25,5 +25,5 @@ CREATE INDEX IF NOT EXISTS idx_contributions_geom ON contributions USING GIST(ge
 
 -- Add participatory_upload_limit_mb to system_settings (run on SYSTEM database)
 -- INSERT INTO system_settings (key, value, description) VALUES
---     ('participatory_upload_limit_mb', '5', 'Max upload size for participatory contributions in MB')
+--     ('participatory_upload_limit_mb', '10', 'Max upload size for participatory contributions in MB')
 -- ON CONFLICT DO NOTHING;

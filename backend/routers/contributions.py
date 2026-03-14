@@ -36,7 +36,7 @@ class ContributionModerate(BaseModel):
 
 
 async def _get_upload_limit_mb(system_db: AsyncSession) -> int:
-    """Get participatory upload limit from system settings, default 5MB."""
+    """Get participatory upload limit from system settings, default 10MB."""
     result = await system_db.execute(
         text("SELECT value FROM system_settings WHERE key = 'participatory_upload_limit_mb'")
     )
@@ -46,7 +46,7 @@ async def _get_upload_limit_mb(system_db: AsyncSession) -> int:
             return int(row[0])
         except (ValueError, TypeError):
             pass
-    return 5
+    return 10
 
 
 async def _check_story_owner_or_admin(db: AsyncSession, story_id: int, user: dict) -> bool:

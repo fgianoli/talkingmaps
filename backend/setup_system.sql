@@ -78,7 +78,7 @@ ON CONFLICT DO NOTHING;
 
 -- Participatory maps settings
 INSERT INTO system_settings (key, value, description) VALUES
-    ('participatory_upload_limit_mb', '5', 'Max upload size for participatory contributions in MB')
+    ('participatory_upload_limit_mb', '10', 'Max upload size for participatory contributions in MB')
 ON CONFLICT DO NOTHING;
 
 -- Default basemaps
