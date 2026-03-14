@@ -151,6 +151,7 @@ const Dashboard = {
                                         ${s.status === 'published' ? t('action.archive') : t('action.publish')}
                                     </a></li>` : ''}
                                     <li><a class="dropdown-item" href="#" onclick="Dashboard._exportStory(${s.id});return false"><i class="bi bi-download me-2"></i>${t('action.export')}</a></li>
+                                    ${isOwner && s.settings?.participatory_enabled ? `<li><a class="dropdown-item" href="#" onclick="Dashboard.renderModeration(${s.id}, '${s.title.replace(/'/g, "\\'")}');return false"><i class="bi bi-shield-check me-2"></i>${t('contrib.moderation')}</a></li>` : ''}
                                     ${isOwner ? `<li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item text-danger" href="#" onclick="Dashboard._deleteStory(${s.id});return false"><i class="bi bi-trash me-2"></i>${t('action.delete')}</a></li>` : ''}
                                 </ul>
@@ -871,5 +872,118 @@ const Dashboard = {
             await Api.updateSetting(key, input.value);
             App.toast(I18n.t('settings.saved'), 'success');
         } catch (err) { App.toast(err.message, 'danger'); }
+    },
+
+    async renderModeration(storyId, storyTitle) {
+        const container = document.getElementById('dashboard-content') || document.querySelector('.dashboard-container');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="moderation-panel">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <button class="btn btn-sm btn-outline-secondary" id="mod-back">
+                        <i class="bi bi-arrow-left"></i>
+                    </button>
+                    <h5 class="mb-0"><i class="bi bi-shield-check"></i> ${I18n.t('contrib.moderation')} — ${DOMPurify.sanitize(storyTitle)}</h5>
+                </div>
+                <div class="btn-group btn-group-sm mb-3" id="mod-filters">
+                    <button class="btn btn-outline-primary active" data-status="">${I18n.t('dash.all')}</button>
+                    <button class="btn btn-outline-warning" data-status="pending">${I18n.t('contrib.status_pending')}</button>
+                    <button class="btn btn-outline-success" data-status="approved">${I18n.t('contrib.status_approved')}</button>
+                    <button class="btn btn-outline-danger" data-status="rejected">${I18n.t('contrib.status_rejected')}</button>
+                </div>
+                <div id="mod-list" class="moderation-list">
+                    <div class="text-center py-4"><span class="spinner-border spinner-border-sm"></span></div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('mod-back').onclick = () => this.render();
+
+        let currentFilter = '';
+
+        const loadContributions = async (statusFilter) => {
+            try {
+                const items = await Api.listAllContributions(storyId, statusFilter || undefined);
+                const listEl = document.getElementById('mod-list');
+
+                if (items.length === 0) {
+                    listEl.innerHTML = `<div class="text-muted text-center py-4">${I18n.t('contrib.no_contributions')}</div>`;
+                    return;
+                }
+
+                listEl.innerHTML = items.map(c => `
+                    <div class="moderation-item" data-id="${c.id}">
+                        <div class="mod-item-header">
+                            <span class="badge bg-${c.status === 'approved' ? 'success' : c.status === 'rejected' ? 'danger' : 'warning'}">${I18n.t('contrib.status_' + c.status)}</span>
+                            <strong>${DOMPurify.sanitize(c.title)}</strong>
+                            ${c.category ? `<span class="badge bg-secondary">${DOMPurify.sanitize(c.category)}</span>` : ''}
+                        </div>
+                        <div class="mod-item-body">
+                            <div class="mod-item-info">
+                                <small class="text-muted">
+                                    <i class="bi bi-person"></i> ${DOMPurify.sanitize(c.author_display_name || c.author_name || '—')}
+                                    &nbsp;|&nbsp;
+                                    <i class="bi bi-geo-alt"></i> ${c.lat?.toFixed(4)}, ${c.lng?.toFixed(4)}
+                                    &nbsp;|&nbsp;
+                                    <i class="bi bi-clock"></i> ${new Date(c.created_at).toLocaleString()}
+                                </small>
+                                ${c.description ? `<p class="mb-1 small">${DOMPurify.sanitize(c.description)}</p>` : ''}
+                                ${c.admin_note ? `<div class="small text-info"><i class="bi bi-chat-dots"></i> ${DOMPurify.sanitize(c.admin_note)}</div>` : ''}
+                            </div>
+                            ${c.media_url ? `<div class="mod-item-media">
+                                ${c.media_type === 'image' ? `<img src="${c.thumbnail_url || c.media_url}" alt="" onclick="window.open('${c.media_url}','_blank')">` :
+                                  c.media_type === 'video' ? `<video src="${c.media_url}" controls></video>` :
+                                  c.media_type === 'audio' ? `<audio src="${c.media_url}" controls></audio>` : ''}
+                            </div>` : ''}
+                        </div>
+                        <div class="mod-item-actions">
+                            ${c.status !== 'approved' ? `<button class="btn btn-sm btn-success mod-approve" data-id="${c.id}"><i class="bi bi-check-lg"></i> ${I18n.t('contrib.approve')}</button>` : ''}
+                            ${c.status !== 'rejected' ? `<button class="btn btn-sm btn-warning mod-reject" data-id="${c.id}"><i class="bi bi-x-lg"></i> ${I18n.t('contrib.reject')}</button>` : ''}
+                            <button class="btn btn-sm btn-outline-danger mod-delete" data-id="${c.id}"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Wire actions
+                listEl.querySelectorAll('.mod-approve').forEach(btn => {
+                    btn.onclick = async () => {
+                        await Api.moderateContribution(parseInt(btn.dataset.id), 'approved');
+                        App.toast(I18n.t('contrib.status_approved'), 'success');
+                        loadContributions(currentFilter);
+                    };
+                });
+                listEl.querySelectorAll('.mod-reject').forEach(btn => {
+                    btn.onclick = async () => {
+                        const note = prompt(I18n.t('contrib.reject_reason') || 'Reason:');
+                        await Api.moderateContribution(parseInt(btn.dataset.id), 'rejected', note);
+                        App.toast(I18n.t('contrib.status_rejected'), 'info');
+                        loadContributions(currentFilter);
+                    };
+                });
+                listEl.querySelectorAll('.mod-delete').forEach(btn => {
+                    btn.onclick = async () => {
+                        if (!confirm(I18n.t('contrib.confirm_delete'))) return;
+                        await Api.deleteContribution(parseInt(btn.dataset.id));
+                        App.toast(I18n.t('contrib.deleted'), 'success');
+                        loadContributions(currentFilter);
+                    };
+                });
+            } catch (err) {
+                document.getElementById('mod-list').innerHTML = `<div class="text-danger">${err.message}</div>`;
+            }
+        };
+
+        // Filter buttons
+        document.getElementById('mod-filters').querySelectorAll('button').forEach(btn => {
+            btn.onclick = () => {
+                document.getElementById('mod-filters').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.status;
+                loadContributions(currentFilter);
+            };
+        });
+
+        loadContributions('');
     },
 };

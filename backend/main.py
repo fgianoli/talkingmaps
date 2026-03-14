@@ -7,7 +7,7 @@ from sqlalchemy import text
 from core.config import settings as app_settings
 from core.database import engine, engine_system
 from core.security import hash_password
-from routers import auth, stories, slides, media, layers, basemaps, wms_proxy, users, symbology, ckan, upload3d, settings as settings_router, ai as ai_router, oauth, geodata
+from routers import auth, stories, slides, media, layers, basemaps, wms_proxy, users, symbology, ckan, upload3d, settings as settings_router, ai as ai_router, oauth, geodata, contributions
 
 
 # Ensure upload directory exists before StaticFiles mount
@@ -73,6 +73,7 @@ app.include_router(settings_router.router, prefix="/api/settings", tags=["Impost
 app.include_router(ai_router.router, prefix="/api/ai", tags=["AI Assistant"])
 app.include_router(oauth.router, prefix="/api/oauth", tags=["OAuth"])
 app.include_router(geodata.router, prefix="/api/geodata", tags=["Geodata (Wikipedia, OSM)"])
+app.include_router(contributions.router, prefix="/api/contributions", tags=["Mappe Partecipate"])
 
 
 @app.get("/health")

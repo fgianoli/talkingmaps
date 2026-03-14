@@ -148,6 +148,7 @@ const App = {
                 { icon: 'bi-github', color: 'pink', key: 'open' },
                 { icon: 'bi-cloud-arrow-up', color: 'teal', key: 'lidar' },
                 { icon: 'bi-robot', color: 'yellow', key: 'ai' },
+                { icon: 'bi-people-fill', color: 'cyan', key: 'participatory' },
             ];
             grid.innerHTML = features.map(f => `
                 <div class="feature-card">

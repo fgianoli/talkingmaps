@@ -774,6 +774,31 @@ const StoryEditor = {
                     </div>
                 </div>
 
+                <!-- Participatory Maps -->
+                <div class="prop-section">
+                    <div class="prop-section-title" style="cursor:pointer" onclick="document.getElementById('participatory-collapse').classList.toggle('d-none')">
+                        <i class="bi bi-people-fill"></i> ${t('contrib.editor_title')}
+                        <i class="bi bi-chevron-down" style="float:right;font-size:11px;opacity:0.5"></i>
+                    </div>
+                    <div id="participatory-collapse" class="d-none">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="participatory-enabled" ${this._story.settings?.participatory_enabled ? 'checked' : ''}>
+                            <label class="form-check-label" for="participatory-enabled">${t('contrib.enable')}</label>
+                        </div>
+                        <div id="participatory-options" style="display:${this._story.settings?.participatory_enabled ? 'block' : 'none'}">
+                            <div class="mb-2">
+                                <label class="form-label small">${t('contrib.categories_label')}</label>
+                                <input type="text" class="form-control form-control-sm" id="participatory-categories"
+                                       value="${App.escHtml((this._story.settings?.participatory_categories || []).join(', '))}"
+                                       placeholder="${t('contrib.categories_placeholder')}">
+                            </div>
+                            <div class="alert alert-info small py-1 px-2 mb-0">
+                                <i class="bi bi-info-circle"></i> ${t('contrib.moderation_note')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Transition -->
                 <div class="prop-section">
                     <div class="prop-section-title"><i class="bi bi-play-circle"></i> ${t('editor.transition') || 'Transition'}</div>
@@ -1242,6 +1267,29 @@ const StoryEditor = {
         document.getElementById('btn-save-custom-css')?.addEventListener('click', async () => {
             const css = document.getElementById('prop-custom-css')?.value || '';
             this._story.settings = { ...(this._story.settings || {}), custom_css: css };
+            try {
+                await Api.updateStory(this._storyId, { settings: this._story.settings });
+                App.toast(I18n.t('editor.autosaved'), 'success');
+            } catch (err) { App.toast(err.message, 'danger'); }
+        });
+
+        // Participatory Maps toggle
+        document.getElementById('participatory-enabled')?.addEventListener('change', async (e) => {
+            const enabled = e.target.checked;
+            this._story.settings = { ...(this._story.settings || {}), participatory_enabled: enabled };
+            const optDiv = document.getElementById('participatory-options');
+            if (optDiv) optDiv.style.display = enabled ? 'block' : 'none';
+            try {
+                await Api.updateStory(this._storyId, { settings: this._story.settings });
+                App.toast(I18n.t('editor.autosaved'), 'success');
+            } catch (err) { App.toast(err.message, 'danger'); }
+        });
+
+        // Participatory Maps categories
+        document.getElementById('participatory-categories')?.addEventListener('blur', async (e) => {
+            const raw = e.target.value || '';
+            const categories = raw.split(',').map(s => s.trim()).filter(Boolean);
+            this._story.settings = { ...(this._story.settings || {}), participatory_categories: categories };
             try {
                 await Api.updateStory(this._storyId, { settings: this._story.settings });
                 App.toast(I18n.t('editor.autosaved'), 'success');

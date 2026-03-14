@@ -233,4 +233,26 @@ const Api = {
     // Profile
     updateProfile(data) { return this.put('/api/auth/profile', data); },
     uploadAvatar(file) { const fd = new FormData(); fd.append('file', file); return this._fetch('/api/auth/avatar', { method: 'POST', body: fd }); },
+
+    // ── Contributions (Participatory Maps) ──
+    listContributions(storyId) { return this.get(`/api/contributions/story/${storyId}`); },
+    listAllContributions(storyId, status) {
+        let url = `/api/contributions/story/${storyId}/all`;
+        if (status) url += `?status=${status}`;
+        return this.get(url);
+    },
+    createContribution(storyId, data, file) {
+        const fd = new FormData();
+        fd.append('title', data.title);
+        fd.append('lng', data.lng);
+        fd.append('lat', data.lat);
+        if (data.description) fd.append('description', data.description);
+        if (data.category) fd.append('category', data.category);
+        if (file) fd.append('file', file);
+        return this._fetch(`/api/contributions/story/${storyId}`, { method: 'POST', body: fd });
+    },
+    moderateContribution(id, status, adminNote) {
+        return this.put(`/api/contributions/${id}/status`, { status, admin_note: adminNote });
+    },
+    deleteContribution(id) { return this.del(`/api/contributions/${id}`); },
 };

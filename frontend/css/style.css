@@ -751,6 +751,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
 .feature-card .feature-icon.pink { background: #fdf2f8; color: #ec4899; }
 .feature-card .feature-icon.teal { background: #f0fdfa; color: #14b8a6; }
 .feature-card .feature-icon.yellow { background: #fefce8; color: #eab308; }
+.feature-card .feature-icon.cyan { background: #ecfeff; color: #06b6d4; }
 
 .feature-card h3 {
     font-size: 17px;

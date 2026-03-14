@@ -24,6 +24,11 @@ const StoryViewer = {
     // Audio state
     _currentAudio: null,
 
+    // Contributions (participatory maps)
+    _contributions: [],
+    _contributionMarkers: [],
+    _contributionMode: false,  // true when user is placing a point
+
     // Layouts that show the map (2D or 3D) — cover hides the map (fullscreen copertina)
     _mapLayouts: ['side-left', 'side-right', 'center', 'full-map', 'globe-3d', 'potree-3d'],
     _3dLayouts: ['globe-3d', 'potree-3d'],
@@ -94,6 +99,11 @@ const StoryViewer = {
 
         // Build Table of Contents (chapters)
         this._buildTOC();
+
+        // Load contributions if participatory mode is enabled
+        if (data.story.settings?.participatory_enabled) {
+            this._initParticipatory(data.story);
+        }
 
         // Handle hotspot links (data-tm-link clicks)
         document.getElementById('viewer-narrative').addEventListener('click', (e) => {
@@ -196,6 +206,12 @@ const StoryViewer = {
             this._currentAudio.pause();
             this._currentAudio = null;
         }
+        // Cleanup contributions
+        this._contributionMarkers.forEach(m => m.remove());
+        this._contributionMarkers = [];
+        this._contributions = [];
+        document.getElementById('tm-contribute-btn')?.remove();
+        document.getElementById('tm-contribution-panel')?.remove();
         this._data = null;
         this._slides = [];
         this._chartInstances = [];
@@ -616,6 +632,11 @@ const StoryViewer = {
         const slideMarkers = (this._data.markers || []).filter(m => m.slide_id === slide.id);
         TmMap.addMarkers(slideMarkers);
 
+        // Re-render contribution markers (participatory)
+        if (this._data.story.settings?.participatory_enabled) {
+            this._renderContributionMarkers();
+        }
+
         // Drawn features (lines/polygons)
         this._renderDrawnFeatures(slide);
 
@@ -680,6 +701,219 @@ const StoryViewer = {
 
         // Auto-hide toolbar after a few seconds
         this._autoHideToolbar();
+    },
+
+    _initParticipatory(story) {
+        // Add "Contribute" floating button to viewer
+        const viewer = document.getElementById('story-viewer');
+
+        // Remove old elements
+        document.getElementById('tm-contribute-btn')?.remove();
+        document.getElementById('tm-contribution-panel')?.remove();
+
+        const btn = document.createElement('button');
+        btn.id = 'tm-contribute-btn';
+        btn.className = 'tm-contribute-btn';
+        btn.innerHTML = '<i class="bi bi-plus-circle"></i> ' + I18n.t('contrib.add');
+        btn.title = I18n.t('contrib.add_tooltip');
+
+        // Only show if user is logged in
+        if (!Api.isLoggedIn()) {
+            btn.innerHTML = '<i class="bi bi-lock"></i> ' + I18n.t('contrib.login_required');
+            btn.classList.add('disabled');
+            btn.onclick = () => App.toast(I18n.t('contrib.login_required'), 'warning');
+        } else {
+            btn.onclick = () => this._startContributionMode();
+        }
+
+        viewer.appendChild(btn);
+
+        // Load and display existing approved contributions
+        this._loadContributions(story.id);
+    },
+
+    async _loadContributions(storyId) {
+        try {
+            this._contributions = await Api.listContributions(storyId);
+            this._renderContributionMarkers();
+        } catch (e) {
+            console.warn('Failed to load contributions:', e);
+        }
+    },
+
+    _renderContributionMarkers() {
+        // Remove old contribution markers
+        this._contributionMarkers.forEach(m => m.remove());
+        this._contributionMarkers = [];
+
+        if (!this._map || !this._contributions.length) return;
+
+        this._contributions.forEach(c => {
+            if (!c.lng || !c.lat) return;
+
+            const el = document.createElement('div');
+            el.className = 'tm-contribution-marker';
+            el.innerHTML = '<i class="bi bi-geo-alt-fill"></i>';
+            if (c.category) el.dataset.category = c.category;
+
+            const marker = new maplibregl.Marker({ element: el })
+                .setLngLat([c.lng, c.lat])
+                .setPopup(new maplibregl.Popup({ maxWidth: '320px', offset: 20 })
+                    .setHTML(this._buildContributionPopup(c)))
+                .addTo(this._map);
+
+            this._contributionMarkers.push(marker);
+        });
+    },
+
+    _buildContributionPopup(c) {
+        let html = '<div class="tm-contribution-popup">';
+        html += `<h4>${DOMPurify.sanitize(c.title)}</h4>`;
+        if (c.author_display_name || c.author_name) {
+            html += `<div class="contrib-author"><i class="bi bi-person"></i> ${DOMPurify.sanitize(c.author_display_name || c.author_name)}</div>`;
+        }
+        if (c.description) {
+            html += `<p>${DOMPurify.sanitize(c.description)}</p>`;
+        }
+        if (c.media_url) {
+            if (c.media_type === 'image') {
+                html += `<img src="${c.thumbnail_url || c.media_url}" alt="" class="contrib-media-img" onclick="window.open('${c.media_url}','_blank')">`;
+            } else if (c.media_type === 'video') {
+                html += `<video src="${c.media_url}" controls class="contrib-media-video"></video>`;
+            } else if (c.media_type === 'audio') {
+                html += `<audio src="${c.media_url}" controls class="contrib-media-audio"></audio>`;
+            }
+        }
+        if (c.category) {
+            html += `<span class="contrib-category"><i class="bi bi-tag"></i> ${DOMPurify.sanitize(c.category)}</span>`;
+        }
+        html += `<div class="contrib-date"><i class="bi bi-clock"></i> ${new Date(c.created_at).toLocaleDateString()}</div>`;
+        html += '</div>';
+        return html;
+    },
+
+    _startContributionMode() {
+        if (this._contributionMode) return;
+        this._contributionMode = true;
+
+        const mapContainer = document.getElementById('viewer-map-container');
+        mapContainer.classList.add('contribution-placing');
+
+        App.toast(I18n.t('contrib.click_map'), 'info');
+
+        // Listen for click on map
+        const clickHandler = (e) => {
+            this._contributionMode = false;
+            mapContainer.classList.remove('contribution-placing');
+            this._map.off('click', clickHandler);
+
+            this._showContributionForm(e.lngLat.lng, e.lngLat.lat);
+        };
+
+        this._map.on('click', clickHandler);
+
+        // Cancel on Escape
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                this._contributionMode = false;
+                mapContainer.classList.remove('contribution-placing');
+                this._map.off('click', clickHandler);
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+    },
+
+    _showContributionForm(lng, lat) {
+        const storyId = this._data.story.id;
+        const categories = this._data.story.settings?.participatory_categories || [];
+
+        let categoryOptions = '';
+        if (categories.length > 0) {
+            categoryOptions = `
+                <div class="mb-3">
+                    <label class="form-label">${I18n.t('contrib.category')}</label>
+                    <select id="contrib-category" class="form-select form-select-sm">
+                        <option value="">—</option>
+                        ${categories.map(c => `<option value="${c}">${c}</option>`).join('')}
+                    </select>
+                </div>`;
+        }
+
+        const formHtml = `
+            <div class="tm-contribution-form">
+                <h5><i class="bi bi-plus-circle"></i> ${I18n.t('contrib.new')}</h5>
+                <div class="mb-3">
+                    <label class="form-label">${I18n.t('contrib.title')} *</label>
+                    <input type="text" id="contrib-title" class="form-control form-control-sm" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">${I18n.t('contrib.description')}</label>
+                    <textarea id="contrib-description" class="form-control form-control-sm" rows="3"></textarea>
+                </div>
+                ${categoryOptions}
+                <div class="mb-3">
+                    <label class="form-label">${I18n.t('contrib.media')}</label>
+                    <input type="file" id="contrib-file" class="form-control form-control-sm" accept="image/*,video/*,audio/*">
+                    <small class="text-muted">${I18n.t('contrib.media_hint')}</small>
+                </div>
+                <div class="mb-2 text-muted small">
+                    <i class="bi bi-geo-alt"></i> ${lat.toFixed(5)}, ${lng.toFixed(5)}
+                </div>
+                <div class="d-flex gap-2">
+                    <button id="contrib-submit" class="btn btn-sm btn-primary flex-grow-1">
+                        <i class="bi bi-send"></i> ${I18n.t('contrib.submit')}
+                    </button>
+                    <button id="contrib-cancel" class="btn btn-sm btn-outline-secondary">
+                        ${I18n.t('contrib.cancel')}
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Show as popup on map at the clicked location
+        const popup = new maplibregl.Popup({ maxWidth: '360px', closeOnClick: false })
+            .setLngLat([lng, lat])
+            .setHTML(formHtml)
+            .addTo(this._map);
+
+        // Wire up buttons after DOM insertion
+        setTimeout(() => {
+            document.getElementById('contrib-cancel')?.addEventListener('click', () => popup.remove());
+            document.getElementById('contrib-submit')?.addEventListener('click', async () => {
+                const title = document.getElementById('contrib-title')?.value?.trim();
+                if (!title) {
+                    App.toast(I18n.t('contrib.title_required'), 'warning');
+                    return;
+                }
+
+                const data = {
+                    title,
+                    description: document.getElementById('contrib-description')?.value?.trim() || null,
+                    category: document.getElementById('contrib-category')?.value || null,
+                    lng,
+                    lat,
+                };
+                const fileInput = document.getElementById('contrib-file');
+                const file = fileInput?.files?.[0] || null;
+
+                const submitBtn = document.getElementById('contrib-submit');
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+                try {
+                    await Api.createContribution(storyId, data, file);
+                    popup.remove();
+                    App.toast(I18n.t('contrib.success'), 'success');
+                    // Reload contributions
+                    this._loadContributions(storyId);
+                } catch (err) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="bi bi-send"></i> ' + I18n.t('contrib.submit');
+                    App.toast(err.message || I18n.t('contrib.error'), 'danger');
+                }
+            });
+        }, 100);
     },
 
     _autoHideToolbar() {

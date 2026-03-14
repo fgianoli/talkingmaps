@@ -76,6 +76,11 @@ INSERT INTO system_settings (key, value, description) VALUES
     ('analytics_enabled', 'true', 'Enable story view tracking')
 ON CONFLICT DO NOTHING;
 
+-- Participatory maps settings
+INSERT INTO system_settings (key, value, description) VALUES
+    ('participatory_upload_limit_mb', '5', 'Max upload size for participatory contributions in MB')
+ON CONFLICT DO NOTHING;
+
 -- Default basemaps
 INSERT INTO basemaps (name, type, url, config, position) VALUES
     ('OpenStreetMap', 'xyz', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',

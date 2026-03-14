@@ -166,3 +166,25 @@ CREATE TABLE IF NOT EXISTS story_versions (
     created_at TIMESTAMP DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_versions_story ON story_versions(story_id);
+
+-- Participatory map contributions
+CREATE TABLE IF NOT EXISTS contributions (
+    id SERIAL PRIMARY KEY,
+    story_id INTEGER NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+    author_id INTEGER,
+    author_name VARCHAR(255),
+    geom GEOMETRY(Point, 4326),
+    title VARCHAR(500) NOT NULL,
+    description TEXT,
+    category VARCHAR(100),
+    media_url VARCHAR(500),
+    media_type VARCHAR(50),
+    thumbnail_url VARCHAR(500),
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    admin_note TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_contributions_story ON contributions(story_id);
+CREATE INDEX IF NOT EXISTS idx_contributions_author ON contributions(author_id);
+CREATE INDEX IF NOT EXISTS idx_contributions_status ON contributions(status);
+CREATE INDEX IF NOT EXISTS idx_contributions_geom ON contributions USING GIST(geom);
