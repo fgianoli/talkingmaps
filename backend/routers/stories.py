@@ -300,16 +300,6 @@ async def create_story(req: StoryCreate, user: dict = Depends(require_editor), d
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Error creating story: {e}")
 
-    # Create default first slide (cover)
-    try:
-        await db.execute(text(
-            """INSERT INTO slides (story_id, title, position, layout, narrative)
-               VALUES (:sid, :title, 0, 'cover', '<h1></h1><p></p>')"""
-        ), {"sid": row["id"], "title": req.title})
-        await db.commit()
-    except Exception:
-        pass  # Non-critical
-
     return {"id": row["id"], "slug": row["slug"], "share_token": row["share_token"]}
 
 
