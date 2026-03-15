@@ -254,8 +254,27 @@ async def get_story_embed(story_id: int, request: Request, db: AsyncSession = De
     basemaps_r = await system_db.execute(text("SELECT * FROM basemaps WHERE active = TRUE ORDER BY position"))
     basemaps = [dict(b) for b in basemaps_r.mappings().all()]
 
+    # Cesium Ion token (system DB)
+    cesium_token = ""
+    try:
+        token_r = await system_db.execute(text("SELECT value FROM system_settings WHERE key = 'cesium_ion_token'"))
+        token_row = token_r.fetchone()
+        if token_row and token_row[0]:
+            cesium_token = token_row[0]
+    except Exception:
+        pass
+
+    story_dict = dict(story)
+    settings = story_dict.get("settings") or {}
+    if isinstance(settings, str):
+        import json
+        settings = json.loads(settings)
+    if cesium_token:
+        settings["cesium_ion_token"] = cesium_token
+    story_dict["settings"] = settings
+
     return {
-        "story": dict(story),
+        "story": story_dict,
         "slides": slides,
         "markers": markers,
         "layers": layers,
@@ -468,8 +487,28 @@ async def get_story_full(story_id: int, request: Request, db: AsyncSession = Dep
     basemaps_r = await system_db.execute(text("SELECT * FROM basemaps WHERE active = TRUE ORDER BY position"))
     basemaps = [dict(b) for b in basemaps_r.mappings().all()]
 
+    # Cesium Ion token (system DB)
+    cesium_token = ""
+    try:
+        token_r = await system_db.execute(text("SELECT value FROM system_settings WHERE key = 'cesium_ion_token'"))
+        token_row = token_r.fetchone()
+        if token_row and token_row[0]:
+            cesium_token = token_row[0]
+    except Exception:
+        pass
+
+    story_dict = dict(story)
+    # Inject cesium token into story settings so the frontend can use it
+    settings = story_dict.get("settings") or {}
+    if isinstance(settings, str):
+        import json
+        settings = json.loads(settings)
+    if cesium_token:
+        settings["cesium_ion_token"] = cesium_token
+    story_dict["settings"] = settings
+
     return {
-        "story": dict(story),
+        "story": story_dict,
         "slides": slides,
         "markers": markers,
         "layers": layers,
