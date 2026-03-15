@@ -113,8 +113,8 @@ const App = {
         const linkFeatures = document.getElementById('landing-link-features');
         if (linkFeatures) linkFeatures.textContent = t('landing.feat_title');
 
-        const linkInstall = document.getElementById('landing-link-install');
-        if (linkInstall) linkInstall.textContent = t('landing.install_title');
+        const linkDocs = document.getElementById('landing-link-docs');
+        if (linkDocs) linkDocs.textContent = t('landing.cta_docs');
 
         const btnLogin = document.getElementById('landing-btn-login');
         if (btnLogin) btnLogin.textContent = t('landing.cta_login');

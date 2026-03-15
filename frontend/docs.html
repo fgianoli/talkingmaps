@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TalkingMaps – Documentation</title>
+    <meta name="description" content="User documentation for TalkingMaps: the open-source platform for interactive storymaps, data visualization and geospatial presentations.">
+    <link rel="icon" type="image/png" href="img/logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" crossorigin="anonymous">
+    <style>
+        :root {
+            --docs-bg: #0d1117;
+            --docs-surface: #161b22;
+            --docs-border: #30363d;
+            --docs-text: #e6edf3;
+            --docs-muted: #8b949e;
+            --docs-accent: #58a6ff;
+            --docs-accent-2: #3fb950;
+            --docs-sidebar-w: 280px;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Ubuntu', sans-serif;
+            background: var(--docs-bg);
+            color: var(--docs-text);
+            margin: 0;
+            line-height: 1.7;
+        }
+        a { color: var(--docs-accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* Top bar */
+        .docs-topbar {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            background: var(--docs-surface);
+            border-bottom: 1px solid var(--docs-border);
+            height: 56px;
+            display: flex; align-items: center; padding: 0 24px;
+            gap: 16px;
+        }
+        .docs-topbar-brand {
+            display: flex; align-items: center; gap: 8px;
+            color: var(--docs-text); font-weight: 700; font-size: 18px;
+        }
+        .docs-topbar-brand img { height: 28px; }
+        .docs-topbar-brand:hover { text-decoration: none; color: var(--docs-accent); }
+        .docs-topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+        .docs-topbar-right a { color: var(--docs-muted); font-size: 14px; }
+        .docs-topbar-right a:hover { color: var(--docs-text); }
+        .btn-sidebar-toggle {
+            display: none; background: none; border: none; color: var(--docs-text);
+            font-size: 22px; cursor: pointer; padding: 4px;
+        }
+
+        /* Sidebar */
+        .docs-sidebar {
+            position: fixed; top: 56px; left: 0; bottom: 0;
+            width: var(--docs-sidebar-w);
+            background: var(--docs-surface);
+            border-right: 1px solid var(--docs-border);
+            overflow-y: auto;
+            padding: 20px 0;
+            z-index: 90;
+        }
+        .docs-sidebar::-webkit-scrollbar { width: 4px; }
+        .docs-sidebar::-webkit-scrollbar-thumb { background: var(--docs-border); border-radius: 2px; }
+        .docs-sidebar h6 {
+            font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px;
+            color: var(--docs-muted); padding: 12px 20px 6px; margin: 0;
+        }
+        .docs-sidebar a {
+            display: block; padding: 6px 20px; font-size: 14px;
+            color: var(--docs-muted); transition: all 0.15s;
+            border-left: 3px solid transparent;
+        }
+        .docs-sidebar a:hover { color: var(--docs-text); background: rgba(255,255,255,0.04); text-decoration: none; }
+        .docs-sidebar a.active {
+            color: var(--docs-accent); border-left-color: var(--docs-accent);
+            background: rgba(88,166,255,0.08);
+        }
+        .docs-sidebar a.sub { padding-left: 36px; font-size: 13px; }
+
+        /* Content */
+        .docs-content {
+            margin-left: var(--docs-sidebar-w);
+            margin-top: 56px;
+            padding: 40px 48px 80px;
+            max-width: 900px;
+        }
+        .docs-content h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.2rem; font-weight: 700; margin-bottom: 8px;
+            color: #fff;
+        }
+        .docs-content h2 {
+            font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px;
+            padding-bottom: 8px; border-bottom: 1px solid var(--docs-border);
+            color: #fff;
+        }
+        .docs-content h3 {
+            font-size: 1.15rem; font-weight: 600; margin-top: 32px; margin-bottom: 12px;
+            color: var(--docs-accent);
+        }
+        .docs-content p { margin-bottom: 14px; }
+        .docs-content ul, .docs-content ol { padding-left: 24px; margin-bottom: 14px; }
+        .docs-content li { margin-bottom: 4px; }
+        .docs-content code {
+            background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px;
+            font-size: 0.9em; color: #f0883e;
+        }
+        .docs-content pre {
+            background: var(--docs-surface); border: 1px solid var(--docs-border);
+            border-radius: 8px; padding: 16px 20px; overflow-x: auto;
+            margin-bottom: 16px; font-size: 13px; line-height: 1.5;
+        }
+        .docs-content pre code { background: none; padding: 0; color: var(--docs-text); }
+
+        .docs-content table {
+            width: 100%; border-collapse: collapse; margin-bottom: 16px;
+            font-size: 14px;
+        }
+        .docs-content th, .docs-content td {
+            padding: 10px 14px; border: 1px solid var(--docs-border); text-align: left;
+        }
+        .docs-content th { background: var(--docs-surface); font-weight: 600; color: #fff; }
+
+        .docs-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 11px; font-weight: 600; text-transform: uppercase;
+        }
+        .docs-badge-new { background: rgba(63,185,80,0.15); color: var(--docs-accent-2); }
+
+        .docs-callout {
+            border-left: 4px solid var(--docs-accent);
+            background: rgba(88,166,255,0.06);
+            padding: 14px 18px; border-radius: 0 8px 8px 0;
+            margin-bottom: 16px; font-size: 14px;
+        }
+        .docs-callout-warn { border-left-color: #d29922; background: rgba(210,153,34,0.06); }
+        .docs-img {
+            max-width: 100%; border-radius: 8px; border: 1px solid var(--docs-border);
+            margin: 12px 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .docs-sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+            .docs-sidebar.open { transform: translateX(0); }
+            .docs-content { margin-left: 0; padding: 24px 16px 60px; }
+            .btn-sidebar-toggle { display: block; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="docs-topbar">
+    <button class="btn-sidebar-toggle" id="sidebar-toggle"><i class="bi bi-list"></i></button>
+    <a href="/" class="docs-topbar-brand"><img src="img/logo.png" alt="TM"> TalkingMaps Docs</a>
+    <div class="docs-topbar-right">
+        <a href="/"><i class="bi bi-house me-1"></i> Home</a>
+        <a href="https://github.com/fgianoli/talkingmaps" target="_blank"><i class="bi bi-github me-1"></i> GitHub</a>
+    </div>
+</div>
+
+<!-- Sidebar -->
+<nav class="docs-sidebar" id="docs-sidebar">
+    <h6>Getting Started</h6>
+    <a href="#overview">Overview</a>
+    <a href="#quick-start">Quick Start</a>
+    <a href="#dashboard">Dashboard</a>
+
+    <h6>Stories</h6>
+    <a href="#creating-stories">Creating a Story</a>
+    <a href="#editor">The Editor</a>
+    <a href="#layouts">Slide Layouts</a>
+    <a href="#narrative">Writing Narrative</a>
+    <a href="#map-config">Map Configuration</a>
+
+    <h6>Data & Layers</h6>
+    <a href="#layers">Layers & Data Sources</a>
+    <a href="#markers">Markers</a>
+    <a href="#charts">Charts & Dashboards</a>
+    <a href="#symbology">Symbology & Styling</a>
+
+    <h6>Advanced</h6>
+    <a href="#globe-3d">3D Globe (Cesium)</a>
+    <a href="#point-clouds">Point Clouds (Potree)</a>
+    <a href="#image-map">Navigable Images</a>
+    <a href="#participatory">Participatory Maps</a>
+    <a href="#ai">AI Assistant</a>
+    <a href="#collaboration">Collaboration</a>
+
+    <h6>Publish</h6>
+    <a href="#publishing">Publishing & Sharing</a>
+    <a href="#embed">Embedding</a>
+    <a href="#viewer">Viewer Controls</a>
+
+    <h6>Media</h6>
+    <a href="#media-library">Media Library</a>
+    <a href="#3d-assets">3D Assets</a>
+
+    <h6>Administration</h6>
+    <a href="#admin-users">User Management</a>
+    <a href="#admin-basemaps">Basemaps</a>
+    <a href="#admin-settings">System Settings</a>
+    <a href="#installation">Installation & Deploy</a>
+    <a href="#backup">Backup & Restore</a>
+</nav>
+
+<!-- Content -->
+<div class="docs-content" id="docs-content">
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h1>TalkingMaps Documentation</h1>
+<p style="color:var(--docs-muted); font-size:17px; margin-bottom:32px;">
+    The open-source platform for interactive storymaps, participatory maps, data visualization and geospatial presentations.
+</p>
+
+<!-- ── Overview ────────────────────────── -->
+<h2 id="overview">Overview</h2>
+<p>TalkingMaps lets you create scroll-driven story maps that combine interactive 2D and 3D maps, text narratives, multimedia, charts and data layers. It's designed for journalists, researchers, educators, planners and anyone who needs to tell a story on a map.</p>
+
+<p><strong>Key features:</strong></p>
+<ul>
+    <li><strong>Interactive maps</strong> &mdash; 2D maps with MapLibre GL JS, 3D globe with CesiumJS</li>
+    <li><strong>Flexible layouts</strong> &mdash; 11 slide layouts: cover, side panels, full-map, navigable image, 3D globe, point cloud, and more</li>
+    <li><strong>Data visualization</strong> &mdash; Charts (Chart.js), KPI dashboards, timelines (TimelineJS)</li>
+    <li><strong>Multi-source data</strong> &mdash; GeoJSON, WMS, WMTS, XYZ tiles, Cloud Optimized GeoTIFF, 3D Tiles, vector tiles</li>
+    <li><strong>Participatory maps</strong> &mdash; Enable public contributions with geolocated media (photos, video, audio)</li>
+    <li><strong>AI assistant</strong> &mdash; Generate text, translations, charts and images with OpenAI, Anthropic Claude or Google Gemini</li>
+    <li><strong>Collaboration</strong> &mdash; Multi-user editing with role-based access (admin, editor, viewer)</li>
+    <li><strong>100% open source</strong> &mdash; Self-hosted with Docker, no vendor lock-in</li>
+</ul>
+
+<!-- ── Quick Start ────────────────────── -->
+<h2 id="quick-start">Quick Start</h2>
+<ol>
+    <li>Open TalkingMaps in your browser (e.g. <code>http://localhost:8080</code>)</li>
+    <li>Log in with your <strong>username</strong> and <strong>password</strong></li>
+    <li>Click <strong>+ New Story</strong> in the top bar</li>
+    <li>Enter a title &mdash; the Editor opens with a cover slide ready to go</li>
+    <li>Add slides, configure map views, write your narrative</li>
+    <li>Click <strong>Preview</strong> to see the result, then <strong>Publish</strong> to share</li>
+</ol>
+
+<div class="docs-callout">
+    <strong>Tip:</strong> You can explore public stories without logging in by clicking <em>"Explore public stories"</em> on the login page.
+</div>
+
+<!-- ── Dashboard ──────────────────────── -->
+<h2 id="dashboard">Dashboard</h2>
+<p>After logging in you'll see the <strong>Dashboard</strong> with:</p>
+<ul>
+    <li><strong>Stats bar</strong> &mdash; total stories, published, drafts</li>
+    <li><strong>Story cards</strong> &mdash; all your stories with cover image, title, status and last edit date</li>
+    <li><strong>Search &amp; filter</strong> &mdash; search by title, filter by status (draft / published / archived)</li>
+</ul>
+<p>Each story card has a <strong>three-dot menu</strong> (&hellip;) with actions: Edit, Preview, Publish/Unpublish, Duplicate, Export, Share, Delete.</p>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="creating-stories">Creating a Story</h2>
+<ol>
+    <li>Click <strong>+ New Story</strong> in the navigation bar</li>
+    <li>Enter the story title</li>
+    <li>The <strong>Editor</strong> opens automatically with a first slide (cover layout)</li>
+</ol>
+<h3>Story Settings</h3>
+<p>In the Editor, click the <strong>gear icon</strong> (<i class="bi bi-gear"></i>) to access story-level settings:</p>
+<ul>
+    <li><strong>Title &amp; description</strong></li>
+    <li><strong>Cover image</strong> &mdash; displayed on the dashboard card and share links</li>
+    <li><strong>Theme</strong> &mdash; light or dark</li>
+    <li><strong>Status</strong> &mdash; draft, published, archived</li>
+    <li><strong>Participatory mode</strong> &mdash; enable/disable public contributions</li>
+</ul>
+
+<!-- ── Editor ────────────────────────── -->
+<h2 id="editor">The Editor</h2>
+<p>The editor has three panels:</p>
+<table>
+    <tr>
+        <th style="width:33%">Left &mdash; Slides</th>
+        <th style="width:34%">Center &mdash; Map</th>
+        <th style="width:33%">Right &mdash; Properties</th>
+    </tr>
+    <tr>
+        <td>List of slides. Drag &amp; drop to reorder. Click <strong>+</strong> to add a new slide.</td>
+        <td>Interactive map preview. Use the toolbar to add markers, manage layers, toggle 3D.</td>
+        <td>Properties for the selected slide: layout, text, map view, styling, data, media.</td>
+    </tr>
+</table>
+
+<h3>Adding Slides</h3>
+<ol>
+    <li>Click the <strong>+</strong> button at the bottom of the slides panel</li>
+    <li>Choose a slide type from the menu: Map, 3D Globe, Point Cloud, Navigable Image, Text Only, Text + Media, Full Media, Separator</li>
+    <li>The new slide is added at the end &mdash; drag to reorder</li>
+</ol>
+
+<h3>Slide Properties Tabs</h3>
+<p>The right panel has several tabs:</p>
+<ul>
+    <li><i class="bi bi-card-text"></i> <strong>Content</strong> &mdash; title, narrative text (rich editor), layout, card style, text alignment</li>
+    <li><i class="bi bi-map"></i> <strong>Map</strong> &mdash; capture view, animation type, basemap, image-map URL, 3D tileset</li>
+    <li><i class="bi bi-layers"></i> <strong>Layers</strong> &mdash; toggle layer visibility per slide</li>
+    <li><i class="bi bi-palette"></i> <strong>Style</strong> &mdash; background media, color overlays, drawn features</li>
+    <li><i class="bi bi-bar-chart"></i> <strong>Data</strong> &mdash; chart config, dashboard KPIs, timeline</li>
+    <li><i class="bi bi-image"></i> <strong>Media &amp; 3D</strong> &mdash; point cloud URL, 3D tileset, Cesium Ion asset ID</li>
+</ul>
+
+<!-- ── Layouts ────────────────────────── -->
+<h2 id="layouts">Slide Layouts</h2>
+<p>Each slide can have a different layout. Choose the layout in the <strong>Content</strong> tab of the slide properties.</p>
+
+<table>
+    <tr><th>Layout</th><th>Description</th><th>Map visible?</th></tr>
+    <tr><td><strong>Cover</strong></td><td>Centered title and text, ideal for the opening slide. Optional background image/video.</td><td>No</td></tr>
+    <tr><td><strong>Side Left</strong></td><td>Text panel on the left, map on the right. The default for map-driven narratives.</td><td>Yes</td></tr>
+    <tr><td><strong>Side Right</strong></td><td>Text panel on the right, map on the left.</td><td>Yes</td></tr>
+    <tr><td><strong>Center</strong></td><td>Text overlaid at the center of the map.</td><td>Yes</td></tr>
+    <tr><td><strong>Full Map</strong></td><td>Map fills the entire screen. No text panel.</td><td>Yes</td></tr>
+    <tr>
+        <td><strong>Navigable Image</strong> <span class="docs-badge docs-badge-new">New</span></td>
+        <td>Display a high-resolution image (painting, floor plan, historical map) that users can zoom and pan. Configure the image URL in the Map tab.</td>
+        <td>Yes (image)</td>
+    </tr>
+    <tr>
+        <td><strong>3D Globe</strong></td>
+        <td>CesiumJS 3D globe with terrain, buildings, and 3D Tiles. Configure tileset in Media &amp; 3D tab.</td>
+        <td>Yes (3D)</td>
+    </tr>
+    <tr>
+        <td><strong>Point Cloud</strong></td>
+        <td>Potree-based LiDAR / point cloud visualization. Configure the point cloud URL in Media &amp; 3D tab.</td>
+        <td>Yes (3D)</td>
+    </tr>
+    <tr><td><strong>Full Media</strong></td><td>Full-screen image or video with optional text overlay at the bottom.</td><td>No</td></tr>
+    <tr><td><strong>Text Only</strong></td><td>Text-only slide for narratives, quotes, deep-dives. No map.</td><td>No</td></tr>
+    <tr><td><strong>Text + Media</strong></td><td>Split view: text on one side, image/video on the other.</td><td>No</td></tr>
+    <tr><td><strong>Separator</strong></td><td>Large title to divide sections of your story.</td><td>No</td></tr>
+</table>
+
+<!-- ── Narrative ──────────────────────── -->
+<h2 id="narrative">Writing Narrative</h2>
+<p>The narrative text editor supports:</p>
+<ul>
+    <li><strong>Bold</strong>, <em>italic</em>, headings</li>
+    <li>Bulleted and numbered lists</li>
+    <li>Links (click the chain icon)</li>
+    <li>Inline images (click the image icon, paste a URL or pick from media library)</li>
+    <li>Embedded iframes (click the embed icon) &mdash; YouTube, Google Sheets, Metabase dashboards, etc.</li>
+</ul>
+
+<h3>Quick Actions</h3>
+<p>At the top of the narrative area you'll find <strong>quick action buttons</strong> to insert images, videos, charts or iframes with a single click.</p>
+
+<!-- ── Map Config ────────────────────── -->
+<h2 id="map-config">Map Configuration</h2>
+<h3>Capturing the Map View</h3>
+<p>For each slide you can set a specific map position (center, zoom, bearing, pitch):</p>
+<ol>
+    <li>Navigate the map in the editor to the desired view</li>
+    <li>Click <strong><i class="bi bi-camera"></i> Capture current view</strong> in the Map tab</li>
+    <li>The position is saved for that slide</li>
+</ol>
+
+<h3>Animation Types</h3>
+<p>When the viewer transitions to a slide, the map animates to its saved position. Choose the animation:</p>
+<table>
+    <tr><th>Animation</th><th>Description</th></tr>
+    <tr><td><strong>Fly To</strong></td><td>Smooth aerial arc (default). Best for long-distance transitions.</td></tr>
+    <tr><td><strong>Ease To</strong></td><td>Linear smooth pan. Best for short-distance transitions.</td></tr>
+    <tr><td><strong>Jump To</strong></td><td>Instant, no animation. Best for same-area layout changes.</td></tr>
+</table>
+
+<h3>Per-Slide Basemap</h3>
+<p>Each slide can use a different basemap. Select it in the Map tab dropdown. This is useful for comparing satellite vs. street views across slides.</p>
+
+<h3>Map Comparison (Swipe)</h3>
+<p>Enable a <strong>swipe comparison</strong> between two basemaps on a single slide. In the Style tab, toggle "Compare" and select a second basemap.</p>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="layers">Layers &amp; Data Sources</h2>
+<p>TalkingMaps supports multiple data source types that can be added as map layers:</p>
+
+<table>
+    <tr><th>Type</th><th>Description</th></tr>
+    <tr><td><strong>GeoJSON</strong></td><td>Upload a <code>.geojson</code> file from your computer. Points, lines and polygons are supported.</td></tr>
+    <tr><td><strong>WMS</strong></td><td>Web Map Service. Enter the URL and layer name. The built-in proxy handles CORS.</td></tr>
+    <tr><td><strong>WMTS / XYZ</strong></td><td>Tiled services. Enter the tile URL template with <code>{z}/{x}/{y}</code> placeholders.</td></tr>
+    <tr><td><strong>Vector Tiles</strong></td><td>Mapbox Vector Tiles (MVT) from a tile server.</td></tr>
+    <tr><td><strong>Cloud Optimized GeoTIFF</strong></td><td>COG rasters served directly from a URL, streamed on-the-fly.</td></tr>
+</table>
+
+<h3>Adding a Layer</h3>
+<ol>
+    <li>In the editor, click the <strong>layers icon</strong> (<i class="bi bi-layers"></i>) on the map toolbar</li>
+    <li>Choose <strong>Upload GeoJSON</strong> or <strong>Add WMS/URL</strong></li>
+    <li>The layer appears in the layer panel and on the map</li>
+</ol>
+
+<h3>Per-Slide Layer Visibility</h3>
+<p>In the <strong>Layers</strong> tab of each slide's properties, toggle which layers are visible for that specific slide. This lets you progressively reveal data as the story unfolds.</p>
+
+<h3>Layer Catalog</h3>
+<p>Access the global layer catalog from the user menu &rarr; <strong>Layers</strong>. Layers are shared across all your stories.</p>
+
+<!-- ── Markers ────────────────────────── -->
+<h2 id="markers">Markers</h2>
+<ol>
+    <li>Click the <strong>marker icon</strong> (<i class="bi bi-geo-alt"></i>) on the map toolbar</li>
+    <li>Click on the map where you want the marker</li>
+    <li>Enter a title and optional description</li>
+</ol>
+<p>Markers are <strong>per-slide</strong>: each slide shows only its own markers. In the viewer, markers appear with a popup on click.</p>
+
+<!-- ── Charts ────────────────────────── -->
+<h2 id="charts">Charts &amp; Dashboards</h2>
+
+<h3>Adding a Chart</h3>
+<p>In the <strong>Data</strong> tab, use the <strong>Chart Wizard</strong> or paste a JSON configuration:</p>
+<pre><code>{
+    "type": "bar",
+    "labels": ["Jan", "Feb", "Mar", "Apr", "May"],
+    "data": [120, 190, 300, 250, 420],
+    "options": { "label": "Monthly visitors" }
+}</code></pre>
+
+<p><strong>Supported chart types:</strong> <code>bar</code>, <code>line</code>, <code>pie</code>, <code>doughnut</code>, <code>scatter</code>, <code>radar</code>, <code>polarArea</code>. Horizontal bars: set <code>"horizontal": true</code> in options.</p>
+
+<h3>KPI Dashboard Widgets</h3>
+<p>Add dashboard-style KPI cards to any slide. In the style overrides:</p>
+<pre><code>{
+    "dashboard": [
+        {"label": "Population", "value": "59.5M", "icon": "people", "color": "#1a73e8"},
+        {"label": "Area", "value": "301,340 km²", "icon": "geo-alt", "color": "#34a853"},
+        {"label": "Municipalities", "value": "7,904", "icon": "building", "color": "#fbbc04"}
+    ]
+}</code></pre>
+
+<h3>Timelines</h3>
+<p>Embed interactive timelines powered by <strong>TimelineJS</strong>. In the Data tab, paste the timeline JSON data. Timelines are great for historical storymaps.</p>
+
+<!-- ── Symbology ──────────────────────── -->
+<h2 id="symbology">Symbology &amp; Styling</h2>
+<p>Customize how your layers look on the map:</p>
+<ul>
+    <li><strong>Simple</strong> &mdash; single color/size for all features</li>
+    <li><strong>Categorized</strong> &mdash; different colors based on a field value</li>
+    <li><strong>Graduated</strong> &mdash; color ramp based on numeric values</li>
+</ul>
+<p>Access the symbology editor from the layer panel. You can also use <strong>presets</strong> (Red-Yellow-Green, Blue-White-Red, Viridis, etc.) for quick setup.</p>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="globe-3d">3D Globe (Cesium)</h2>
+<p>Create slides with a <strong>3D globe</strong> layout to show your data on a realistic 3D terrain with CesiumJS.</p>
+
+<h3>How to Use</h3>
+<ol>
+    <li>Add a new slide and choose <strong>3D Globe</strong> as the slide type</li>
+    <li>The editor switches to the Cesium 3D view automatically</li>
+    <li>Navigate to the desired view and capture the camera position</li>
+    <li>Optionally add a <strong>3D Tileset</strong> (buildings, terrain mesh) in the Media &amp; 3D tab</li>
+</ol>
+
+<h3>3D Tilesets</h3>
+<p>You can load 3D Tilesets from:</p>
+<ul>
+    <li><strong>Cesium Ion</strong> &mdash; enter the Ion Asset ID (requires a Cesium Ion token in System Settings)</li>
+    <li><strong>Custom URL</strong> &mdash; enter the URL to a <code>tileset.json</code> file</li>
+</ul>
+
+<div class="docs-callout">
+    <strong>Tip:</strong> In the viewer, users can toggle between 2D and 3D views using the <strong>3D button</strong> in the toolbar.
+</div>
+
+<!-- ── Point Clouds ──────────────────── -->
+<h2 id="point-clouds">Point Clouds (Potree)</h2>
+<p>Visualize LiDAR and point cloud data using <strong>Potree</strong>.</p>
+<ol>
+    <li>Add a new slide and choose <strong>Point Cloud</strong> as the slide type</li>
+    <li>In the <strong>Media &amp; 3D</strong> tab, enter the URL to your Potree-compatible point cloud (cloud.js or metadata.json)</li>
+    <li>The point cloud renders in the viewer with full 3D navigation</li>
+</ol>
+
+<div class="docs-callout docs-callout-warn">
+    <strong>Note:</strong> Point cloud data must be pre-processed into Potree format (use tools like PotreeConverter). The editor shows a placeholder; the full 3D rendering is in the story viewer.
+</div>
+
+<!-- ── Image Map ──────────────────────── -->
+<h2 id="image-map">Navigable Images <span class="docs-badge docs-badge-new">New</span></h2>
+<p>Display a high-resolution image (painting, floor plan, historical map, aerial photo) as a zoomable, pannable layer — just like a map.</p>
+
+<h3>How to Use</h3>
+<ol>
+    <li>Add a new slide and choose <strong>Navigable Image</strong> as the slide type</li>
+    <li>In the <strong>Map</strong> tab, you'll see the <em>Navigable Image</em> configuration section</li>
+    <li>Paste the URL of a high-resolution image</li>
+    <li>Click <strong>Apply</strong> &mdash; the image replaces the map and becomes navigable</li>
+</ol>
+<p>Users can zoom in/out and pan the image in the viewer, just like they would with a map. This is perfect for art analysis, architectural plans, or detailed diagrams.</p>
+
+<!-- ── Participatory ─────────────────── -->
+<h2 id="participatory">Participatory Maps <span class="docs-badge docs-badge-new">New</span></h2>
+<p>Enable participatory mode to let registered users add geolocated contributions (points with text, photos, videos, or audio) to your story map.</p>
+
+<h3>Enabling Participatory Mode</h3>
+<ol>
+    <li>Open the story in the Editor</li>
+    <li>In the right panel, find the <strong>Participatory Maps</strong> section (visible for all slides)</li>
+    <li>Toggle <strong>Enable participatory mode</strong> to ON</li>
+    <li>Optionally define <strong>categories</strong> (comma-separated) for contributions</li>
+</ol>
+
+<h3>How Contributions Work</h3>
+<table>
+    <tr><th>Who</th><th>Action</th></tr>
+    <tr><td>Registered users</td><td>Click the <strong>Contribute</strong> button in the viewer, then click on the map to place a point. Fill in title, description, category, and optionally attach a photo, video or audio file.</td></tr>
+    <tr><td>Story owner / Admin</td><td>Review contributions in the <strong>Moderation panel</strong> (Dashboard &rarr; story menu &rarr; Moderate). Approve or reject each contribution with an optional note.</td></tr>
+    <tr><td>Everyone</td><td>See approved contributions as markers on the map with popups showing the content and media.</td></tr>
+</table>
+
+<h3>Upload Limits</h3>
+<p>The maximum file size for contribution attachments is configurable by the administrator (default: <strong>10 MB</strong>). See <a href="#admin-settings">System Settings</a>.</p>
+
+<h3>Moderation Workflow</h3>
+<ol>
+    <li>A user submits a contribution &rarr; status: <strong>Pending</strong></li>
+    <li>The story owner or an admin reviews it in the Moderation panel</li>
+    <li>They can <strong>Approve</strong> (visible to everyone) or <strong>Reject</strong> (hidden, with optional note)</li>
+</ol>
+
+<!-- ── AI ─────────────────────────────── -->
+<h2 id="ai">AI Assistant</h2>
+<p>TalkingMaps integrates AI capabilities to help you create content faster:</p>
+<ul>
+    <li><strong>Text generation</strong> &mdash; generate narrative text, descriptions, summaries</li>
+    <li><strong>Translation</strong> &mdash; translate your story text to other languages</li>
+    <li><strong>Chart generation</strong> &mdash; describe your data and let AI create the chart config</li>
+    <li><strong>Image generation</strong> &mdash; create illustrations and backgrounds with AI</li>
+</ul>
+
+<h3>Supported Providers</h3>
+<ul>
+    <li><strong>OpenAI</strong> (GPT-4, DALL-E)</li>
+    <li><strong>Anthropic Claude</strong></li>
+    <li><strong>Google Gemini</strong></li>
+</ul>
+
+<p>Configure your API keys in the user menu &rarr; <strong>Account</strong> &rarr; AI Settings. Keys are encrypted and stored per-user.</p>
+
+<!-- ── Collaboration ─────────────────── -->
+<h2 id="collaboration">Collaboration</h2>
+<p>Invite other users to collaborate on your stories:</p>
+<ol>
+    <li>Open a story in the Editor</li>
+    <li>Click the <strong>collaborators icon</strong> (<i class="bi bi-people"></i>)</li>
+    <li>Search for users and add them with a role: <strong>editor</strong> (can edit) or <strong>viewer</strong> (read-only)</li>
+</ol>
+<p>Collaborators see the story in their dashboard and can access it based on their assigned role.</p>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="publishing">Publishing &amp; Sharing</h2>
+
+<h3>Publishing a Story</h3>
+<ol>
+    <li>In the Dashboard, click the <strong>&hellip;</strong> menu on your story card</li>
+    <li>Click <strong>Publish</strong></li>
+    <li>Published stories are visible on the public stories page (accessible without login)</li>
+</ol>
+
+<h3>Sharing</h3>
+<ul>
+    <li><strong>Public link</strong> &mdash; share the URL directly</li>
+    <li><strong>Private link</strong> &mdash; generate a share token for unlisted stories (Dashboard &rarr; &hellip; &rarr; Share)</li>
+</ul>
+
+<h3>Export &amp; Import</h3>
+<ul>
+    <li><strong>Export</strong> &mdash; download your story as a JSON file (Dashboard &rarr; &hellip; &rarr; Export)</li>
+    <li><strong>Import</strong> &mdash; upload a previously exported JSON to create a new story</li>
+    <li><strong>Duplicate</strong> &mdash; create a copy of any story</li>
+    <li><strong>Templates</strong> &mdash; save a story as a template for reuse</li>
+</ul>
+
+<!-- ── Embed ──────────────────────────── -->
+<h2 id="embed">Embedding</h2>
+<p>Embed a story in any website using an iframe:</p>
+<pre><code>&lt;iframe src="https://your-server.com?story=STORY_ID"
+        width="100%" height="600" frameborder="0"
+        allow="fullscreen"&gt;&lt;/iframe&gt;</code></pre>
+<p>The embedded viewer hides the toolbar and close button for a clean reading experience.</p>
+
+<!-- ── Viewer ─────────────────────────── -->
+<h2 id="viewer">Viewer Controls</h2>
+<p>When viewing a story, the following controls are available:</p>
+<table>
+    <tr><th>Control</th><th>Action</th></tr>
+    <tr><td><strong>Scroll wheel</strong></td><td>Navigate between slides</td></tr>
+    <tr><td><strong>Arrow Up / Down</strong></td><td>Previous / next slide</td></tr>
+    <tr><td><strong>Arrow Left / Right</strong></td><td>Previous / next slide</td></tr>
+    <tr><td><strong>Space</strong></td><td>Next slide</td></tr>
+    <tr><td><strong>Escape</strong></td><td>Close the viewer</td></tr>
+    <tr><td><strong>F</strong></td><td>Toggle fullscreen</td></tr>
+    <tr><td><i class="bi bi-map"></i> Map icon</td><td>Switch basemap</td></tr>
+    <tr><td><i class="bi bi-badge-3d"></i> 3D icon</td><td>Toggle 2D / 3D view</td></tr>
+    <tr><td><i class="bi bi-search"></i> Search icon</td><td>Geocode a place name and fly to it</td></tr>
+    <tr><td><i class="bi bi-share"></i> Share icon</td><td>Copy link to share</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="media-library">Media Library</h2>
+<p>Access the media library from the user menu &rarr; <strong>Media Library</strong>.</p>
+<ul>
+    <li><strong>Upload</strong>: drag &amp; drop files or click to browse. Supported formats: JPEG, PNG, GIF, WebP, SVG, MP4, WebM, MP3, OGG, WAV, PDF.</li>
+    <li><strong>Use in stories</strong>: as slide background, inline image in narrative text, or story cover image.</li>
+    <li><strong>Max file size</strong>: 50 MB (configurable by admin).</li>
+    <li>Thumbnails are auto-generated for images (400px).</li>
+</ul>
+
+<!-- ── 3D Assets ──────────────────────── -->
+<h2 id="3d-assets">3D Assets</h2>
+<p>Upload and manage 3D model files (glTF, GLB) for use in your stories:</p>
+<ol>
+    <li>User menu &rarr; <strong>Media Library</strong> &rarr; 3D Assets tab</li>
+    <li>Upload a <code>.glb</code> or <code>.gltf</code> file</li>
+    <li>Each user has a <strong>storage quota</strong> (default 100 MB, configurable by admin)</li>
+</ol>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="admin-users">User Management</h2>
+<p><em>Admin only.</em> User menu &rarr; <strong>Users</strong>.</p>
+<table>
+    <tr><th>Role</th><th>Permissions</th></tr>
+    <tr><td><strong>Admin</strong></td><td>Full access: manage users, basemaps, system settings, all stories</td></tr>
+    <tr><td><strong>Editor</strong></td><td>Create/edit own stories, upload layers &amp; media, collaborate on shared stories</td></tr>
+    <tr><td><strong>Viewer</strong></td><td>View public and shared stories only</td></tr>
+</table>
+<p>Actions: <strong>Create user</strong>, <strong>Disable/enable</strong> (toggle), <strong>Reset password</strong>.</p>
+
+<h3>Self-Registration</h3>
+<p>Users can self-register from the login page. New users are created with the <strong>editor</strong> role by default.</p>
+
+<!-- ── Basemaps ────────────────────────── -->
+<h2 id="admin-basemaps">Basemaps</h2>
+<p><em>Admin only.</em> User menu &rarr; <strong>Basemaps</strong>.</p>
+<p>Basemaps are the background maps available in all stories. Default basemaps:</p>
+<ul>
+    <li>OpenStreetMap</li>
+    <li>Satellite (ESRI)</li>
+    <li>CartoDB Positron (light)</li>
+    <li>CartoDB Dark Matter (dark)</li>
+    <li>Stamen Watercolor</li>
+</ul>
+<p>To add a custom basemap: enter name, type (<code>xyz</code>, <code>wms</code>, <code>wmts</code>), URL, and optional config JSON (attribution, maxzoom, layers for WMS).</p>
+
+<!-- ── Settings ───────────────────────── -->
+<h2 id="admin-settings">System Settings</h2>
+<p><em>Admin only.</em> User menu &rarr; <strong>Settings</strong>.</p>
+<table>
+    <tr><th>Setting</th><th>Description</th><th>Default</th></tr>
+    <tr><td><code>cesium_ion_token</code></td><td>Cesium Ion access token for 3D tilesets</td><td><em>(empty)</em></td></tr>
+    <tr><td><code>default_storage_limit_mb</code></td><td>Default storage quota per user</td><td>1024 MB</td></tr>
+    <tr><td><code>max_upload_size_mb</code></td><td>Max single file upload size</td><td>50 MB</td></tr>
+    <tr><td><code>participatory_upload_limit_mb</code></td><td>Max upload size for participatory contributions</td><td>10 MB</td></tr>
+    <tr><td><code>analytics_enabled</code></td><td>Enable story view tracking</td><td>true</td></tr>
+</table>
+
+<!-- ── Installation ───────────────────── -->
+<h2 id="installation">Installation &amp; Deploy</h2>
+<h3>Requirements</h3>
+<ul>
+    <li><strong>Docker Desktop</strong> (Windows/Mac) or Docker Engine + Docker Compose (Linux)</li>
+    <li><strong>8 GB RAM</strong> recommended minimum</li>
+    <li><strong>2 GB disk</strong> for containers, plus space for media uploads</li>
+</ul>
+
+<h3>Quick Install</h3>
+<pre><code># Clone the repo
+git clone https://github.com/fgianoli/talkingmaps.git
+cd talkingmaps
+
+# Copy and edit the environment file
+cp .env.example .env
+# Edit .env: set SECRET_KEY, POSTGRES_PASSWORD, ADMIN_PASSWORD, ALLOWED_ORIGINS
+
+# Start everything
+docker compose up -d --build
+
+# Open http://localhost:8080</code></pre>
+
+<h3>Updating</h3>
+<pre><code># Pull latest code
+git pull
+
+# Rebuild and restart
+docker compose up -d --build</code></pre>
+
+<h3>Production Deploy</h3>
+<p>For production, add a reverse proxy with HTTPS in front (Nginx Proxy Manager, Traefik, or Caddy):</p>
+<pre><code># Example with Caddy (automatic HTTPS):
+caddy reverse-proxy --from maps.yoursite.com --to localhost:8080</code></pre>
+
+<!-- ── Backup ─────────────────────────── -->
+<h2 id="backup">Backup &amp; Restore</h2>
+<pre><code># Backup database
+docker compose exec db pg_dump -U talkingmaps -d talkingmaps > backup_$(date +%Y-%m-%d).sql
+
+# Backup media uploads
+docker cp $(docker compose ps -q backend):/var/www/uploads ./uploads_backup
+
+# Restore database
+docker compose exec -T db psql -U talkingmaps -d talkingmaps < backup.sql</code></pre>
+
+<h3>WMS Proxy Whitelist</h3>
+<p>The WMS proxy handles CORS for external services. To add a new host, edit <code>backend/routers/wms_proxy.py</code> and add it to the <code>ALLOWED_HOSTS</code> list, then restart the backend:</p>
+<pre><code>docker compose restart backend</code></pre>
+
+<h3>Swagger API Docs</h3>
+<p>The full REST API documentation is available at <code>/api/docs</code> (auto-generated by FastAPI).</p>
+
+<!-- Footer -->
+<hr style="border-color:var(--docs-border); margin-top:48px;">
+<p style="color:var(--docs-muted); font-size:13px;">
+    TalkingMaps is open source software. Made with passion by Federico Gianoli and Martino Boni (Tenoli).
+    <br>
+    <a href="https://github.com/fgianoli/talkingmaps" target="_blank"><i class="bi bi-github"></i> GitHub</a>
+</p>
+
+</div>
+
+<script>
+// Sidebar toggle (mobile)
+document.getElementById('sidebar-toggle')?.addEventListener('click', () => {
+    document.getElementById('docs-sidebar').classList.toggle('open');
+});
+
+// Active link highlighting on scroll
+const sections = document.querySelectorAll('h2[id]');
+const sidebarLinks = document.querySelectorAll('.docs-sidebar a[href^="#"]');
+const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            sidebarLinks.forEach(a => a.classList.remove('active'));
+            const link = document.querySelector(`.docs-sidebar a[href="#${entry.target.id}"]`);
+            if (link) link.classList.add('active');
+        }
+    });
+}, { rootMargin: '-80px 0px -60% 0px', threshold: 0 });
+sections.forEach(s => observer.observe(s));
+
+// Close sidebar on link click (mobile)
+sidebarLinks.forEach(a => a.addEventListener('click', () => {
+    document.getElementById('docs-sidebar').classList.remove('open');
+}));
+</script>
+
+</body>
+</html>
