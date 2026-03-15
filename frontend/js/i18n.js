@@ -284,6 +284,15 @@ const I18n = {
             'layout.separator': 'Separatore',
             'layout.globe-3d': 'Globo 3D',
             'layout.potree-3d': 'Nuvola punti',
+            'layout.image-map': 'Immagine navigabile',
+
+            // Editor - image-map
+            'editor.image_map_title': 'Immagine navigabile',
+            'editor.image_map_url': 'URL dell\'immagine',
+            'editor.image_map_apply': 'Applica',
+            'editor.image_map_hint': 'Incolla l\'URL di un\'immagine ad alta risoluzione (dipinto, planimetria, mappa storica…). Sarà navigabile con zoom e pan.',
+            'editor.image_map_url_required': 'Inserisci l\'URL dell\'immagine',
+            'editor.potree_preview_hint': 'Anteprima nuvola di punti Potree — configura l\'URL nel tab Media & 3D. L\'anteprima completa è disponibile nel viewer.',
 
             // Editor - slide types
             'editor.add_slide_menu': 'Che tipo di slide vuoi?',
@@ -299,6 +308,8 @@ const I18n = {
             'editor.slide_type_media_desc': 'Testo con immagine o video a fianco',
             'editor.slide_type_fullmedia': 'Solo media',
             'editor.slide_type_fullmedia_desc': 'Immagine o video a schermo pieno',
+            'editor.slide_type_imagemap': 'Immagine navigabile',
+            'editor.slide_type_imagemap_desc': 'Dipinto, planimetria o mappa storica zoomabile e pannabile',
             'editor.slide_type_separator': 'Separatore',
             'editor.slide_type_separator_desc': 'Titolo grande per dividere le sezioni',
 
@@ -974,6 +985,15 @@ const I18n = {
             'layout.separator': 'Separator',
             'layout.globe-3d': '3D Globe',
             'layout.potree-3d': 'Point cloud',
+            'layout.image-map': 'Navigable image',
+
+            // Editor - image-map
+            'editor.image_map_title': 'Navigable image',
+            'editor.image_map_url': 'Image URL',
+            'editor.image_map_apply': 'Apply',
+            'editor.image_map_hint': 'Paste the URL of a high-resolution image (painting, floor plan, historic map…). It will be navigable with zoom and pan.',
+            'editor.image_map_url_required': 'Enter the image URL',
+            'editor.potree_preview_hint': 'Potree point cloud preview — configure the URL in the Media & 3D tab. Full preview available in the story viewer.',
 
             'editor.add_slide_menu': 'What kind of slide?',
             'editor.slide_type_map': 'Map slide',
@@ -988,6 +1008,8 @@ const I18n = {
             'editor.slide_type_media_desc': 'Text alongside an image or video',
             'editor.slide_type_fullmedia': 'Full media',
             'editor.slide_type_fullmedia_desc': 'Full-screen image or video',
+            'editor.slide_type_imagemap': 'Navigable image',
+            'editor.slide_type_imagemap_desc': 'Painting, floor plan or historical map with zoom and pan',
             'editor.slide_type_separator': 'Separator',
             'editor.slide_type_separator_desc': 'Big title to divide sections',
 
@@ -1656,6 +1678,15 @@ const I18n = {
             'layout.separator': 'Separador',
             'layout.globe-3d': 'Globo 3D',
             'layout.potree-3d': 'Nube de puntos',
+            'layout.image-map': 'Imagen navegable',
+
+            // Editor - image-map
+            'editor.image_map_title': 'Imagen navegable',
+            'editor.image_map_url': 'URL de la imagen',
+            'editor.image_map_apply': 'Aplicar',
+            'editor.image_map_hint': 'Pega la URL de una imagen de alta resolución (pintura, plano, mapa histórico…). Será navegable con zoom y desplazamiento.',
+            'editor.image_map_url_required': 'Introduce la URL de la imagen',
+            'editor.potree_preview_hint': 'Vista previa de nube de puntos Potree — configura la URL en la pestaña Media y 3D. Vista completa disponible en el visor.',
 
             'editor.add_slide_menu': '¿Qué tipo de diapositiva?',
             'editor.slide_type_map': 'Con mapa',
@@ -1670,6 +1701,8 @@ const I18n = {
             'editor.slide_type_media_desc': 'Texto con imagen o video al lado',
             'editor.slide_type_fullmedia': 'Solo media',
             'editor.slide_type_fullmedia_desc': 'Imagen o video a pantalla completa',
+            'editor.slide_type_imagemap': 'Imagen navegable',
+            'editor.slide_type_imagemap_desc': 'Pintura, plano o mapa histórico con zoom y desplazamiento',
             'editor.slide_type_separator': 'Separador',
             'editor.slide_type_separator_desc': 'Título grande para dividir secciones',
 

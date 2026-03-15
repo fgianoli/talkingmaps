@@ -30,7 +30,8 @@ const StoryViewer = {
     _contributionMode: false,  // true when user is placing a point
 
     // Layouts that show the map (2D or 3D) — cover hides the map (fullscreen copertina)
-    _mapLayouts: ['side-left', 'side-right', 'center', 'full-map', 'globe-3d', 'potree-3d'],
+    // image-map: navigable image (painting, floor plan) via MapLibre image source
+    _mapLayouts: ['side-left', 'side-right', 'center', 'full-map', 'image-map', 'globe-3d', 'potree-3d'],
     _3dLayouts: ['globe-3d', 'potree-3d'],
 
     /**
@@ -566,7 +567,14 @@ const StoryViewer = {
 
         // Per-slide basemap
         if (hasMap && !is3DLayout) {
-            if (slide.basemap_id) {
+            if (layout === 'image-map' && slide.map_config?.image_url) {
+                // Navigable image: use MapLibre image source as basemap
+                TmMap.setBasemap({
+                    type: 'image',
+                    url: slide.map_config.image_url,
+                    name: 'Navigable Image',
+                });
+            } else if (slide.basemap_id) {
                 const basemap = (this._data.basemaps || []).find(b => b.id == slide.basemap_id);
                 if (basemap) TmMap.setBasemap(basemap);
             } else {

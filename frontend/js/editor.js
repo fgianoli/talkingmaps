@@ -14,7 +14,7 @@ const StoryEditor = {
     _sortable: null,
 
     // Layouts that include a map (2D or 3D) — cover is fullscreen without map
-    _mapLayouts: ['side-left', 'side-right', 'center', 'full-map', 'globe-3d', 'potree-3d'],
+    _mapLayouts: ['side-left', 'side-right', 'center', 'full-map', 'image-map', 'globe-3d', 'potree-3d'],
     // Layouts without a map
     _noMapLayouts: ['cover', 'text-only', 'text-media', 'full-media', 'separator'],
     // 3D-specific layouts
@@ -90,6 +90,7 @@ const StoryEditor = {
 
             <div class="editor-map-area" id="editor-map-area">
                 <div class="editor-map" id="editor-map"></div>
+                <div class="editor-cesium d-none" id="editor-cesium"></div>
                 <div class="editor-map-tools" id="editor-map-tools">
                     <button class="btn" id="editor-capture-view" title="${t('editor.capture')}"><i class="bi bi-camera"></i></button>
                     <button class="btn" id="editor-add-marker" title="${t('editor.add_marker')}"><i class="bi bi-geo-alt"></i></button>
@@ -502,25 +503,121 @@ const StoryEditor = {
     // ── Map / No-map toggle ──────────────
     _updateMapVisibility() {
         const hasMap = this._currentSlideHasMap();
+        const slide = this._slides[this._currentSlideIdx];
+        const is3D = this._3dLayouts.includes(slide?.layout);
         const mapEl = document.getElementById('editor-map');
+        const cesiumEl = document.getElementById('editor-cesium');
         const toolsEl = document.getElementById('editor-map-tools');
         const infoEl = document.getElementById('editor-map-info');
         const placeholder = document.getElementById('editor-no-map-placeholder');
         const textEl = document.getElementById('editor-no-map-text');
 
         if (hasMap) {
-            mapEl?.classList.remove('d-none');
-            toolsEl?.classList.remove('d-none');
-            infoEl?.classList.remove('d-none');
             placeholder?.classList.add('d-none');
-            if (this._map) this._map.resize();
+
+            if (is3D) {
+                // Show Cesium, hide MapLibre
+                mapEl?.classList.add('d-none');
+                cesiumEl?.classList.remove('d-none');
+                toolsEl?.classList.add('d-none');
+                infoEl?.classList.add('d-none');
+                this._initEditorCesium(slide);
+            } else {
+                // Show MapLibre, hide Cesium
+                mapEl?.classList.remove('d-none');
+                cesiumEl?.classList.add('d-none');
+                toolsEl?.classList.remove('d-none');
+                infoEl?.classList.remove('d-none');
+                this._destroyEditorCesium();
+                if (this._map) this._map.resize();
+            }
         } else {
             mapEl?.classList.add('d-none');
+            cesiumEl?.classList.add('d-none');
             toolsEl?.classList.add('d-none');
             infoEl?.classList.add('d-none');
             placeholder?.classList.remove('d-none');
             if (textEl) textEl.textContent = I18n.t('editor.no_map_hint');
+            this._destroyEditorCesium();
         }
+    },
+
+    _editorCesiumActive: false,
+
+    _initEditorCesium(slide) {
+        if (typeof Cesium === 'undefined') {
+            App.toast('CesiumJS non caricato', 'warning');
+            return;
+        }
+        const layout = slide?.layout;
+        if (layout === 'potree-3d') {
+            // Potree: show a placeholder message, can't fully preview in editor
+            const el = document.getElementById('editor-cesium');
+            if (el && !this._editorCesiumActive) {
+                el.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:12px;color:var(--tm-text-muted)">
+                    <i class="bi bi-cloud-fill" style="font-size:48px"></i>
+                    <p style="margin:0;text-align:center">${I18n.t('editor.potree_preview_hint') || 'Potree point cloud preview — configure URL in Media & 3D tab. Full preview available in story viewer.'}</p>
+                </div>`;
+                this._editorCesiumActive = true;
+            }
+            return;
+        }
+        // Globe 3D: init Cesium
+        if (!this._editorCesiumActive) {
+            try {
+                const state = this._map ? TmMap.getState() : { center: { lng: 12.49, lat: 41.89 }, zoom: 5 };
+                const settings = this._story?.settings || {};
+                Cesium3D.init('editor-cesium', {
+                    ionToken: settings.cesium_ion_token || '',
+                    camera: {
+                        position: [
+                            slide?.map_center?.lng || state.center.lng,
+                            slide?.map_center?.lat || state.center.lat,
+                            this._zoomToHeight(slide?.map_zoom || state.zoom)
+                        ],
+                        heading: slide?.map_bearing || 0,
+                        pitch: -(slide?.map_pitch || 45),
+                    },
+                });
+                this._editorCesiumActive = true;
+
+                // Load tileset if configured
+                const ts = slide?.style_overrides?.tileset3d;
+                if (ts?.ionAssetId) {
+                    Cesium3D.addTileset({ ionAssetId: ts.ionAssetId, id: 'editor-tileset' });
+                } else if (ts?.url) {
+                    Cesium3D.addTileset({ url: ts.url, id: 'editor-tileset' });
+                }
+            } catch (err) {
+                console.error('Editor Cesium init error:', err);
+                App.toast('Errore inizializzazione vista 3D', 'danger');
+            }
+        }
+    },
+
+    _destroyEditorCesium() {
+        if (this._editorCesiumActive) {
+            try {
+                if (Cesium3D.isActive && Cesium3D.isActive()) {
+                    Cesium3D.destroy();
+                }
+            } catch { /* ok */ }
+            const el = document.getElementById('editor-cesium');
+            if (el) el.innerHTML = '';
+            this._editorCesiumActive = false;
+        }
+    },
+
+    _zoomToHeight(zoom) {
+        // Convert MapLibre zoom level to approximate Cesium camera height
+        return 40000000 / Math.pow(2, zoom || 5);
+    },
+
+    _applyImageMap(url) {
+        if (!this._map) return;
+        // Set MapLibre style to show the image as a pannable/zoomable layer
+        const coords = [[-180, 85], [180, 85], [180, -85], [-180, -85]];
+        TmMap.setBasemap({ type: 'image', url: url, config: { coordinates: coords } });
     },
 
     // ── Slides List ──────────────────────
@@ -541,6 +638,7 @@ const StoryEditor = {
             'cover': '#4f6df5', 'full-map': '#4f6df5',
             'text-only': '#6c757d', 'text-media': '#9b59b6',
             'full-media': '#9b59b6', 'separator': '#e67e22',
+            'image-map': '#e67e22',
             'globe-3d': '#2ecc71', 'potree-3d': '#2ecc71',
         };
 
@@ -602,9 +700,11 @@ const StoryEditor = {
         // Update map visibility based on layout
         this._updateMapVisibility();
 
-        // Apply per-slide basemap
+        // Apply per-slide basemap or image map
         if (this._currentSlideHasMap()) {
-            if (slide.basemap_id) {
+            if (slide.layout === 'image-map' && slide.map_config?.image_url) {
+                this._applyImageMap(slide.map_config.image_url);
+            } else if (slide.basemap_id) {
                 const basemap = (this._data?.basemaps || []).find(b => b.id == slide.basemap_id);
                 if (basemap) TmMap.setBasemap(basemap);
             } else {
@@ -640,7 +740,7 @@ const StoryEditor = {
         const isSeparator = slide.layout === 'separator';
 
         // All available layouts
-        const allLayouts = ['cover', 'side-left', 'side-right', 'center', 'full-map', 'globe-3d', 'potree-3d', 'full-media', 'text-only', 'text-media', 'separator'];
+        const allLayouts = ['cover', 'side-left', 'side-right', 'center', 'full-map', 'image-map', 'globe-3d', 'potree-3d', 'full-media', 'text-only', 'text-media', 'separator'];
 
         const currentTheme = this._story?.settings?.theme || 'light';
 
@@ -776,11 +876,10 @@ const StoryEditor = {
 
                 <!-- Participatory Maps -->
                 <div class="prop-section">
-                    <div class="prop-section-title" style="cursor:pointer" onclick="document.getElementById('participatory-collapse').classList.toggle('d-none')">
+                    <div class="prop-section-title">
                         <i class="bi bi-people-fill"></i> ${t('contrib.editor_title')}
-                        <i class="bi bi-chevron-down" style="float:right;font-size:11px;opacity:0.5"></i>
                     </div>
-                    <div id="participatory-collapse" class="d-none">
+                    <div id="participatory-collapse">
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" id="participatory-enabled" ${this._story.settings?.participatory_enabled ? 'checked' : ''}>
                             <label class="form-check-label" for="participatory-enabled">${t('contrib.enable')}</label>
@@ -912,8 +1011,25 @@ const StoryEditor = {
 
             <!-- ═══════════ TAB: MAP ═══════════ -->
             <div class="editor-tab-content ${activeTab === 'map' ? 'active' : ''}" data-tab-content="map">
-                ${hasMap ? `
+                ${hasMap && slide.layout === 'image-map' ? `
                 <div class="prop-section">
+                    <div class="prop-section-title"><i class="bi bi-image"></i> ${t('editor.image_map_title')}</div>
+                    <div class="mb-2">
+                        <label class="form-label small">${t('editor.image_map_url')}</label>
+                        <input type="text" class="form-control form-control-sm" id="prop-image-map-url"
+                               value="${App.escHtml(slide.map_config?.image_url || '')}"
+                               placeholder="https://example.com/map.jpg">
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary w-100 mb-2" id="btn-apply-image-map">
+                        <i class="bi bi-check-lg"></i> ${t('editor.image_map_apply')}
+                    </button>
+                    <div class="alert alert-info small py-1 px-2 mb-0">
+                        <i class="bi bi-info-circle"></i> ${t('editor.image_map_hint')}
+                    </div>
+                </div>
+                ` : ''}
+                ${hasMap ? `
+                <div class="prop-section" ${slide.layout === 'image-map' ? 'style="display:none"' : ''}>
                     <div class="prop-section-title"><i class="bi bi-map"></i> ${t('editor.map_view')}</div>
                     <div class="prop-row">
                         <label>${t('editor.basemap')}</label>
@@ -1262,6 +1378,18 @@ const StoryEditor = {
         // Undo snapshot on title/narrative blur (not on every keystroke)
         document.getElementById('prop-title')?.addEventListener('focus', () => this._undoPush());
         document.getElementById('prop-narrative')?.addEventListener('focus', () => this._undoPush());
+
+        // Image Map apply
+        document.getElementById('btn-apply-image-map')?.addEventListener('click', () => {
+            const slide = this._slides[this._currentSlideIdx];
+            if (!slide) return;
+            const url = document.getElementById('prop-image-map-url')?.value?.trim();
+            if (!url) { App.toast(I18n.t('editor.image_map_url_required') || 'URL required', 'warning'); return; }
+            slide.map_config = { ...(slide.map_config || {}), image_url: url };
+            // Set the image as basemap using MapLibre image source
+            this._applyImageMap(url);
+            App.toast(I18n.t('editor.autosaved'), 'success');
+        });
 
         // Custom CSS save
         document.getElementById('btn-save-custom-css')?.addEventListener('click', async () => {
@@ -1934,6 +2062,7 @@ const StoryEditor = {
             { layout: 'side-left', icon: 'bi-layout-sidebar', key: 'map', color: '#4f6df5' },
             { layout: 'globe-3d', icon: 'bi-globe-americas', key: 'globe3d', color: '#0ea5e9' },
             { layout: 'potree-3d', icon: 'bi-cloud-fill', key: 'potree3d', color: '#6366f1' },
+            { layout: 'image-map', icon: 'bi-image', key: 'imagemap', color: '#14b8a6' },
             { layout: 'text-only', icon: 'bi-file-text', key: 'text', color: '#10b981' },
             { layout: 'text-media', icon: 'bi-layout-text-sidebar', key: 'media', color: '#f59e0b' },
             { layout: 'full-media', icon: 'bi-image', key: 'fullmedia', color: '#ec4899' },
@@ -3497,7 +3626,8 @@ const StoryEditor = {
         return { 'cover': 'card-heading', 'side-left': 'layout-sidebar', 'side-right': 'layout-sidebar-reverse',
             'center': 'layout-text-window', 'full-map': 'map', 'full-media': 'image',
             'text-only': 'file-text', 'text-media': 'layout-text-sidebar',
-            'separator': 'hr', 'globe-3d': 'globe-americas', 'potree-3d': 'cloud-fill' }[layout] || 'square';
+            'separator': 'hr', 'globe-3d': 'globe-americas', 'potree-3d': 'cloud-fill',
+            'image-map': 'image' }[layout] || 'square';
     },
 
     // ── Drawn Features Management ──────────
