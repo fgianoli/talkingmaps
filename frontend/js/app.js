@@ -90,6 +90,8 @@ const App = {
         document.querySelectorAll('.nav-text-settings').forEach(el => el.textContent = t('nav.settings'));
         document.querySelectorAll('.nav-text-account').forEach(el => el.textContent = t('nav.account'));
         document.querySelectorAll('.nav-text-logout').forEach(el => el.textContent = t('app.logout'));
+        document.querySelectorAll('.nav-text-docs').forEach(el => el.textContent = t('nav.docs'));
+        document.querySelectorAll('.nav-text-report').forEach(el => el.textContent = t('nav.report'));
 
         // Landing page
         this._updateLandingTexts();
@@ -136,6 +138,14 @@ const App = {
 
         const sponsor = document.getElementById('landing-sponsor');
         if (sponsor) sponsor.innerHTML = `${t('landing.sponsor')} <a href="https://studiogis.eu" target="_blank" style="color:#60a5fa;text-decoration:none;font-weight:600">StudioGIS.eu</a>`;
+
+        // Footer links
+        const docsFooter = document.getElementById('landing-link-docs-footer');
+        if (docsFooter) docsFooter.textContent = t('nav.docs');
+        const bugLink = document.getElementById('landing-link-bug');
+        if (bugLink) bugLink.textContent = t('landing.report_bug');
+        const featureLink = document.getElementById('landing-link-feature');
+        if (featureLink) featureLink.textContent = t('landing.request_feature');
 
         // Features grid
         const grid = document.getElementById('landing-features-grid');

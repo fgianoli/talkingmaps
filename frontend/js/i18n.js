@@ -124,6 +124,10 @@ const I18n = {
             'nav.users': 'Utenti',
             'nav.basemaps': 'Basemap',
             'nav.settings': 'Impostazioni',
+            'nav.docs': 'Documentazione',
+            'nav.report': 'Segnala un problema',
+            'landing.report_bug': 'Segnala bug',
+            'landing.request_feature': 'Proponi funzionalità',
 
             // Dashboard
             'dash.your_stories': 'Le tue storie',
@@ -831,6 +835,10 @@ const I18n = {
             'nav.users': 'Users',
             'nav.basemaps': 'Basemaps',
             'nav.settings': 'Settings',
+            'nav.docs': 'Documentation',
+            'nav.report': 'Report a problem',
+            'landing.report_bug': 'Report bug',
+            'landing.request_feature': 'Request feature',
 
             'dash.your_stories': 'Your stories',
             'dash.search': 'Search...',
@@ -1524,6 +1532,10 @@ const I18n = {
             'nav.users': 'Usuarios',
             'nav.basemaps': 'Mapas base',
             'nav.settings': 'Configuración',
+            'nav.docs': 'Documentación',
+            'nav.report': 'Reportar un problema',
+            'landing.report_bug': 'Reportar error',
+            'landing.request_feature': 'Solicitar función',
 
             'dash.your_stories': 'Tus historias',
             'dash.search': 'Buscar...',
