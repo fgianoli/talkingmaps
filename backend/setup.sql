@@ -213,7 +213,5 @@ INSERT INTO basemaps (name, type, url, config, position) VALUES
     ('CartoDB Positron', 'xyz', 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
      '{"attribution": "&copy; CartoDB", "maxzoom": 20}', 2),
     ('CartoDB Dark Matter', 'xyz', 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-     '{"attribution": "&copy; CartoDB", "maxzoom": 20}', 3),
-    ('Stadia Stamen Watercolor', 'xyz', 'https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg',
-     '{"attribution": "&copy; Stamen Design", "maxzoom": 16}', 4)
+     '{"attribution": "&copy; CartoDB", "maxzoom": 20}', 3)
 ON CONFLICT DO NOTHING;
