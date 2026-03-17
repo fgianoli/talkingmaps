@@ -26,6 +26,39 @@ const StoryEditor = {
         return this._mapLayouts.includes(slide.layout || 'side-left');
     },
 
+    destroy() {
+        // Stop autosave timer
+        clearInterval(this._autosaveTimer);
+        this._autosaveTimer = null;
+
+        // Remove global keydown listener
+        if (this._undoKeyHandler) {
+            document.removeEventListener('keydown', this._undoKeyHandler);
+            this._undoKeyHandler = null;
+        }
+
+        // Destroy sortable
+        if (this._sortable) {
+            this._sortable.destroy();
+            this._sortable = null;
+        }
+
+        // Destroy Cesium if active
+        this._destroyEditorCesium();
+
+        // Destroy map
+        TmMap.destroyDraw();
+        TmMap.destroy();
+        this._map = null;
+
+        // Reset state
+        this._storyId = null;
+        this._story = null;
+        this._slides = [];
+        this._layers = [];
+        this._currentSlideIdx = 0;
+    },
+
     async load(storyId) {
         this._storyId = storyId;
         App.showPanel('editor');
@@ -1035,6 +1068,7 @@ const StoryEditor = {
                         <label>${t('editor.basemap')}</label>
                         <select class="form-select" id="prop-slide-basemap">
                             <option value="" ${!slide.basemap_id ? 'selected' : ''}>${t('editor.basemap_default')}</option>
+                            <option value="none" ${slide.basemap_id === 'none' ? 'selected' : ''}>${t('editor.basemap_none')}</option>
                             ${(this._data?.basemaps || []).map(b => `
                                 <option value="${b.id}" ${slide.basemap_id == b.id ? 'selected' : ''}>${b.name}</option>
                             `).join('')}
@@ -1431,9 +1465,11 @@ const StoryEditor = {
                 const s = this._slides[this._currentSlideIdx];
                 if (!s) return;
                 const val = slideBasemapEl.value;
-                s.basemap_id = val ? parseInt(val) : null;
+                s.basemap_id = val === 'none' ? 'none' : (val ? parseInt(val) : null);
                 // Apply basemap change in editor preview
-                if (val) {
+                if (val === 'none') {
+                    TmMap.setBasemap(null, true); // no background
+                } else if (val) {
                     const basemap = (this._data?.basemaps || []).find(b => b.id == val);
                     if (basemap) TmMap.setBasemap(basemap);
                 } else {

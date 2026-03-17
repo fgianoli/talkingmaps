@@ -120,9 +120,9 @@ const TmMap = {
         return `/api/wms-proxy/tile?url=${encodeURIComponent(baseUrl + '?' + params.toString())}`;
     },
 
-    setBasemap(basemap) {
+    setBasemap(basemap, noBackground) {
         if (!this._map) return;
-        const style = this._buildStyle(basemap);
+        const style = noBackground ? { version: 8, sources: {}, layers: [] } : this._buildStyle(basemap);
         // Preserve existing layers
         const currentLayers = this._map.getStyle().layers.filter(l => l.id !== 'basemap-tiles' && l.id !== 'osm-tiles');
         const currentSources = { ...this._map.getStyle().sources };

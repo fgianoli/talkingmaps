@@ -207,6 +207,11 @@ const App = {
     },
 
     showPanel(name) {
+        // Cleanup previous panel
+        if (this.currentPanel === 'editor' && name !== 'editor') {
+            StoryEditor.destroy();
+        }
+
         document.querySelectorAll('.app-panel').forEach(p => p.classList.add('d-none'));
         const panel = document.getElementById(`panel-${name}`);
         if (panel) {

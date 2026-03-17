@@ -574,6 +574,8 @@ const StoryViewer = {
                     url: slide.map_config.image_url,
                     name: 'Navigable Image',
                 });
+            } else if (slide.basemap_id === 'none') {
+                TmMap.setBasemap(null, true); // no background
             } else if (slide.basemap_id) {
                 const basemap = (this._data.basemaps || []).find(b => b.id == slide.basemap_id);
                 if (basemap) TmMap.setBasemap(basemap);
