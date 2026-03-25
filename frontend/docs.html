@@ -182,6 +182,8 @@
 
     <h6>Data & Layers</h6>
     <a href="#layers">Layers & Data Sources</a>
+    <a href="#service-catalog">Service Catalog</a>
+    <a href="#heatmap">Heatmap Layers</a>
     <a href="#markers">Markers</a>
     <a href="#charts">Charts & Dashboards</a>
     <a href="#symbology">Symbology & Styling</a>
@@ -229,7 +231,10 @@
     <li><strong>Interactive maps</strong> &mdash; 2D maps with MapLibre GL JS, 3D globe with CesiumJS</li>
     <li><strong>Flexible layouts</strong> &mdash; 11 slide layouts: cover, side panels, full-map, navigable image, 3D globe, point cloud, and more</li>
     <li><strong>Data visualization</strong> &mdash; Charts (Chart.js), KPI dashboards, timelines (TimelineJS)</li>
-    <li><strong>Multi-source data</strong> &mdash; GeoJSON, WMS, WMTS, XYZ tiles, Cloud Optimized GeoTIFF, 3D Tiles, vector tiles</li>
+    <li><strong>Multi-source data</strong> &mdash; GeoJSON, Shapefile, GeoPackage, WMS, WFS, WMTS, XYZ tiles, Vector Tiles, Cloud Optimized GeoTIFF, 3D Tiles</li>
+    <li><strong>Service catalog</strong> &mdash; Save your GeoServer, QGIS Server, or other OGC service endpoints. Discover layers via GetCapabilities and add them in one click</li>
+    <li><strong>Per-slide layer control</strong> &mdash; Override layer visibility and opacity per slide for progressive data reveal</li>
+    <li><strong>Heatmap visualization</strong> &mdash; Turn point data into beautiful heatmaps with configurable radius, intensity and weight</li>
     <li><strong>Participatory maps</strong> &mdash; Enable public contributions with geolocated media (photos, video, audio)</li>
     <li><strong>AI assistant</strong> &mdash; Generate text, translations, charts and images with OpenAI, Anthropic Claude or Google Gemini</li>
     <li><strong>Collaboration</strong> &mdash; Multi-user editing with role-based access (admin, editor, viewer)</li>
@@ -375,6 +380,7 @@
     <tr><td><strong>Fly To</strong></td><td>Smooth aerial arc (default). Best for long-distance transitions.</td></tr>
     <tr><td><strong>Ease To</strong></td><td>Linear smooth pan. Best for short-distance transitions.</td></tr>
     <tr><td><strong>Jump To</strong></td><td>Instant, no animation. Best for same-area layout changes.</td></tr>
+    <tr><td><strong>Cinematic</strong> <span class="docs-badge docs-badge-new">New</span></td><td>Three-step transition: zoom out, pan across, zoom in. Best for dramatic long-distance jumps between locations.</td></tr>
 </table>
 
 <h3>Per-Slide Basemap</h3>
@@ -390,24 +396,89 @@
 <table>
     <tr><th>Type</th><th>Description</th></tr>
     <tr><td><strong>GeoJSON</strong></td><td>Upload a <code>.geojson</code> file from your computer. Points, lines and polygons are supported.</td></tr>
-    <tr><td><strong>WMS</strong></td><td>Web Map Service. Enter the URL and layer name. The built-in proxy handles CORS.</td></tr>
+    <tr><td><strong>Shapefile</strong></td><td>Upload a <code>.zip</code> containing Shapefile files. Auto-converted to GeoJSON server-side with reprojection to WGS84.</td></tr>
+    <tr><td><strong>GeoPackage</strong></td><td>Upload a <code>.gpkg</code> file. Auto-converted to GeoJSON server-side.</td></tr>
+    <tr><td><strong>WMS</strong></td><td>Web Map Service. Enter the URL and layer name. Use <strong>Discover layers</strong> to browse available layers via GetCapabilities.</td></tr>
+    <tr><td><strong>WFS</strong> <span class="docs-badge docs-badge-new">New</span></td><td>Web Feature Service. Enter the URL and feature type. Features are fetched as GeoJSON via proxy. Use <strong>Discover layers</strong> to browse.</td></tr>
     <tr><td><strong>WMTS / XYZ</strong></td><td>Tiled services. Enter the tile URL template with <code>{z}/{x}/{y}</code> placeholders.</td></tr>
-    <tr><td><strong>Vector Tiles</strong></td><td>Mapbox Vector Tiles (MVT) from a tile server.</td></tr>
+    <tr><td><strong>Vector Tiles</strong> <span class="docs-badge docs-badge-new">New</span></td><td>Mapbox Vector Tiles (MVT/PBF) from a tile server. Enter the tile URL template and source layer name.</td></tr>
     <tr><td><strong>Cloud Optimized GeoTIFF</strong></td><td>COG rasters served directly from a URL, streamed on-the-fly.</td></tr>
 </table>
 
 <h3>Adding a Layer</h3>
 <ol>
     <li>In the editor, click the <strong>layers icon</strong> (<i class="bi bi-layers"></i>) on the map toolbar</li>
-    <li>Choose <strong>Upload GeoJSON</strong> or <strong>Add WMS/URL</strong></li>
+    <li>Choose your source: <strong>Upload GeoJSON/Shapefile/GeoPackage</strong>, <strong>Add WMS</strong>, <strong>Add WFS</strong>, <strong>Vector Tiles</strong>, <strong>COG</strong>, or <strong>My Services</strong></li>
+    <li>For WMS and WFS, click <strong>Discover layers</strong> to browse available layers from GetCapabilities</li>
+    <li>Check <strong>"Save to service catalog"</strong> to remember this endpoint for future use</li>
     <li>The layer appears in the layer panel and on the map</li>
 </ol>
 
-<h3>Per-Slide Layer Visibility</h3>
-<p>In the <strong>Layers</strong> tab of each slide's properties, toggle which layers are visible for that specific slide. This lets you progressively reveal data as the story unfolds.</p>
+<h3>Per-Slide Layer Visibility &amp; Opacity <span class="docs-badge docs-badge-new">New</span></h3>
+<p>In the <strong>Layers</strong> section of each slide's properties:</p>
+<ul>
+    <li><strong>Eye icon</strong> &mdash; toggle layer visibility on/off for this specific slide</li>
+    <li><strong>Opacity slider</strong> &mdash; adjust layer transparency (0 = invisible, 1 = fully opaque) per slide</li>
+</ul>
+<p>This lets you progressively reveal data as the story unfolds, or fade layers in and out for emphasis.</p>
 
 <h3>Layer Catalog</h3>
 <p>Access the global layer catalog from the user menu &rarr; <strong>Layers</strong>. Layers are shared across all your stories.</p>
+
+<!-- ── Service Catalog ──────────────────── -->
+<h2 id="service-catalog">Service Catalog <span class="docs-badge docs-badge-new">New</span></h2>
+<p>Save your personal GIS service endpoints (GeoServer, QGIS Server, MapServer, or any OGC-compliant service) and reuse them across all your stories.</p>
+
+<h3>Adding a Service</h3>
+<ol>
+    <li>In the Layers modal, click <strong><i class="bi bi-server"></i> My Services</strong></li>
+    <li>Click <strong>Add service</strong></li>
+    <li>Enter: name, service type (WMS, WFS, WMTS, XYZ, Vector Tiles), URL, and optional description</li>
+    <li>Click <strong>Save</strong></li>
+</ol>
+
+<h3>Using a Saved Service</h3>
+<ol>
+    <li>Open <strong>My Services</strong> from the Layers modal</li>
+    <li>Click the <strong><i class="bi bi-search"></i> Explore</strong> button on a service</li>
+    <li>TalkingMaps fetches GetCapabilities and lists all available layers</li>
+    <li>Click <strong>+</strong> next to a layer to add it directly to your story</li>
+</ol>
+
+<div class="docs-callout">
+    <strong>Tip:</strong> You can also save services on-the-fly when adding WMS, WFS, or Vector Tile layers &mdash; just check <em>"Save to service catalog"</em> in the add layer dialog.
+</div>
+
+<h3>Supported Service Types</h3>
+<table>
+    <tr><th>Type</th><th>Description</th><th>Capabilities</th></tr>
+    <tr><td><strong>WMS</strong></td><td>Web Map Service &mdash; raster map images</td><td>GetCapabilities parsed to list layers</td></tr>
+    <tr><td><strong>WFS</strong></td><td>Web Feature Service &mdash; vector features as GeoJSON</td><td>GetCapabilities parsed to list feature types</td></tr>
+    <tr><td><strong>WMTS</strong></td><td>Web Map Tile Service &mdash; pre-rendered tiles</td><td>Manual configuration</td></tr>
+    <tr><td><strong>XYZ</strong></td><td>XYZ tile servers (OpenStreetMap-style)</td><td>Manual configuration</td></tr>
+    <tr><td><strong>Vector Tiles</strong></td><td>Mapbox Vector Tiles (MVT/PBF)</td><td>Manual configuration</td></tr>
+</table>
+
+<!-- ── Heatmap ────────────────────────── -->
+<h2 id="heatmap">Heatmap Layers <span class="docs-badge docs-badge-new">New</span></h2>
+<p>Turn point data into a heatmap visualization to show density patterns.</p>
+
+<h3>Creating a Heatmap</h3>
+<ol>
+    <li>Add a point layer (GeoJSON, WFS, etc.) to your story</li>
+    <li>Click the <strong><i class="bi bi-palette"></i> palette icon</strong> on the layer to open the style editor</li>
+    <li>In the <strong>Geometry type</strong> dropdown, select <strong>Heatmap</strong></li>
+    <li>Configure the parameters:
+        <ul>
+            <li><strong>Radius</strong> &mdash; size of the heat influence area (1&ndash;100 pixels)</li>
+            <li><strong>Intensity</strong> &mdash; strength of the heatmap (0.1&ndash;10)</li>
+            <li><strong>Weight field</strong> &mdash; optional numeric property to weight features (e.g., population, magnitude)</li>
+        </ul>
+    </li>
+    <li>Click <strong>Save</strong> &mdash; the layer re-renders as a heatmap</li>
+</ol>
+
+<p>The heatmap uses MapLibre's native GPU-accelerated rendering, so it performs well even with thousands of points. The color ramp goes from transparent (low density) through blue, cyan, green, yellow to red (high density).</p>
 
 <!-- ── Markers ────────────────────────── -->
 <h2 id="markers">Markers</h2>
@@ -452,6 +523,7 @@
     <li><strong>Simple</strong> &mdash; single color/size for all features</li>
     <li><strong>Categorized</strong> &mdash; different colors based on a field value</li>
     <li><strong>Graduated</strong> &mdash; color ramp based on numeric values</li>
+    <li><strong>Heatmap</strong> &mdash; density visualization for point data (see <a href="#heatmap">Heatmap Layers</a>)</li>
 </ul>
 <p>Access the symbology editor from the layer panel. You can also use <strong>presets</strong> (Red-Yellow-Green, Blue-White-Red, Viridis, etc.) for quick setup.</p>
 
@@ -654,7 +726,6 @@
     <li>Satellite (ESRI)</li>
     <li>CartoDB Positron (light)</li>
     <li>CartoDB Dark Matter (dark)</li>
-    <li>Stamen Watercolor</li>
 </ul>
 <p>To add a custom basemap: enter name, type (<code>xyz</code>, <code>wms</code>, <code>wmts</code>), URL, and optional config JSON (attribution, maxzoom, layers for WMS).</p>
 
@@ -716,9 +787,12 @@ docker cp $(docker compose ps -q backend):/var/www/uploads ./uploads_backup
 # Restore database
 docker compose exec -T db psql -U talkingmaps -d talkingmaps < backup.sql</code></pre>
 
-<h3>WMS Proxy Whitelist</h3>
-<p>The WMS proxy handles CORS for external services. To add a new host, edit <code>backend/routers/wms_proxy.py</code> and add it to the <code>ALLOWED_HOSTS</code> list, then restart the backend:</p>
-<pre><code>docker compose restart backend</code></pre>
+<h3>WMS/WFS Proxy</h3>
+<p>The WMS/WFS proxy handles CORS for external services. There are two ways to allow hosts:</p>
+<ul>
+    <li><strong>Static whitelist</strong> &mdash; edit <code>backend/routers/wms_proxy.py</code> and add hosts to <code>ALLOWED_HOSTS</code>, then <code>docker compose restart backend</code></li>
+    <li><strong>Service catalog</strong> &mdash; authenticated users can add any service via the <a href="#service-catalog">Service Catalog</a>. Their registered hosts are automatically allowed through the proxy.</li>
+</ul>
 
 <h3>Swagger API Docs</h3>
 <p>The full REST API documentation is available at <code>/api/docs</code> (auto-generated by FastAPI).</p>
