@@ -46,6 +46,7 @@ const TmMap = {
     getMap() { return this._map; },
 
     destroy() {
+        this.stopAllAutoRefresh();
         this.disableCompare();
         if (this._map) {
             this._map.remove();
@@ -982,6 +983,41 @@ const TmMap = {
         this._measureState.listeners.onDblClick = onDblClick;
         this._map.on('click', onClick);
         this._map.on('dblclick', onDblClick);
+    },
+
+    // ── Auto-Refresh (periodic layer data reload) ──
+    _refreshTimers: {},
+
+    refreshLayerData(id) {
+        const layerId = this._layerIdMap[id];
+        if (!layerId || !this._map) return;
+        const source = this._map.getSource(`layer-${id}`);
+        if (!source) return;
+        // For GeoJSON sources, re-fetch the URL
+        if (source.type === 'geojson' && source._options?.data && typeof source._options.data === 'string') {
+            // Add cache-buster
+            const url = source._options.data.split('?')[0] + '?_t=' + Date.now();
+            source.setData(url);
+        }
+    },
+
+    startAutoRefresh(id, intervalMinutes) {
+        this.stopAutoRefresh(id);
+        if (!intervalMinutes || intervalMinutes < 1) return;
+        this._refreshTimers[id] = setInterval(() => {
+            this.refreshLayerData(id);
+        }, intervalMinutes * 60 * 1000);
+    },
+
+    stopAutoRefresh(id) {
+        if (this._refreshTimers[id]) {
+            clearInterval(this._refreshTimers[id]);
+            delete this._refreshTimers[id];
+        }
+    },
+
+    stopAllAutoRefresh() {
+        Object.keys(this._refreshTimers).forEach(id => this.stopAutoRefresh(id));
     },
 
     clearMeasurements() {

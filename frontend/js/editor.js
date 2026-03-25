@@ -104,6 +104,9 @@ const StoryEditor = {
                         <button class="btn btn-sm btn-outline-light" id="editor-share" title="${t('editor.share')}">
                             <i class="bi bi-share"></i>
                         </button>
+                        <button class="btn btn-sm btn-outline-light" id="editor-embed-config" title="${t('editor.embed_config')}">
+                            <i class="bi bi-code-slash"></i>
+                        </button>
                         <button class="btn btn-sm btn-outline-light" id="editor-versions" title="${t('editor.versions')}">
                             <i class="bi bi-clock-history"></i>
                         </button>
@@ -1132,6 +1135,9 @@ const StoryEditor = {
                                         <i class="bi bi-table" style="font-size:12px"></i>
                                     </button><button class="btn btn-sm" onclick="StoryEditor._openLayerFilter(${l.layer_id})" title="${t('editor.layer_filter')}">
                                         <i class="bi bi-funnel" style="font-size:12px"></i>
+                                    </button>` : ''}
+                                    ${(l.layer_type === 'geojson' || l.layer_type === 'wfs') && l.source_config?.url ? `<button class="btn btn-sm" onclick="StoryEditor._configAutoRefresh(${l.layer_id})" title="${t('editor.auto_refresh')}">
+                                        <i class="bi bi-arrow-repeat" style="font-size:12px"></i>
                                     </button>` : ''}
                                     <small class="text-muted">${l.layer_type}</small>
                                 </div>
@@ -2951,6 +2957,7 @@ const StoryEditor = {
         document.getElementById('editor-manage-layers')?.addEventListener('click', () => this._openLayersModal());
         document.getElementById('editor-wiki-osm-btn')?.addEventListener('click', () => this._showWikiOsmModal());
         document.getElementById('editor-share')?.addEventListener('click', () => this._showShareModal());
+        document.getElementById('editor-embed-config')?.addEventListener('click', () => this._openEmbedConfigurator());
         document.getElementById('editor-versions')?.addEventListener('click', () => this._showVersionsModal());
 
         // Undo / Redo buttons
@@ -4687,5 +4694,157 @@ const StoryEditor = {
                 });
             });
         }, 150);
+    },
+
+    // ── Auto-Refresh Configuration ──────────
+    async _configAutoRefresh(layerId) {
+        const t = I18n.t.bind(I18n);
+        const layer = this._layers.find(l => l.layer_id === layerId);
+        if (!layer) return;
+
+        const currentInterval = layer.source_config?.autoRefreshMinutes || 0;
+
+        const result = await App.modal({
+            title: t('editor.auto_refresh_title'),
+            body: `
+                <div class="mb-3">
+                    <label class="form-label">${t('editor.auto_refresh_interval')}</label>
+                    <select class="form-select" id="modal-refresh-interval">
+                        <option value="0" ${currentInterval === 0 ? 'selected' : ''}>${t('editor.auto_refresh_off')}</option>
+                        <option value="1" ${currentInterval === 1 ? 'selected' : ''}>1 min</option>
+                        <option value="5" ${currentInterval === 5 ? 'selected' : ''}>5 min</option>
+                        <option value="15" ${currentInterval === 15 ? 'selected' : ''}>15 min</option>
+                        <option value="30" ${currentInterval === 30 ? 'selected' : ''}>30 min</option>
+                        <option value="60" ${currentInterval === 60 ? 'selected' : ''}>1 hour</option>
+                    </select>
+                </div>
+                <small class="text-muted"><i class="bi bi-info-circle"></i> ${t('editor.auto_refresh_hint')}</small>
+            `,
+            confirmText: t('action.save'),
+            onConfirm: () => parseInt(document.getElementById('modal-refresh-interval')?.value) || 0,
+        });
+
+        if (result === undefined) return;
+
+        try {
+            const srcConfig = { ...layer.source_config, autoRefreshMinutes: result };
+            await Api.updateLayer(layerId, { source_config: srcConfig });
+            layer.source_config = srcConfig;
+
+            // Apply immediately
+            if (result > 0) {
+                TmMap.startAutoRefresh(layerId, result);
+                App.toast(t('editor.auto_refresh_set'), 'success');
+            } else {
+                TmMap.stopAutoRefresh(layerId);
+                App.toast(t('editor.auto_refresh_off'), 'info');
+            }
+        } catch (err) { App.toast(err.message, 'danger'); }
+    },
+
+    // ── Embed Configurator ──────────────────
+    async _openEmbedConfigurator() {
+        const t = I18n.t.bind(I18n);
+        const storyId = this._storyId;
+        const baseUrl = window.location.origin + window.location.pathname;
+
+        const result = await App.modal({
+            title: t('editor.embed_config'),
+            size: 'lg',
+            body: `
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">${t('editor.embed_width')}</label>
+                            <input type="text" class="form-control" id="embed-width" value="100%">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">${t('editor.embed_height')}</label>
+                            <input type="text" class="form-control" id="embed-height" value="600px">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">${t('editor.embed_start_slide')}</label>
+                            <select class="form-select" id="embed-start-slide">
+                                <option value="">— ${t('editor.embed_from_beginning')} —</option>
+                                ${this._slides.map((s, i) => `<option value="${i}">${i + 1}. ${App.escHtml(s.title || 'Slide ' + (i + 1))}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">${t('editor.embed_theme')}</label>
+                            <select class="form-select" id="embed-theme">
+                                <option value="">Default</option>
+                                <option value="light">Light</option>
+                                <option value="dark">Dark</option>
+                            </select>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="embed-autoplay">
+                            <label class="form-check-label">${t('editor.embed_autoplay')}</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="embed-hide-toolbar">
+                            <label class="form-check-label">${t('editor.embed_hide_toolbar')}</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="embed-hide-nav">
+                            <label class="form-check-label">${t('editor.embed_hide_nav')}</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">${t('editor.embed_preview')}</label>
+                        <div id="embed-preview-frame" style="background:var(--tm-bg-muted,#1e1e2e);border:1px solid var(--tm-border,#333);border-radius:8px;padding:16px;min-height:200px;display:flex;align-items:center;justify-content:center;">
+                            <small class="text-muted">${t('editor.embed_preview_text')}</small>
+                        </div>
+                        <label class="form-label mt-3">${t('editor.embed_code')}</label>
+                        <textarea class="form-control" id="embed-code-output" rows="4" readonly style="font-family:monospace;font-size:12px"></textarea>
+                        <button class="btn btn-sm btn-outline-primary mt-2 w-100" onclick="navigator.clipboard?.writeText(document.getElementById('embed-code-output')?.value);App.toast('Copied!','success')">
+                            <i class="bi bi-clipboard"></i> ${t('editor.embed_copy')}
+                        </button>
+                    </div>
+                </div>
+            `,
+            confirmText: t('action.close'),
+            onConfirm: () => true,
+            onReady: () => {
+                const updateEmbed = () => {
+                    const width = document.getElementById('embed-width')?.value || '100%';
+                    const height = document.getElementById('embed-height')?.value || '600px';
+                    const startSlide = document.getElementById('embed-start-slide')?.value;
+                    const theme = document.getElementById('embed-theme')?.value;
+                    const autoplay = document.getElementById('embed-autoplay')?.checked;
+                    const hideToolbar = document.getElementById('embed-hide-toolbar')?.checked;
+                    const hideNav = document.getElementById('embed-hide-nav')?.checked;
+
+                    let embedUrl = baseUrl + '?story=' + storyId + '&embed=true';
+                    if (startSlide) embedUrl += '&slide=' + startSlide;
+                    if (theme) embedUrl += '&theme=' + theme;
+                    if (autoplay) embedUrl += '&autoplay=true';
+                    if (hideToolbar) embedUrl += '&toolbar=false';
+                    if (hideNav) embedUrl += '&nav=false';
+
+                    const code = `<iframe src="${embedUrl}" width="${width}" height="${height}" frameborder="0" allow="fullscreen" style="border:none;border-radius:8px"></iframe>`;
+
+                    document.getElementById('embed-code-output').value = code;
+
+                    // Mini preview
+                    const preview = document.getElementById('embed-preview-frame');
+                    preview.innerHTML = `<div style="width:100%;height:120px;background:#0d1117;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#8b949e;">
+                        <i class="bi bi-play-circle" style="font-size:24px;margin-bottom:4px"></i>
+                        <span>${width} x ${height}</span>
+                        <span>${autoplay ? 'Autoplay' : ''} ${theme ? theme : ''} ${startSlide ? 'Slide ' + (parseInt(startSlide) + 1) : ''}</span>
+                    </div>`;
+                };
+
+                ['embed-width', 'embed-height', 'embed-start-slide', 'embed-theme'].forEach(id => {
+                    document.getElementById(id)?.addEventListener('input', updateEmbed);
+                    document.getElementById(id)?.addEventListener('change', updateEmbed);
+                });
+                ['embed-autoplay', 'embed-hide-toolbar', 'embed-hide-nav'].forEach(id => {
+                    document.getElementById(id)?.addEventListener('change', updateEmbed);
+                });
+
+                updateEmbed(); // Initial render
+            },
+        });
     },
 };

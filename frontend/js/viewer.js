@@ -77,6 +77,19 @@ const StoryViewer = {
         // Setup keyboard navigation
         this._setupKeyboard();
 
+        // Setup touch swipe for mobile
+        this._setupTouchSwipe();
+
+        // Mobile swipe hint
+        if ('ontouchstart' in window && !sessionStorage.getItem('tm_swipe_hint')) {
+            const hint = document.createElement('div');
+            hint.className = 'mobile-swipe-hint';
+            hint.innerHTML = '<i class="bi bi-hand-index"></i> Swipe to navigate';
+            document.getElementById('story-viewer')?.appendChild(hint);
+            sessionStorage.setItem('tm_swipe_hint', '1');
+            setTimeout(() => hint.remove(), 3500);
+        }
+
         // Navigation buttons
         document.getElementById('viewer-prev').onclick = () => this.goTo(this._currentSlide - 1);
         document.getElementById('viewer-next').onclick = () => this.goTo(this._currentSlide + 1);
@@ -196,6 +209,7 @@ const StoryViewer = {
     },
 
     destroy() {
+        TmMap.stopAllAutoRefresh();
         TmMap.disableCompare();
         TmMap.destroy();
         Cesium3D.destroy();
@@ -259,6 +273,10 @@ const StoryViewer = {
                     opacity: l.opacity,
                 });
                 if (!l.visible) TmMap.setLayerVisibility(l.layer_id, false);
+                // Start auto-refresh if configured
+                if (l.source_config?.autoRefreshMinutes > 0) {
+                    TmMap.startAutoRefresh(l.layer_id, l.source_config.autoRefreshMinutes);
+                }
             });
         }
     },
@@ -1211,6 +1229,40 @@ const StoryViewer = {
             }
         };
         document.addEventListener('keydown', this._keyHandler);
+    },
+
+    // ── Touch Swipe ─────────────────────
+    _setupTouchSwipe() {
+        const viewer = document.getElementById('story-viewer');
+        if (!viewer) return;
+
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchStartTime = 0;
+
+        viewer.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            touchStartTime = Date.now();
+        }, { passive: true });
+
+        viewer.addEventListener('touchend', (e) => {
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            const dy = e.changedTouches[0].clientY - touchStartY;
+            const dt = Date.now() - touchStartTime;
+
+            // Only trigger on horizontal swipes that are fast enough and long enough
+            // Ignore if vertical movement is greater (user is scrolling map)
+            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5 && dt < 500) {
+                if (dx < 0) {
+                    // Swipe left = next slide
+                    this.goTo(this._currentSlide + 1);
+                } else {
+                    // Swipe right = previous slide
+                    this.goTo(this._currentSlide - 1);
+                }
+            }
+        }, { passive: true });
     },
 
     // ── Map Interactivity ────────────────
