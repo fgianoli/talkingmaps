@@ -1083,6 +1083,7 @@ const StoryEditor = {
                             <option value="flyTo" ${slide.map_animation === 'flyTo' ? 'selected' : ''}>${t('editor.anim_fly')}</option>
                             <option value="easeTo" ${slide.map_animation === 'easeTo' ? 'selected' : ''}>${t('editor.anim_ease')}</option>
                             <option value="jumpTo" ${slide.map_animation === 'jumpTo' ? 'selected' : ''}>${t('editor.anim_jump')}</option>
+                            <option value="cinematic" ${slide.map_animation === 'cinematic' ? 'selected' : ''}>${t('editor.anim_cinematic')}</option>
                         </select>
                     </div>
                     <button class="btn btn-sm btn-outline-primary w-100 mt-2" id="btn-capture-map-state">
@@ -1099,17 +1100,21 @@ const StoryEditor = {
                     <div class="prop-section-title"><i class="bi bi-layers"></i> ${t('editor.layer_vis')}</div>
                     <div class="editor-layers-list" id="prop-layers-list">
                         ${(this._layers || []).map(l => {
-                            const vis = slide.layer_visibility?.[l.layer_id];
-                            const isVis = vis !== undefined ? vis : l.visible;
+                            const override = slide.layer_visibility?.[l.layer_id];
+                            const isVis = typeof override === 'object' ? override.visible !== false : (override !== undefined ? !!override : l.visible);
+                            const layerOpacity = typeof override === 'object' && override.opacity !== undefined ? override.opacity : (l.opacity ?? 1);
                             return `
                                 <div class="editor-layer-item" data-layer-id="${l.layer_id}">
                                     <i class="bi bi-eye${isVis ? '' : '-slash'} layer-visibility ${isVis ? 'visible' : ''}"
                                        onclick="StoryEditor._toggleLayerVis(${l.layer_id}, this)"></i>
                                     <span style="flex:1;font-size:13px">${App.escHtml(l.layer_name)}</span>
+                                    <input type="range" min="0" max="1" step="0.05" value="${layerOpacity}"
+                                           style="width:60px;margin:0 4px" title="${t('editor.layer_opacity')}"
+                                           oninput="StoryEditor._setLayerSlideOpacity(${l.layer_id}, parseFloat(this.value))">
                                     <button class="btn btn-sm" onclick="StoryEditor._openLayerStyle(${l.layer_id})" title="${t('editor.layer_style')}">
                                         <i class="bi bi-palette" style="font-size:12px"></i>
                                     </button>
-                                    ${l.layer_type === 'geojson' ? `<button class="btn btn-sm" onclick="StoryEditor._openAttributeTable(${l.layer_id})" title="${t('editor.attribute_table')}">
+                                    ${l.layer_type === 'geojson' || l.layer_type === 'wfs' ? `<button class="btn btn-sm" onclick="StoryEditor._openAttributeTable(${l.layer_id})" title="${t('editor.attribute_table')}">
                                         <i class="bi bi-table" style="font-size:12px"></i>
                                     </button>` : ''}
                                     <small class="text-muted">${l.layer_type}</small>
@@ -2212,7 +2217,18 @@ const StoryEditor = {
         TmMap.setLayerVisibility(layerId, !isVis);
         const slide = this._slides[this._currentSlideIdx];
         if (!slide.layer_visibility) slide.layer_visibility = {};
-        slide.layer_visibility[layerId] = !isVis;
+        const existing = slide.layer_visibility[layerId];
+        const currentOpacity = typeof existing === 'object' ? (existing.opacity ?? 1) : 1;
+        slide.layer_visibility[layerId] = { visible: !isVis, opacity: currentOpacity };
+    },
+
+    _setLayerSlideOpacity(layerId, opacity) {
+        TmMap.setLayerOpacity(layerId, opacity);
+        const slide = this._slides[this._currentSlideIdx];
+        if (!slide.layer_visibility) slide.layer_visibility = {};
+        const existing = slide.layer_visibility[layerId];
+        const currentVis = typeof existing === 'object' ? existing.visible !== false : (existing !== undefined ? !!existing : true);
+        slide.layer_visibility[layerId] = { visible: currentVis, opacity };
     },
 
     async _insertLink() {
@@ -2511,6 +2527,7 @@ const StoryEditor = {
                             <option value="fill" ${isFill ? 'selected' : ''}>${t('editor.sym_polygon')}</option>
                             <option value="line" ${isLine && !isFill ? 'selected' : ''}>${t('editor.sym_line')}</option>
                             <option value="circle" ${isCircle ? 'selected' : ''}>${t('editor.sym_point')}</option>
+                            <option value="heatmap" ${layerType === 'heatmap' ? 'selected' : ''}>${t('editor.sym_heatmap')}</option>
                         </select>
                     </div>
 
@@ -2547,6 +2564,20 @@ const StoryEditor = {
                         <label class="form-label">${t('editor.sym_point_stroke')}</label>
                         <input type="color" class="form-control form-control-color w-100" id="sym-circle-stroke" value="${circleStrokeColor}">
                     </div>
+
+                    <!-- Heatmap -->
+                    <div class="col-4" id="sym-heatmap-section">
+                        <label class="form-label">${t('editor.heatmap_radius')}</label>
+                        <input type="number" class="form-control" id="sym-heatmap-radius" min="1" max="100" value="${paint['heatmap-radius'] || 20}">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">${t('editor.heatmap_intensity')}</label>
+                        <input type="number" class="form-control" id="sym-heatmap-intensity" min="0.1" max="10" step="0.1" value="${paint['heatmap-intensity'] || 1}">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">${t('editor.heatmap_weight')}</label>
+                        <input type="text" class="form-control" id="sym-heatmap-weight" placeholder="${t('editor.heatmap_weight_hint')}" value="">
+                    </div>
                 </div>
             `,
             confirmText: t('action.save'),
@@ -2568,6 +2599,18 @@ const StoryEditor = {
                     style.paint['circle-radius'] = parseFloat(document.getElementById('sym-circle-radius')?.value);
                     style.paint['circle-stroke-color'] = document.getElementById('sym-circle-stroke')?.value;
                     style.paint['circle-stroke-width'] = parseFloat(document.getElementById('sym-line-width')?.value) || 2;
+                }
+                if (geomType === 'heatmap') {
+                    style.paint['heatmap-radius'] = parseFloat(document.getElementById('sym-heatmap-radius')?.value) || 20;
+                    style.paint['heatmap-intensity'] = parseFloat(document.getElementById('sym-heatmap-intensity')?.value) || 1;
+                    style.paint['heatmap-opacity'] = parseFloat(document.getElementById('sym-fill-opacity')?.value) || 0.8;
+                    style.paint['heatmap-color'] = [
+                        'interpolate', ['linear'], ['heatmap-density'],
+                        0, 'rgba(0,0,255,0)', 0.2, 'royalblue', 0.4, 'cyan',
+                        0.6, 'lime', 0.8, 'yellow', 1, 'red'
+                    ];
+                    const weightField = document.getElementById('sym-heatmap-weight')?.value;
+                    if (weightField) style.paint['heatmap-weight'] = ['get', weightField];
                 }
                 return style;
             },
@@ -3018,8 +3061,17 @@ const StoryEditor = {
                                 <button class="btn btn-sm btn-outline-light" onclick="StoryEditor._addWmsLayer()">
                                     <i class="bi bi-globe2"></i> ${t('layers.add_wms')}
                                 </button>
+                                <button class="btn btn-sm btn-outline-light" onclick="StoryEditor._addWfsLayer()">
+                                    <i class="bi bi-database"></i> ${t('layers.add_wfs')}
+                                </button>
+                                <button class="btn btn-sm btn-outline-light" onclick="StoryEditor._addVectorTileLayer()">
+                                    <i class="bi bi-grid-3x3"></i> ${t('layers.add_vector_tiles')}
+                                </button>
                                 <button class="btn btn-sm btn-outline-light" onclick="StoryEditor._addCogLayer()">
                                     <i class="bi bi-file-earmark-image"></i> ${t('editor.add_cog')}
+                                </button>
+                                <button class="btn btn-sm btn-outline-info" onclick="StoryEditor._openServiceCatalog()">
+                                    <i class="bi bi-server"></i> ${t('services.my_services')}
                                 </button>
                             </div>
                             <div class="layers-grid">
@@ -3096,21 +3148,62 @@ const StoryEditor = {
             title: t('layers.add_wms_title'),
             body: `
                 <div class="mb-3"><label class="form-label">${t('layers.wms_url')}</label>
-                    <input type="text" class="form-control" id="modal-wms-url" placeholder="https://..."></div>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="modal-wms-url" placeholder="https://...">
+                        <button class="btn btn-outline-info" type="button" id="btn-discover-wms">${t('layers.discover')}</button>
+                    </div>
+                </div>
+                <div class="mb-3" id="wms-discover-results" style="display:none;max-height:200px;overflow-y:auto"></div>
                 <div class="mb-3"><label class="form-label">${t('layers.wms_name')}</label>
                     <input type="text" class="form-control" id="modal-wms-name"></div>
                 <div class="mb-3"><label class="form-label">${t('layers.wms_layer')}</label>
                     <input type="text" class="form-control" id="modal-wms-layers"></div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="modal-wms-save-service">
+                    <label class="form-check-label" for="modal-wms-save-service">${t('services.save_to_catalog')}</label>
+                </div>
             `,
             confirmText: t('action.confirm'),
             onConfirm: () => ({
                 url: document.getElementById('modal-wms-url')?.value,
                 name: document.getElementById('modal-wms-name')?.value,
                 layers: document.getElementById('modal-wms-layers')?.value,
+                saveService: document.getElementById('modal-wms-save-service')?.checked,
             }),
+            onReady: () => {
+                document.getElementById('btn-discover-wms')?.addEventListener('click', async () => {
+                    const url = document.getElementById('modal-wms-url')?.value;
+                    if (!url) return;
+                    const resultsDiv = document.getElementById('wms-discover-results');
+                    resultsDiv.style.display = 'block';
+                    resultsDiv.innerHTML = '<small class="text-muted">Loading...</small>';
+                    try {
+                        const data = await Api.getCapabilities(url, 'WMS');
+                        if (!data.layers?.length) {
+                            resultsDiv.innerHTML = '<small class="text-muted">No layers found</small>';
+                            return;
+                        }
+                        resultsDiv.innerHTML = data.layers.map(l => `
+                            <div class="p-1 border-bottom" style="cursor:pointer;font-size:13px" data-name="${App.escHtml(l.name)}" data-title="${App.escHtml(l.title)}">
+                                <strong>${App.escHtml(l.title)}</strong> <small class="text-muted">${App.escHtml(l.name)}</small>
+                            </div>
+                        `).join('');
+                        resultsDiv.querySelectorAll('[data-name]').forEach(el => {
+                            el.addEventListener('click', () => {
+                                document.getElementById('modal-wms-layers').value = el.dataset.name;
+                                document.getElementById('modal-wms-name').value = el.dataset.title || el.dataset.name;
+                                resultsDiv.style.display = 'none';
+                            });
+                        });
+                    } catch (err) { resultsDiv.innerHTML = `<small class="text-danger">${err.message}</small>`; }
+                });
+            },
         });
         if (!result || !result.url) return;
         try {
+            if (result.saveService) {
+                await Api.createService({ name: result.name || 'WMS', service_type: 'wms', url: result.url });
+            }
             const layer = await Api.createLayer({
                 name: result.name || 'WMS Layer', layer_type: 'wms',
                 source_config: { url: result.url, layers: result.layers || '' },
@@ -3143,6 +3236,260 @@ const StoryEditor = {
                 source_config: { url: result.url },
             });
             await this._addLayerToStory(layer.id);
+        } catch (err) { App.toast(err.message, 'danger'); }
+    },
+
+    async _addWfsLayer() {
+        const t = I18n.t.bind(I18n);
+        const result = await App.modal({
+            title: t('layers.add_wfs_title'),
+            body: `
+                <div class="mb-3"><label class="form-label">${t('layers.wfs_url')}</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="modal-wfs-url" placeholder="https://myserver.com/wfs">
+                        <button class="btn btn-outline-info" type="button" id="btn-discover-wfs">${t('layers.discover')}</button>
+                    </div>
+                </div>
+                <div class="mb-3" id="wfs-discover-results" style="display:none;max-height:200px;overflow-y:auto"></div>
+                <div class="mb-3"><label class="form-label">${t('layers.wfs_typename')}</label>
+                    <input type="text" class="form-control" id="modal-wfs-typename" placeholder="namespace:layername"></div>
+                <div class="mb-3"><label class="form-label">${t('layers.wms_name')}</label>
+                    <input type="text" class="form-control" id="modal-wfs-name"></div>
+                <div class="mb-3"><label class="form-label">${t('layers.wfs_max_features')}</label>
+                    <input type="number" class="form-control" id="modal-wfs-max" value="1000" min="1" max="50000"></div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="modal-wfs-save-service">
+                    <label class="form-check-label" for="modal-wfs-save-service">${t('services.save_to_catalog')}</label>
+                </div>
+            `,
+            confirmText: t('action.confirm'),
+            onConfirm: () => ({
+                url: document.getElementById('modal-wfs-url')?.value,
+                name: document.getElementById('modal-wfs-name')?.value,
+                typeName: document.getElementById('modal-wfs-typename')?.value,
+                maxFeatures: parseInt(document.getElementById('modal-wfs-max')?.value) || 1000,
+                saveService: document.getElementById('modal-wfs-save-service')?.checked,
+            }),
+            onReady: () => {
+                document.getElementById('btn-discover-wfs')?.addEventListener('click', async () => {
+                    const url = document.getElementById('modal-wfs-url')?.value;
+                    if (!url) return;
+                    const resultsDiv = document.getElementById('wfs-discover-results');
+                    resultsDiv.style.display = 'block';
+                    resultsDiv.innerHTML = '<small class="text-muted">Loading...</small>';
+                    try {
+                        const data = await Api.getCapabilities(url, 'WFS');
+                        if (!data.layers?.length) {
+                            resultsDiv.innerHTML = '<small class="text-muted">No feature types found</small>';
+                            return;
+                        }
+                        resultsDiv.innerHTML = data.layers.map(l => `
+                            <div class="p-1 border-bottom" style="cursor:pointer;font-size:13px" data-name="${App.escHtml(l.name)}" data-title="${App.escHtml(l.title)}">
+                                <strong>${App.escHtml(l.title)}</strong> <small class="text-muted">${App.escHtml(l.name)}</small>
+                            </div>
+                        `).join('');
+                        resultsDiv.querySelectorAll('[data-name]').forEach(el => {
+                            el.addEventListener('click', () => {
+                                document.getElementById('modal-wfs-typename').value = el.dataset.name;
+                                document.getElementById('modal-wfs-name').value = el.dataset.title || el.dataset.name;
+                                resultsDiv.style.display = 'none';
+                            });
+                        });
+                    } catch (err) { resultsDiv.innerHTML = `<small class="text-danger">${err.message}</small>`; }
+                });
+            },
+        });
+        if (!result || !result.url || !result.typeName) return;
+        try {
+            if (result.saveService) {
+                await Api.createService({ name: result.name || 'WFS', service_type: 'wfs', url: result.url });
+            }
+            const layer = await Api.createLayer({
+                name: result.name || 'WFS Layer', layer_type: 'wfs',
+                source_config: { url: result.url, typeName: result.typeName, maxFeatures: result.maxFeatures },
+            });
+            await this._addLayerToStory(layer.id);
+        } catch (err) { App.toast(err.message, 'danger'); }
+    },
+
+    async _addVectorTileLayer() {
+        const t = I18n.t.bind(I18n);
+        const result = await App.modal({
+            title: t('layers.add_vt_title'),
+            body: `
+                <div class="mb-3"><label class="form-label">${t('layers.vt_url')}</label>
+                    <input type="text" class="form-control" id="modal-vt-url" placeholder="https://server/{z}/{x}/{y}.pbf">
+                    <small class="text-muted">${t('layers.vt_url_hint')}</small>
+                </div>
+                <div class="mb-3"><label class="form-label">${t('layers.wms_name')}</label>
+                    <input type="text" class="form-control" id="modal-vt-name"></div>
+                <div class="mb-3"><label class="form-label">${t('layers.vt_source_layer')}</label>
+                    <input type="text" class="form-control" id="modal-vt-source-layer" placeholder="default"></div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="modal-vt-save-service">
+                    <label class="form-check-label" for="modal-vt-save-service">${t('services.save_to_catalog')}</label>
+                </div>
+            `,
+            confirmText: t('action.confirm'),
+            onConfirm: () => ({
+                url: document.getElementById('modal-vt-url')?.value,
+                name: document.getElementById('modal-vt-name')?.value,
+                sourceLayer: document.getElementById('modal-vt-source-layer')?.value,
+                saveService: document.getElementById('modal-vt-save-service')?.checked,
+            }),
+        });
+        if (!result || !result.url) return;
+        try {
+            if (result.saveService) {
+                await Api.createService({ name: result.name || 'Vector Tiles', service_type: 'vector-tiles', url: result.url });
+            }
+            const layer = await Api.createLayer({
+                name: result.name || 'Vector Tile Layer', layer_type: 'vector-tiles',
+                source_config: { url: result.url, sourceLayer: result.sourceLayer || 'default' },
+            });
+            await this._addLayerToStory(layer.id);
+        } catch (err) { App.toast(err.message, 'danger'); }
+    },
+
+    async _openServiceCatalog() {
+        const t = I18n.t.bind(I18n);
+        let services = [];
+        try { services = await Api.listServices(); } catch { /* ok */ }
+
+        const html = `
+            <div class="modal fade" id="service-catalog-modal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><i class="bi bi-server"></i> ${t('services.title')}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3" style="display:flex;gap:8px">
+                                <button class="btn btn-sm btn-outline-success" onclick="StoryEditor._addServiceToList()">
+                                    <i class="bi bi-plus"></i> ${t('services.add')}
+                                </button>
+                            </div>
+                            <div id="service-catalog-list">
+                                ${services.length === 0 ? `<p class="text-muted">${t('services.empty')}</p>` : ''}
+                                ${services.map(s => `
+                                    <div class="layer-card mb-2" data-service-id="${s.id}">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h4>${App.escHtml(s.name)}</h4>
+                                                <span class="layer-type-badge">${s.service_type}</span>
+                                                <small class="text-muted d-block mt-1" style="word-break:break-all">${App.escHtml(s.url)}</small>
+                                                ${s.description ? `<small class="text-muted">${App.escHtml(s.description)}</small>` : ''}
+                                            </div>
+                                            <div style="display:flex;gap:4px">
+                                                <button class="btn btn-sm btn-outline-info" onclick="StoryEditor._exploreService(${s.id}, '${s.service_type}', '${App.escHtml(s.url)}')" title="${t('services.explore')}">
+                                                    <i class="bi bi-search"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" onclick="StoryEditor._deleteService(${s.id})" title="${t('action.delete')}">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div id="service-layers-${s.id}" class="mt-2" style="display:none"></div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.getElementById('service-catalog-modal')?.remove();
+        document.body.insertAdjacentHTML('beforeend', html);
+        new bootstrap.Modal(document.getElementById('service-catalog-modal')).show();
+    },
+
+    async _addServiceToList() {
+        const t = I18n.t.bind(I18n);
+        const result = await App.modal({
+            title: t('services.add'),
+            body: `
+                <div class="mb-3"><label class="form-label">${t('services.name')}</label>
+                    <input type="text" class="form-control" id="modal-svc-name" placeholder="My GeoServer"></div>
+                <div class="mb-3"><label class="form-label">${t('services.type')}</label>
+                    <select class="form-select" id="modal-svc-type">
+                        <option value="wms">WMS</option><option value="wfs">WFS</option>
+                        <option value="wmts">WMTS</option><option value="xyz">XYZ Tiles</option>
+                        <option value="vector-tiles">Vector Tiles</option>
+                    </select>
+                </div>
+                <div class="mb-3"><label class="form-label">${t('services.url')}</label>
+                    <input type="text" class="form-control" id="modal-svc-url" placeholder="https://..."></div>
+                <div class="mb-3"><label class="form-label">${t('services.description')}</label>
+                    <input type="text" class="form-control" id="modal-svc-desc"></div>
+            `,
+            confirmText: t('action.save'),
+            onConfirm: () => ({
+                name: document.getElementById('modal-svc-name')?.value,
+                service_type: document.getElementById('modal-svc-type')?.value,
+                url: document.getElementById('modal-svc-url')?.value,
+                description: document.getElementById('modal-svc-desc')?.value,
+            }),
+        });
+        if (!result || !result.url || !result.name) return;
+        try {
+            await Api.createService(result);
+            App.toast(t('services.saved'), 'success');
+            bootstrap.Modal.getInstance(document.getElementById('service-catalog-modal'))?.hide();
+            this._openServiceCatalog(); // refresh
+        } catch (err) { App.toast(err.message, 'danger'); }
+    },
+
+    async _exploreService(serviceId, serviceType, url) {
+        const t = I18n.t.bind(I18n);
+        const resultsDiv = document.getElementById(`service-layers-${serviceId}`);
+        if (!resultsDiv) return;
+        resultsDiv.style.display = 'block';
+        resultsDiv.innerHTML = '<small class="text-muted">Loading capabilities...</small>';
+        try {
+            const capType = (serviceType === 'wfs') ? 'WFS' : 'WMS';
+            const data = await Api.getCapabilities(url, capType);
+            if (!data.layers?.length) {
+                resultsDiv.innerHTML = '<small class="text-muted">No layers found</small>';
+                return;
+            }
+            resultsDiv.innerHTML = `<div style="max-height:200px;overflow-y:auto">` +
+                data.layers.map(l => `
+                    <div class="d-flex justify-content-between align-items-center p-1 border-bottom" style="font-size:13px">
+                        <div><strong>${App.escHtml(l.title)}</strong> <small class="text-muted">${App.escHtml(l.name)}</small></div>
+                        <button class="btn btn-sm btn-outline-success" onclick="StoryEditor._addLayerFromService('${serviceType}', '${App.escHtml(url)}', '${App.escHtml(l.name)}', '${App.escHtml(l.title)}')">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                    </div>
+                `).join('') + `</div>`;
+        } catch (err) {
+            resultsDiv.innerHTML = `<small class="text-danger">${err.message}</small>`;
+        }
+    },
+
+    async _addLayerFromService(serviceType, url, layerName, layerTitle) {
+        try {
+            const layerType = serviceType === 'wfs' ? 'wfs' : 'wms';
+            const sourceConfig = layerType === 'wfs'
+                ? { url, typeName: layerName, maxFeatures: 1000 }
+                : { url, layers: layerName };
+            const layer = await Api.createLayer({
+                name: layerTitle || layerName,
+                layer_type: layerType,
+                source_config: sourceConfig,
+            });
+            await this._addLayerToStory(layer.id);
+            App.toast(`Layer "${layerTitle}" added`, 'success');
+        } catch (err) { App.toast(err.message, 'danger'); }
+    },
+
+    async _deleteService(serviceId) {
+        if (!await App.confirm(I18n.t('services.confirm_delete'))) return;
+        try {
+            await Api.deleteService(serviceId);
+            App.toast(I18n.t('services.deleted'), 'success');
+            bootstrap.Modal.getInstance(document.getElementById('service-catalog-modal'))?.hide();
+            this._openServiceCatalog();
         } catch (err) { App.toast(err.message, 'danger'); }
     },
 

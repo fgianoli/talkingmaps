@@ -594,14 +594,25 @@ const StoryViewer = {
                     duration: 2,
                 });
             } else {
-                TmMap.flyTo({
-                    center: [slide.map_center.lng, slide.map_center.lat],
-                    zoom: slide.map_zoom || 10,
-                    bearing: slide.map_bearing || 0,
-                    pitch: slide.map_pitch || 0,
-                    animation: slide.map_animation || 'flyTo',
-                    duration: 2000,
-                });
+                const anim = slide.map_animation || 'flyTo';
+                if (anim === 'cinematic') {
+                    TmMap.cinematicFlyTo({
+                        center: [slide.map_center.lng, slide.map_center.lat],
+                        zoom: slide.map_zoom || 10,
+                        bearing: slide.map_bearing || 0,
+                        pitch: slide.map_pitch || 0,
+                        duration: 3000,
+                    });
+                } else {
+                    TmMap.flyTo({
+                        center: [slide.map_center.lng, slide.map_center.lat],
+                        zoom: slide.map_zoom || 10,
+                        bearing: slide.map_bearing || 0,
+                        pitch: slide.map_pitch || 0,
+                        animation: anim,
+                        duration: 2000,
+                    });
+                }
             }
         } else if (hasMap && slide.map_bounds) {
             TmMap.fitBounds(slide.map_bounds);
@@ -628,12 +639,22 @@ const StoryViewer = {
             TmMap.disableCompare();
         }
 
-        // Layer visibility for this slide
-        if (slide.layer_visibility && this._data.layers) {
+        // Layer visibility + opacity for this slide
+        if (this._data.layers) {
             this._data.layers.forEach(l => {
-                const vis = slide.layer_visibility[l.layer_id];
-                if (vis !== undefined) {
-                    TmMap.setLayerVisibility(l.layer_id, vis);
+                const override = slide.layer_visibility?.[l.layer_id];
+                if (override !== undefined) {
+                    // Support both old boolean format and new {visible, opacity} format
+                    if (typeof override === 'object') {
+                        TmMap.setLayerVisibility(l.layer_id, override.visible !== false);
+                        if (override.opacity !== undefined) TmMap.setLayerOpacity(l.layer_id, override.opacity);
+                    } else {
+                        TmMap.setLayerVisibility(l.layer_id, !!override);
+                    }
+                } else {
+                    // Reset to default
+                    TmMap.setLayerVisibility(l.layer_id, l.visible !== false);
+                    TmMap.setLayerOpacity(l.layer_id, l.opacity ?? 1);
                 }
             });
         }

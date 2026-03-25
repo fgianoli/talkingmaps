@@ -186,6 +186,23 @@ CREATE TABLE IF NOT EXISTS symbology_presets (
     position INTEGER DEFAULT 0
 );
 
+-- ══════════════════════════════════════
+-- Service Catalog (personal GIS service endpoints)
+-- ══════════════════════════════════════
+CREATE TABLE IF NOT EXISTS service_catalog (
+    id SERIAL PRIMARY KEY,
+    owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    service_type VARCHAR(50) NOT NULL,  -- wms, wfs, wmts, xyz, vector-tiles
+    url VARCHAR(1000) NOT NULL,
+    description TEXT,
+    auth_config JSONB DEFAULT '{}',
+    capabilities_cache JSONB,
+    last_checked TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_service_catalog_owner ON service_catalog(owner_id);
+
 -- Default color ramps
 INSERT INTO symbology_presets (name, category, geometry_type, style_type, config, position) VALUES
     ('Rosso → Giallo → Verde', 'color-ramps', NULL, 'graduated',

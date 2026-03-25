@@ -234,6 +234,13 @@ const Api = {
     updateProfile(data) { return this.put('/api/auth/profile', data); },
     uploadAvatar(file) { const fd = new FormData(); fd.append('file', file); return this._fetch('/api/auth/avatar', { method: 'POST', body: fd }); },
 
+    // ── Services (Personal GIS catalog) ──
+    listServices() { return this.get('/api/services/'); },
+    createService(data) { return this.post('/api/services/', data); },
+    updateService(id, data) { return this.put(`/api/services/${id}`, data); },
+    deleteService(id) { return this.del(`/api/services/${id}`); },
+    getCapabilities(url, service) { return this.get(`/api/wfs-proxy/capabilities?url=${encodeURIComponent(url)}&service=${service}`); },
+
     // ── Contributions (Participatory Maps) ──
     listContributions(storyId) { return this.get(`/api/contributions/story/${storyId}`); },
     listAllContributions(storyId, status) {

@@ -7,7 +7,7 @@ from sqlalchemy import text
 from core.config import settings as app_settings
 from core.database import engine, engine_system
 from core.security import hash_password
-from routers import auth, stories, slides, media, layers, basemaps, wms_proxy, users, symbology, ckan, upload3d, settings as settings_router, ai as ai_router, oauth, geodata, contributions
+from routers import auth, stories, slides, media, layers, basemaps, wms_proxy, wfs_proxy, services, users, symbology, ckan, upload3d, settings as settings_router, ai as ai_router, oauth, geodata, contributions
 
 
 # Ensure upload directory exists before StaticFiles mount
@@ -67,6 +67,8 @@ app.include_router(symbology.router, prefix="/api/symbology", tags=["Simbologia"
 app.include_router(media.router, prefix="/api/media", tags=["Media"])
 app.include_router(basemaps.router, prefix="/api/basemaps", tags=["Basemap"])
 app.include_router(wms_proxy.router, prefix="/api/wms-proxy", tags=["WMS Proxy"])
+app.include_router(wfs_proxy.router, prefix="/api/wfs-proxy", tags=["WFS Proxy"])
+app.include_router(services.router, prefix="/api/services", tags=["Service Catalog"])
 app.include_router(ckan.router, prefix="/api/ckan", tags=["CKAN Open Data"])
 app.include_router(upload3d.router, prefix="/api/3d", tags=["Dati 3D"])
 app.include_router(settings_router.router, prefix="/api/settings", tags=["Impostazioni"])

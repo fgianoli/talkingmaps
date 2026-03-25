@@ -166,6 +166,13 @@ const TmMap = {
                 tiles: [source_config.url],
                 maxzoom: source_config.maxzoom || 14,
             });
+        } else if (layer_type === 'wfs') {
+            // WFS: fetch features via proxy, use as GeoJSON
+            const proxyUrl = `/api/wfs-proxy/features?url=${encodeURIComponent(source_config.url)}&type_name=${encodeURIComponent(source_config.typeName || '')}&max_features=${source_config.maxFeatures || 1000}`;
+            this._map.addSource(sourceId, {
+                type: 'geojson',
+                data: proxyUrl,
+            });
         } else if (layer_type === 'cog') {
             this._registerCogProtocol();
             this._map.addSource(sourceId, {
@@ -185,7 +192,7 @@ const TmMap = {
                 source: sourceId,
                 paint: style_config?.paint || { 'raster-opacity': layerConfig.opacity || 1 },
             });
-        } else if (layer_type === 'geojson' || layer_type === 'vector-tiles') {
+        } else if (layer_type === 'geojson' || layer_type === 'vector-tiles' || layer_type === 'wfs') {
             this._addVectorLayer(layerId, sourceId, style_config, layer_type, source_config);
         }
 
@@ -269,6 +276,7 @@ const TmMap = {
                 case 'fill': this._map.setPaintProperty(layerId, 'fill-opacity', opacity); break;
                 case 'line': this._map.setPaintProperty(layerId, 'line-opacity', opacity); break;
                 case 'circle': this._map.setPaintProperty(layerId, 'circle-opacity', opacity); break;
+                case 'heatmap': this._map.setPaintProperty(layerId, 'heatmap-opacity', opacity); break;
             }
         } catch { /* ok */ }
     },
@@ -353,6 +361,59 @@ const TmMap = {
         if (animation === 'flyTo') this._map.flyTo(camera);
         else if (animation === 'easeTo') this._map.easeTo(camera);
         else this._map.jumpTo(camera);
+    },
+
+    cinematicFlyTo(opts) {
+        if (!this._map) return;
+        const from = this._map.getCenter();
+        const to = opts.center || from;
+        const fromZoom = this._map.getZoom();
+        const toZoom = opts.zoom || fromZoom;
+
+        // Calculate distance to determine intermediate zoom
+        const dx = to[0] - from.lng;
+        const dy = to[1] - from.lat;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        // For nearby: small zoom-out; for far: bigger zoom-out
+        const minZoom = Math.max(1, Math.min(fromZoom, toZoom) - Math.min(6, dist * 2));
+        const stepDuration = (opts.duration || 3000) / 3;
+
+        // Step 1: zoom out
+        this._map.easeTo({
+            center: from,
+            zoom: minZoom,
+            bearing: this._map.getBearing(),
+            pitch: 0,
+            duration: stepDuration,
+            easing: t => t * (2 - t), // ease out
+        });
+
+        setTimeout(() => {
+            // Step 2: pan to midpoint then destination
+            const midLng = (from.lng + to[0]) / 2;
+            const midLat = (from.lat + to[1]) / 2;
+            this._map.easeTo({
+                center: [midLng, midLat],
+                zoom: minZoom,
+                bearing: (opts.bearing || 0) / 2,
+                pitch: 0,
+                duration: stepDuration,
+                easing: t => t,
+            });
+
+            setTimeout(() => {
+                // Step 3: zoom in to destination
+                this._map.easeTo({
+                    center: to,
+                    zoom: toZoom,
+                    bearing: opts.bearing || 0,
+                    pitch: opts.pitch || 0,
+                    duration: stepDuration,
+                    easing: t => t * t, // ease in
+                });
+            }, stepDuration);
+        }, stepDuration);
     },
 
     fitBounds(bounds, padding = 50) {
