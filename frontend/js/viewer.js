@@ -95,6 +95,9 @@ const StoryViewer = {
             App.toast(I18n.t('editor.share_copied') || 'Link copied!', 'success');
         };
 
+        // Print button
+        document.getElementById('viewer-print-btn').onclick = () => this._printSlide();
+
         // Geocode search in viewer
         this._setupViewerGeocode();
 
@@ -104,6 +107,11 @@ const StoryViewer = {
         // Load contributions if participatory mode is enabled
         if (data.story.settings?.participatory_enabled) {
             this._initParticipatory(data.story);
+        }
+
+        // Build unguided navigation if enabled
+        if (data.story.settings?.navigation_mode === 'unguided') {
+            this._buildUnguidedNav();
         }
 
         // Handle hotspot links (data-tm-link clicks)
@@ -712,6 +720,9 @@ const StoryViewer = {
 
         // Update TOC highlight
         this._updateTOCHighlight(index);
+
+        // Update unguided nav
+        this._updateUnguidedNav(index);
 
         // ── Timeline ──
         this._stopTimeline();
@@ -1424,5 +1435,85 @@ const StoryViewer = {
         panel.querySelectorAll('.toc-slide-item').forEach(item => {
             item.classList.toggle('active', parseInt(item.dataset.tocSlide) === index);
         });
+    },
+
+    _buildUnguidedNav() {
+        const existing = document.getElementById('viewer-unguided-nav');
+        if (existing) existing.remove();
+
+        const nav = document.createElement('div');
+        nav.id = 'viewer-unguided-nav';
+        nav.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:50;background:rgba(0,0,0,0.85);padding:8px 16px;display:flex;gap:8px;overflow-x:auto;backdrop-filter:blur(8px);';
+
+        this._slides.forEach((slide, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-sm ' + (i === this._currentSlide ? 'btn-primary' : 'btn-outline-light');
+            btn.style.cssText = 'white-space:nowrap;min-width:fit-content;font-size:12px;';
+            btn.textContent = slide.title || `Slide ${i + 1}`;
+            btn.addEventListener('click', () => this.goTo(i));
+            nav.appendChild(btn);
+        });
+
+        document.getElementById('story-viewer').appendChild(nav);
+    },
+
+    _updateUnguidedNav(index) {
+        const unguidedNav = document.getElementById('viewer-unguided-nav');
+        if (unguidedNav) {
+            unguidedNav.querySelectorAll('button').forEach((btn, i) => {
+                btn.className = 'btn btn-sm ' + (i === index ? 'btn-primary' : 'btn-outline-light');
+                btn.style.cssText = 'white-space:nowrap;min-width:fit-content;font-size:12px;';
+            });
+        }
+    },
+
+    _printSlide() {
+        const slide = this._slides[this._currentSlide];
+        if (!slide) return;
+
+        const map = TmMap.getMap();
+        let mapImage = '';
+        try {
+            mapImage = map?.getCanvas()?.toDataURL('image/png') || '';
+        } catch {}
+
+        const printWin = window.open('', '_blank');
+        printWin.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${this._data.story.title} - ${slide.title || 'Slide'}</title>
+                <style>
+                    @page { size: A4 landscape; margin: 15mm; }
+                    body { font-family: 'Ubuntu', Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
+                    .print-header { border-bottom: 2px solid #4f6df5; padding-bottom: 12px; margin-bottom: 20px; }
+                    .print-header h1 { margin: 0; font-size: 24px; color: #1a1a2e; }
+                    .print-header h2 { margin: 4px 0 0; font-size: 16px; color: #666; font-weight: normal; }
+                    .print-content { display: flex; gap: 24px; }
+                    .print-map { flex: 1; }
+                    .print-map img { width: 100%; border: 1px solid #ddd; border-radius: 4px; }
+                    .print-narrative { flex: 1; font-size: 14px; line-height: 1.6; }
+                    .print-narrative h1, .print-narrative h2, .print-narrative h3 { color: #1a1a2e; }
+                    .print-footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 11px; color: #999; text-align: center; }
+                    @media print { body { padding: 0; } }
+                </style>
+            </head>
+            <body>
+                <div class="print-header">
+                    <h1>${this._data.story.title || 'TalkingMaps'}</h1>
+                    <h2>${slide.title || ''}</h2>
+                </div>
+                <div class="print-content">
+                    ${mapImage ? `<div class="print-map"><img src="${mapImage}"></div>` : ''}
+                    <div class="print-narrative">${slide.narrative || ''}</div>
+                </div>
+                <div class="print-footer">
+                    Generated with TalkingMaps &mdash; ${new Date().toLocaleDateString()}
+                </div>
+            </body>
+            </html>
+        `);
+        printWin.document.close();
+        setTimeout(() => printWin.print(), 500);
     },
 };

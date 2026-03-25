@@ -692,6 +692,15 @@ async def list_templates(user: dict = Depends(get_current_user), db: AsyncSessio
     return [dict(r) for r in result.mappings().all()]
 
 
+@router.get("/templates/system")
+async def list_system_templates(db: AsyncSession = Depends(get_db)):
+    """List pre-built system templates (no auth required)."""
+    result = await db.execute(text(
+        "SELECT * FROM story_templates WHERE is_system = TRUE ORDER BY position"
+    ))
+    return [dict(r) for r in result.mappings().all()]
+
+
 # ── Story Collaborators (per-story sharing) ──────
 
 class CollaboratorAdd(BaseModel):

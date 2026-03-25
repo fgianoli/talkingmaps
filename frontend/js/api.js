@@ -109,6 +109,7 @@ const Api = {
     // Templates
     saveAsTemplate(storyId) { return this.post(`/api/stories/${storyId}/save-as-template`, {}); },
     listTemplates() { return this.get('/api/stories/templates/list'); },
+    listStoryTemplates() { return this.get('/api/stories/templates/system'); },
 
     async exportStoryJSON(id) {
         const resp = await fetch(`/api/stories/${id}/export`, {

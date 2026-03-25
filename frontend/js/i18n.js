@@ -161,6 +161,7 @@ const I18n = {
             'action.delete': 'Elimina',
             'action.cancel': 'Annulla',
             'action.confirm': 'OK, vai!',
+            'action.apply': 'Applica',
             'action.save': 'Salva',
             'action.close': 'Chiudi',
             'action.copy_url': 'Copia link',
@@ -234,6 +235,10 @@ const I18n = {
             'editor.heatmap_intensity': 'Intensità',
             'editor.heatmap_weight': 'Campo peso',
             'editor.heatmap_weight_hint': 'Campo numerico (opzionale)',
+            'editor.cluster_enable': 'Abilita clustering punti',
+            'editor.nav_mode': 'Modalità navigazione',
+            'editor.nav_guided': 'Guidata (sequenziale)',
+            'editor.nav_unguided': 'Libera (salta a qualsiasi slide)',
             'layers.add_wfs': 'Aggiungi WFS',
             'layers.add_wfs_title': 'Aggiungi layer WFS',
             'layers.wfs_url': 'URL servizio WFS',
@@ -534,6 +539,27 @@ const I18n = {
             'editor.add_cog': 'Aggiungi raster COG',
             'editor.cog_url': 'URL del file COG',
             'editor.cog_hint': 'Cloud Optimized GeoTIFF: raster servito direttamente via HTTP, senza tile server.',
+
+            // Hillshade
+            'layers.add_hillshade': 'Hillshade/DEM',
+            'layers.add_hillshade_title': 'Aggiungi layer Hillshade',
+            'layers.hillshade_url': 'URL tiles DEM raster',
+            'layers.hillshade_encoding': 'Codifica elevazione',
+            'layers.hillshade_hint': 'Usa tiles raster-dem (Mapbox Terrain RGB o Terrarium) per generare ombreggiatura del rilievo.',
+
+            // Data filter
+            'editor.layer_filter': 'Filtra dati',
+            'editor.filter_field': 'Campo',
+            'editor.filter_none': '(nessun filtro)',
+            'editor.filter_operator': 'Operatore',
+            'editor.filter_value': 'Valore',
+            'editor.filter_value_hint': 'Inserisci un valore...',
+            'editor.filter_hint': 'Filtra le feature visualizzate in base ai valori degli attributi. Seleziona "(nessun filtro)" per rimuovere.',
+            'editor.filter_applied': 'Filtro applicato',
+
+            // Export image
+            'editor.export_image': 'Esporta immagine',
+            'editor.export_success': 'Immagine esportata con successo',
 
             // Chart wizard
             'chartwiz.title': 'Crea grafico',
@@ -903,6 +929,7 @@ const I18n = {
             'action.delete': 'Delete',
             'action.cancel': 'Cancel',
             'action.confirm': 'Let\'s go!',
+            'action.apply': 'Apply',
             'action.save': 'Save',
             'action.close': 'Close',
             'action.copy_url': 'Copy link',
@@ -974,6 +1001,10 @@ const I18n = {
             'editor.heatmap_intensity': 'Intensity',
             'editor.heatmap_weight': 'Weight field',
             'editor.heatmap_weight_hint': 'Numeric field (optional)',
+            'editor.cluster_enable': 'Enable point clustering',
+            'editor.nav_mode': 'Navigation mode',
+            'editor.nav_guided': 'Guided (sequential)',
+            'editor.nav_unguided': 'Unguided (jump to any slide)',
             'layers.add_wfs': 'Add WFS',
             'layers.add_wfs_title': 'Add WFS layer',
             'layers.wfs_url': 'WFS service URL',
@@ -1271,6 +1302,27 @@ const I18n = {
             'editor.add_cog': 'Add COG raster',
             'editor.cog_url': 'COG file URL',
             'editor.cog_hint': 'Cloud Optimized GeoTIFF: raster served directly via HTTP, no tile server needed.',
+
+            // Hillshade
+            'layers.add_hillshade': 'Hillshade/DEM',
+            'layers.add_hillshade_title': 'Add Hillshade layer',
+            'layers.hillshade_url': 'DEM raster tiles URL',
+            'layers.hillshade_encoding': 'Elevation encoding',
+            'layers.hillshade_hint': 'Use raster-dem tiles (Mapbox Terrain RGB or Terrarium) to generate hillshade relief.',
+
+            // Data filter
+            'editor.layer_filter': 'Filter data',
+            'editor.filter_field': 'Field',
+            'editor.filter_none': '(no filter)',
+            'editor.filter_operator': 'Operator',
+            'editor.filter_value': 'Value',
+            'editor.filter_value_hint': 'Enter a value...',
+            'editor.filter_hint': 'Filter displayed features by attribute values. Select "(no filter)" to remove.',
+            'editor.filter_applied': 'Filter applied',
+
+            // Export image
+            'editor.export_image': 'Export image',
+            'editor.export_success': 'Image exported successfully',
 
             'chartwiz.title': 'Create chart',
             'chartwiz.tab_paste': 'Paste data',
@@ -1634,6 +1686,7 @@ const I18n = {
             'action.delete': 'Eliminar',
             'action.cancel': 'Cancelar',
             'action.confirm': '¡Vamos!',
+            'action.apply': 'Aplicar',
             'action.save': 'Guardar',
             'action.close': 'Cerrar',
             'action.copy_url': 'Copiar enlace',
@@ -1705,6 +1758,10 @@ const I18n = {
             'editor.heatmap_intensity': 'Intensidad',
             'editor.heatmap_weight': 'Campo de peso',
             'editor.heatmap_weight_hint': 'Campo numérico (opcional)',
+            'editor.cluster_enable': 'Habilitar clustering de puntos',
+            'editor.nav_mode': 'Modo de navegación',
+            'editor.nav_guided': 'Guiada (secuencial)',
+            'editor.nav_unguided': 'Libre (saltar a cualquier diapositiva)',
             'layers.add_wfs': 'Añadir WFS',
             'layers.add_wfs_title': 'Añadir capa WFS',
             'layers.wfs_url': 'URL del servicio WFS',
@@ -2002,6 +2059,27 @@ const I18n = {
             'editor.add_cog': 'Añadir raster COG',
             'editor.cog_url': 'URL del archivo COG',
             'editor.cog_hint': 'Cloud Optimized GeoTIFF: raster servido directamente vía HTTP, sin servidor de tiles.',
+
+            // Hillshade
+            'layers.add_hillshade': 'Hillshade/DEM',
+            'layers.add_hillshade_title': 'Añadir capa Hillshade',
+            'layers.hillshade_url': 'URL de tiles DEM raster',
+            'layers.hillshade_encoding': 'Codificación de elevación',
+            'layers.hillshade_hint': 'Usa tiles raster-dem (Mapbox Terrain RGB o Terrarium) para generar sombreado del relieve.',
+
+            // Data filter
+            'editor.layer_filter': 'Filtrar datos',
+            'editor.filter_field': 'Campo',
+            'editor.filter_none': '(sin filtro)',
+            'editor.filter_operator': 'Operador',
+            'editor.filter_value': 'Valor',
+            'editor.filter_value_hint': 'Introduce un valor...',
+            'editor.filter_hint': 'Filtra las features mostradas por valores de atributos. Selecciona "(sin filtro)" para eliminar.',
+            'editor.filter_applied': 'Filtro aplicado',
+
+            // Export image
+            'editor.export_image': 'Exportar imagen',
+            'editor.export_success': 'Imagen exportada con éxito',
 
             'chartwiz.title': 'Crear gráfico',
             'chartwiz.tab_paste': 'Pegar datos',
@@ -2365,6 +2443,7 @@ const I18n = {
             'action.delete': 'Elimina',
             'action.cancel': 'Cancel·la',
             'action.confirm': 'Som-hi!',
+            'action.apply': 'Aplica',
             'action.save': 'Desa',
             'action.close': 'Tanca',
             'action.copy_url': 'Copia l\'enllaç',
@@ -2436,6 +2515,10 @@ const I18n = {
             'editor.heatmap_intensity': 'Intensitat',
             'editor.heatmap_weight': 'Camp de pes',
             'editor.heatmap_weight_hint': 'Camp numèric (opcional)',
+            'editor.cluster_enable': 'Habilitar clustering de punts',
+            'editor.nav_mode': 'Mode de navegació',
+            'editor.nav_guided': 'Guiada (seqüencial)',
+            'editor.nav_unguided': 'Lliure (salta a qualsevol diapositiva)',
             'layers.add_wfs': 'Afegeix WFS',
             'layers.add_wfs_title': 'Afegeix capa WFS',
             'layers.wfs_url': 'URL del servei WFS',
@@ -2733,6 +2816,27 @@ const I18n = {
             'editor.add_cog': 'Afegeix ràster COG',
             'editor.cog_url': 'URL del fitxer COG',
             'editor.cog_hint': 'Cloud Optimized GeoTIFF: ràster servit directament via HTTP, sense servidor de tiles.',
+
+            // Hillshade
+            'layers.add_hillshade': 'Hillshade/DEM',
+            'layers.add_hillshade_title': 'Afegeix capa Hillshade',
+            'layers.hillshade_url': 'URL de tiles DEM ràster',
+            'layers.hillshade_encoding': 'Codificació d\'elevació',
+            'layers.hillshade_hint': 'Usa tiles raster-dem (Mapbox Terrain RGB o Terrarium) per generar ombreig del relleu.',
+
+            // Data filter
+            'editor.layer_filter': 'Filtra dades',
+            'editor.filter_field': 'Camp',
+            'editor.filter_none': '(sense filtre)',
+            'editor.filter_operator': 'Operador',
+            'editor.filter_value': 'Valor',
+            'editor.filter_value_hint': 'Introdueix un valor...',
+            'editor.filter_hint': 'Filtra les features mostrades per valors d\'atributs. Selecciona "(sense filtre)" per eliminar.',
+            'editor.filter_applied': 'Filtre aplicat',
+
+            // Export image
+            'editor.export_image': 'Exporta imatge',
+            'editor.export_success': 'Imatge exportada amb èxit',
 
             'chartwiz.title': 'Crea gràfic',
             'chartwiz.tab_paste': 'Enganxa dades',
@@ -3096,6 +3200,7 @@ const I18n = {
             'action.delete': 'Supprimer',
             'action.cancel': 'Annuler',
             'action.confirm': 'C\'est parti !',
+            'action.apply': 'Appliquer',
             'action.save': 'Enregistrer',
             'action.close': 'Fermer',
             'action.copy_url': 'Copier le lien',
@@ -3167,6 +3272,10 @@ const I18n = {
             'editor.heatmap_intensity': 'Intensité',
             'editor.heatmap_weight': 'Champ de poids',
             'editor.heatmap_weight_hint': 'Champ numérique (optionnel)',
+            'editor.cluster_enable': 'Activer le clustering des points',
+            'editor.nav_mode': 'Mode de navigation',
+            'editor.nav_guided': 'Guidée (séquentielle)',
+            'editor.nav_unguided': 'Libre (aller à n\'importe quelle diapositive)',
             'layers.add_wfs': 'Ajouter WFS',
             'layers.add_wfs_title': 'Ajouter une couche WFS',
             'layers.wfs_url': 'URL du service WFS',
@@ -3464,6 +3573,27 @@ const I18n = {
             'editor.add_cog': 'Ajouter un raster COG',
             'editor.cog_url': 'URL du fichier COG',
             'editor.cog_hint': 'Cloud Optimized GeoTIFF : raster servi directement via HTTP, sans serveur de tuiles.',
+
+            // Hillshade
+            'layers.add_hillshade': 'Hillshade/MNT',
+            'layers.add_hillshade_title': 'Ajouter une couche Hillshade',
+            'layers.hillshade_url': 'URL des tuiles DEM raster',
+            'layers.hillshade_encoding': 'Encodage d\'élévation',
+            'layers.hillshade_hint': 'Utilisez des tuiles raster-dem (Mapbox Terrain RGB ou Terrarium) pour générer un ombrage du relief.',
+
+            // Data filter
+            'editor.layer_filter': 'Filtrer les données',
+            'editor.filter_field': 'Champ',
+            'editor.filter_none': '(aucun filtre)',
+            'editor.filter_operator': 'Opérateur',
+            'editor.filter_value': 'Valeur',
+            'editor.filter_value_hint': 'Entrez une valeur...',
+            'editor.filter_hint': 'Filtrez les entités affichées par valeurs d\'attributs. Sélectionnez "(aucun filtre)" pour supprimer.',
+            'editor.filter_applied': 'Filtre appliqué',
+
+            // Export image
+            'editor.export_image': 'Exporter l\'image',
+            'editor.export_success': 'Image exportée avec succès',
 
             'chartwiz.title': 'Créer un graphique',
             'chartwiz.tab_paste': 'Coller des données',

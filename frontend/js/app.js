@@ -572,6 +572,21 @@ const App = {
         const t = I18n.t.bind(I18n);
         const templates = ['sidecar', 'tour', 'narrative', 'presentation', 'city_tour', 'historical_journey', 'photo_story', 'data_story'];
 
+        // Fetch system templates from the database
+        let systemTemplates = [];
+        try {
+            systemTemplates = await Api.listStoryTemplates();
+        } catch { /* ignore – will just show local templates */ }
+
+        const systemTemplateCards = systemTemplates.map(st => {
+            return `<div class="story-template-card" data-template="system_${st.id}"
+                onclick="document.querySelectorAll('.story-template-card').forEach(c=>c.classList.remove('active'));this.classList.add('active');document.getElementById('modal-story-template').value='system_${st.id}';">
+                <i class="bi ${st.icon || 'bi-file-earmark'}"></i>
+                <strong>${st.name}</strong>
+                <small>${st.description || ''}</small>
+            </div>`;
+        }).join('');
+
         const templateCards = templates.map(key => {
             const tmpl = this._storyTemplates[key];
             return `<div class="story-template-card ${key === 'sidecar' ? 'active' : ''}" data-template="${key}"
@@ -581,6 +596,17 @@ const App = {
                 <small>${t('story.template_' + key + '_desc')}</small>
             </div>`;
         }).join('');
+
+        // Build system templates section (shown first if any exist)
+        const systemSection = systemTemplates.length > 0 ? `
+            <div class="mb-2">
+                <small class="text-muted fw-bold text-uppercase">${t('story.system_templates') || 'Pre-built Templates'}</small>
+            </div>
+            <div class="story-template-grid mb-3">${systemTemplateCards}</div>
+            <div class="mb-2">
+                <small class="text-muted fw-bold text-uppercase">${t('story.basic_templates') || 'Basic Templates'}</small>
+            </div>
+        ` : '';
 
         const result = await this.modal({
             title: t('story.new_title'),
@@ -596,6 +622,7 @@ const App = {
                 </div>
                 <div class="mb-3">
                     <label class="form-label">${t('story.template')}</label>
+                    ${systemSection}
                     <div class="story-template-grid">${templateCards}</div>
                     <input type="hidden" id="modal-story-template" value="sidecar">
                 </div>
@@ -625,11 +652,25 @@ const App = {
                 visibility: result.visibility,
             });
 
-            // Create starter slides from template
-            const tmpl = this._storyTemplates[result.template];
-            if (tmpl) {
-                for (let i = 0; i < tmpl.slides.length; i++) {
-                    const s = tmpl.slides[i];
+            // Check if a system template was selected
+            let slidesToCreate = null;
+            if (result.template && result.template.startsWith('system_')) {
+                const systemId = parseInt(result.template.replace('system_', ''));
+                const sysTmpl = systemTemplates.find(st => st.id === systemId);
+                if (sysTmpl && sysTmpl.template_data && sysTmpl.template_data.slides) {
+                    slidesToCreate = sysTmpl.template_data.slides;
+                }
+            } else {
+                // Use local template
+                const tmpl = this._storyTemplates[result.template];
+                if (tmpl) {
+                    slidesToCreate = tmpl.slides;
+                }
+            }
+
+            if (slidesToCreate) {
+                for (let i = 0; i < slidesToCreate.length; i++) {
+                    const s = slidesToCreate[i];
                     try {
                         await Api.createSlide({
                             story_id: story.id,
@@ -637,6 +678,7 @@ const App = {
                             narrative: s.narrative,
                             layout: s.layout,
                             sort_order: i,
+                            map_animation: s.map_animation || 'flyTo',
                         });
                     } catch { /* continue with other slides */ }
                 }

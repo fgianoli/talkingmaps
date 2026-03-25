@@ -34,6 +34,7 @@ const TmMap = {
             pitch: opts.pitch || 0,
             maxPitch: 85,
             attributionControl: true,
+            preserveDrawingBuffer: true,
         });
 
         this._map.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -143,10 +144,17 @@ const TmMap = {
 
         // Add source
         if (layer_type === 'geojson') {
-            this._map.addSource(sourceId, {
+            const sourceOpts = {
                 type: 'geojson',
                 data: source_config.url || source_config.data || { type: 'FeatureCollection', features: [] },
-            });
+            };
+            // Enable clustering if configured
+            if (source_config.cluster) {
+                sourceOpts.cluster = true;
+                sourceOpts.clusterMaxZoom = source_config.clusterMaxZoom || 14;
+                sourceOpts.clusterRadius = source_config.clusterRadius || 50;
+            }
+            this._map.addSource(sourceId, sourceOpts);
         } else if (layer_type === 'wms') {
             const wmsUrl = this._buildWmsUrl(source_config.url, source_config);
             this._map.addSource(sourceId, {
@@ -182,6 +190,14 @@ const TmMap = {
                 minzoom: source_config.minzoom || 0,
                 maxzoom: source_config.maxzoom || 22,
             });
+        } else if (layer_type === 'hillshade') {
+            this._map.addSource(sourceId, {
+                type: 'raster-dem',
+                tiles: [source_config.url],
+                tileSize: source_config.tileSize || 256,
+                maxzoom: source_config.maxzoom || 14,
+                encoding: source_config.encoding || 'mapbox',
+            });
         }
 
         // Add layer with style
@@ -191,6 +207,18 @@ const TmMap = {
                 type: 'raster',
                 source: sourceId,
                 paint: style_config?.paint || { 'raster-opacity': layerConfig.opacity || 1 },
+            });
+        } else if (layer_type === 'hillshade') {
+            this._map.addLayer({
+                id: layerId,
+                type: 'hillshade',
+                source: sourceId,
+                paint: {
+                    'hillshade-exaggeration': style_config?.paint?.['hillshade-exaggeration'] ?? 0.5,
+                    'hillshade-shadow-color': style_config?.paint?.['hillshade-shadow-color'] || '#000000',
+                    'hillshade-highlight-color': style_config?.paint?.['hillshade-highlight-color'] || '#ffffff',
+                    'hillshade-illumination-direction': style_config?.paint?.['hillshade-illumination-direction'] ?? 335,
+                },
             });
         } else if (layer_type === 'geojson' || layer_type === 'vector-tiles' || layer_type === 'wfs') {
             this._addVectorLayer(layerId, sourceId, style_config, layer_type, source_config);
@@ -218,6 +246,41 @@ const TmMap = {
         }
 
         this._map.addLayer(layerDef);
+
+        // Cluster layers
+        try {
+            const source = this._map.getSource(sourceId);
+            if (source && source._options?.cluster) {
+                // Cluster circles
+                this._map.addLayer({
+                    id: `${layerId}-clusters`,
+                    type: 'circle',
+                    source: sourceId,
+                    filter: ['has', 'point_count'],
+                    paint: {
+                        'circle-color': ['step', ['get', 'point_count'], '#51bbd6', 10, '#f1f075', 50, '#f28cb1'],
+                        'circle-radius': ['step', ['get', 'point_count'], 20, 10, 30, 50, 40],
+                        'circle-stroke-width': 2,
+                        'circle-stroke-color': '#ffffff',
+                    },
+                });
+                // Cluster count labels
+                this._map.addLayer({
+                    id: `${layerId}-cluster-count`,
+                    type: 'symbol',
+                    source: sourceId,
+                    filter: ['has', 'point_count'],
+                    layout: {
+                        'text-field': '{point_count_abbreviated}',
+                        'text-font': ['Open Sans Bold'],
+                        'text-size': 13,
+                    },
+                    paint: { 'text-color': '#333333' },
+                });
+                // Make the original layer only show unclustered points
+                this._map.setFilter(layerId, ['!', ['has', 'point_count']]);
+            }
+        } catch {}
 
         // Add outline for polygons
         if (layerType === 'fill') {
@@ -247,6 +310,8 @@ const TmMap = {
         if (!layerId || !this._map) return;
         try {
             if (this._map.getLayer(`${layerId}-outline`)) this._map.removeLayer(`${layerId}-outline`);
+            if (this._map.getLayer(`${layerId}-clusters`)) this._map.removeLayer(`${layerId}-clusters`);
+            if (this._map.getLayer(`${layerId}-cluster-count`)) this._map.removeLayer(`${layerId}-cluster-count`);
             if (this._map.getLayer(layerId)) this._map.removeLayer(layerId);
             if (this._map.getSource(`layer-${id}`)) this._map.removeSource(`layer-${id}`);
         } catch { /* ok */ }
@@ -277,6 +342,7 @@ const TmMap = {
                 case 'line': this._map.setPaintProperty(layerId, 'line-opacity', opacity); break;
                 case 'circle': this._map.setPaintProperty(layerId, 'circle-opacity', opacity); break;
                 case 'heatmap': this._map.setPaintProperty(layerId, 'heatmap-opacity', opacity); break;
+                case 'hillshade': this._map.setPaintProperty(layerId, 'hillshade-exaggeration', opacity); break;
             }
         } catch { /* ok */ }
     },

@@ -15,12 +15,45 @@ from core.security import get_current_user
 router = APIRouter()
 
 
+import ipaddress
+import socket
+
+# Private/internal IP ranges that should never be proxied (SSRF protection)
+_BLOCKED_NETWORKS = [
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("169.254.0.0/16"),  # link-local / cloud metadata
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("fc00::/7"),
+]
+
+
+def _is_private_host(hostname: str) -> bool:
+    """Check if hostname resolves to a private/internal IP."""
+    try:
+        for info in socket.getaddrinfo(hostname, None):
+            addr = ipaddress.ip_address(info[4][0])
+            for net in _BLOCKED_NETWORKS:
+                if addr in net:
+                    return True
+    except (socket.gaierror, ValueError):
+        pass
+    return False
+
+
 async def _is_host_allowed(url: str, db: AsyncSession = None, user_id: int = None) -> bool:
-    """Check against static whitelist + user's service catalog."""
+    """Check against static whitelist + user's service catalog. Block private IPs."""
     from routers.wms_proxy import ALLOWED_HOSTS
     try:
         parsed = urlparse(url)
         host = parsed.hostname
+        if not host:
+            return False
+        # Block private/internal IPs (SSRF protection)
+        if _is_private_host(host):
+            return False
         if host in ALLOWED_HOSTS:
             return True
         # Check user's service catalog
@@ -31,9 +64,6 @@ async def _is_host_allowed(url: str, db: AsyncSession = None, user_id: int = Non
             )
             if result.fetchone():
                 return True
-        # Allow any host if user is authenticated (they explicitly added the URL)
-        if user_id:
-            return True
         return False
     except Exception:
         return False

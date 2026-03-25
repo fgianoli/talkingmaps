@@ -98,6 +98,9 @@ const StoryEditor = {
                         <button class="btn btn-sm btn-outline-light" id="editor-preview" title="${t('editor.preview')}">
                             <i class="bi bi-eye"></i>
                         </button>
+                        <button class="btn btn-sm btn-outline-light" id="editor-export-image" title="${t('editor.export_image')}">
+                            <i class="bi bi-camera"></i>
+                        </button>
                         <button class="btn btn-sm btn-outline-light" id="editor-share" title="${t('editor.share')}">
                             <i class="bi bi-share"></i>
                         </button>
@@ -931,6 +934,17 @@ const StoryEditor = {
                     </div>
                 </div>
 
+                <!-- Navigation Mode -->
+                <div class="prop-section">
+                    <div class="prop-section-title"><i class="bi bi-signpost-split"></i> ${t('editor.nav_mode')}</div>
+                    <div class="prop-row">
+                        <select class="form-select" id="prop-nav-mode">
+                            <option value="guided" ${this._story.settings?.navigation_mode !== 'unguided' ? 'selected' : ''}>${t('editor.nav_guided')}</option>
+                            <option value="unguided" ${this._story.settings?.navigation_mode === 'unguided' ? 'selected' : ''}>${t('editor.nav_unguided')}</option>
+                        </select>
+                    </div>
+                </div>
+
                 <!-- Transition -->
                 <div class="prop-section">
                     <div class="prop-section-title"><i class="bi bi-play-circle"></i> ${t('editor.transition') || 'Transition'}</div>
@@ -1116,6 +1130,8 @@ const StoryEditor = {
                                     </button>
                                     ${l.layer_type === 'geojson' || l.layer_type === 'wfs' ? `<button class="btn btn-sm" onclick="StoryEditor._openAttributeTable(${l.layer_id})" title="${t('editor.attribute_table')}">
                                         <i class="bi bi-table" style="font-size:12px"></i>
+                                    </button><button class="btn btn-sm" onclick="StoryEditor._openLayerFilter(${l.layer_id})" title="${t('editor.layer_filter')}">
+                                        <i class="bi bi-funnel" style="font-size:12px"></i>
                                     </button>` : ''}
                                     <small class="text-muted">${l.layer_type}</small>
                                 </div>
@@ -1457,6 +1473,16 @@ const StoryEditor = {
             const raw = e.target.value || '';
             const categories = raw.split(',').map(s => s.trim()).filter(Boolean);
             this._story.settings = { ...(this._story.settings || {}), participatory_categories: categories };
+            try {
+                await Api.updateStory(this._storyId, { settings: this._story.settings });
+                App.toast(I18n.t('editor.autosaved'), 'success');
+            } catch (err) { App.toast(err.message, 'danger'); }
+        });
+
+        // Navigation Mode
+        document.getElementById('prop-nav-mode')?.addEventListener('change', async (e) => {
+            const mode = e.target.value;
+            this._story.settings = { ...(this._story.settings || {}), navigation_mode: mode };
             try {
                 await Api.updateStory(this._storyId, { settings: this._story.settings });
                 App.toast(I18n.t('editor.autosaved'), 'success');
@@ -2531,6 +2557,13 @@ const StoryEditor = {
                         </select>
                     </div>
 
+                    <div class="col-12" id="sym-cluster-section">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="sym-cluster-enable" ${layer.source_config?.cluster ? 'checked' : ''}>
+                            <label class="form-check-label">${t('editor.cluster_enable')}</label>
+                        </div>
+                    </div>
+
                     <!-- Polygon -->
                     <div class="col-6" id="sym-fill-section">
                         <label class="form-label">${t('editor.sym_fill_color')}</label>
@@ -2583,7 +2616,8 @@ const StoryEditor = {
             confirmText: t('action.save'),
             onConfirm: () => {
                 const geomType = document.getElementById('sym-geom-type')?.value || 'fill';
-                const style = { type: geomType, paint: {} };
+                const clusterEnabled = document.getElementById('sym-cluster-enable')?.checked;
+                const style = { type: geomType, paint: {}, _clusterEnabled: clusterEnabled };
 
                 if (geomType === 'fill') {
                     style.paint['fill-color'] = document.getElementById('sym-fill-color')?.value;
@@ -2617,6 +2651,19 @@ const StoryEditor = {
         });
 
         if (!result) return;
+
+        // Extract and remove cluster flag from style result
+        const clusterEnabled = result._clusterEnabled;
+        delete result._clusterEnabled;
+
+        // Update cluster config on source if changed
+        if (clusterEnabled !== undefined) {
+            const srcConfig = { ...layer.source_config, cluster: clusterEnabled };
+            try {
+                await Api.updateLayer(layerId, { source_config: srcConfig });
+                layer.source_config = srcConfig;
+            } catch {}
+        }
 
         // Apply style to map immediately
         try {
@@ -2680,9 +2727,16 @@ const StoryEditor = {
                 if (btn) btn.classList.remove('active');
                 this._map.getCanvas().style.cursor = '';
 
+                // Auto-fill title with reverse geocode
+                let suggestedTitle = '';
+                try {
+                    const geo = await Api.reverseGeocode(e.lngLat.lat, e.lngLat.lng);
+                    if (geo?.display_name) suggestedTitle = geo.display_name.split(',').slice(0, 2).join(',').trim();
+                } catch {}
+
                 const markerData = await this._showMarkerModal({
                     lng: e.lngLat.lng, lat: e.lngLat.lat,
-                    title: '', popup_content: '', color: '#e74c3c', icon: 'marker',
+                    title: suggestedTitle, popup_content: '', color: '#e74c3c', icon: 'marker',
                 });
                 if (!markerData) return;
 
@@ -2893,6 +2947,7 @@ const StoryEditor = {
             StoryViewer.load(data);
         });
 
+        document.getElementById('editor-export-image')?.addEventListener('click', () => this._exportImage());
         document.getElementById('editor-manage-layers')?.addEventListener('click', () => this._openLayersModal());
         document.getElementById('editor-wiki-osm-btn')?.addEventListener('click', () => this._showWikiOsmModal());
         document.getElementById('editor-share')?.addEventListener('click', () => this._showShareModal());
@@ -3070,6 +3125,9 @@ const StoryEditor = {
                                 <button class="btn btn-sm btn-outline-light" onclick="StoryEditor._addCogLayer()">
                                     <i class="bi bi-file-earmark-image"></i> ${t('editor.add_cog')}
                                 </button>
+                                <button class="btn btn-sm btn-outline-light" onclick="StoryEditor._addHillshadeLayer()">
+                                    <i class="bi bi-mountains"></i> ${t('layers.add_hillshade')}
+                                </button>
                                 <button class="btn btn-sm btn-outline-info" onclick="StoryEditor._openServiceCatalog()">
                                     <i class="bi bi-server"></i> ${t('services.my_services')}
                                 </button>
@@ -3237,6 +3295,170 @@ const StoryEditor = {
             });
             await this._addLayerToStory(layer.id);
         } catch (err) { App.toast(err.message, 'danger'); }
+    },
+
+    async _addHillshadeLayer() {
+        const t = I18n.t.bind(I18n);
+        const result = await App.modal({
+            title: t('layers.add_hillshade_title'),
+            body: `
+                <div class="mb-3"><label class="form-label">${t('layers.hillshade_url')}</label>
+                    <input type="text" class="form-control" id="modal-hillshade-url" placeholder="https://demotiles.maplibre.org/terrain-tiles/{z}/{x}/{y}.png"></div>
+                <div class="mb-3"><label class="form-label">${t('layers.wms_name')}</label>
+                    <input type="text" class="form-control" id="modal-hillshade-name" placeholder="Terrain"></div>
+                <div class="mb-3"><label class="form-label">${t('layers.hillshade_encoding')}</label>
+                    <select class="form-select" id="modal-hillshade-encoding">
+                        <option value="mapbox">Mapbox Terrain RGB</option>
+                        <option value="terrarium">Terrarium</option>
+                    </select></div>
+                <small class="text-muted"><i class="bi bi-info-circle"></i> ${t('layers.hillshade_hint')}</small>
+            `,
+            confirmText: t('action.confirm'),
+            onConfirm: () => ({
+                url: document.getElementById('modal-hillshade-url')?.value,
+                name: document.getElementById('modal-hillshade-name')?.value,
+                encoding: document.getElementById('modal-hillshade-encoding')?.value,
+            }),
+        });
+        if (!result || !result.url) return;
+        try {
+            const layer = await Api.createLayer({
+                name: result.name || 'Hillshade', layer_type: 'hillshade',
+                source_config: { url: result.url, encoding: result.encoding || 'mapbox' },
+            });
+            await this._addLayerToStory(layer.id);
+        } catch (err) { App.toast(err.message, 'danger'); }
+    },
+
+    async _openLayerFilter(layerId) {
+        const t = I18n.t.bind(I18n);
+        const layer = this._layers.find(l => l.layer_id === layerId);
+        if (!layer) return;
+
+        // Get properties from first feature to show available fields
+        const map = TmMap.getMap();
+        const mlLayerId = `layer-${layerId}`;
+        let fields = [];
+        try {
+            const source = map.getSource(mlLayerId);
+            if (source && source._data?.features?.length) {
+                fields = Object.keys(source._data.features[0].properties || {});
+            } else {
+                // Try querying rendered features
+                const features = map.querySourceFeatures(mlLayerId);
+                if (features.length) fields = Object.keys(features[0].properties || {});
+            }
+        } catch {}
+
+        const currentFilter = layer.custom_style?.filter || null;
+        const currentField = currentFilter?.[1]?.[1] || '';
+        const currentOp = currentFilter ? currentFilter[0] : '==';
+        const currentVal = currentFilter?.[2] || '';
+
+        const result = await App.modal({
+            title: `${t('editor.layer_filter')}: ${layer.layer_name}`,
+            body: `
+                <div class="mb-3"><label class="form-label">${t('editor.filter_field')}</label>
+                    <select class="form-select" id="modal-filter-field">
+                        <option value="">${t('editor.filter_none')}</option>
+                        ${fields.map(f => `<option value="${f}" ${f === currentField ? 'selected' : ''}>${f}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="mb-3"><label class="form-label">${t('editor.filter_operator')}</label>
+                    <select class="form-select" id="modal-filter-op">
+                        <option value="==" ${currentOp === '==' ? 'selected' : ''}>=  (equals)</option>
+                        <option value="!=" ${currentOp === '!=' ? 'selected' : ''}>!=  (not equals)</option>
+                        <option value=">" ${currentOp === '>' ? 'selected' : ''}>>  (greater than)</option>
+                        <option value=">=" ${currentOp === '>=' ? 'selected' : ''}>>=  (greater or equal)</option>
+                        <option value="<" ${currentOp === '<' ? 'selected' : ''}><  (less than)</option>
+                        <option value="<=" ${currentOp === '<=' ? 'selected' : ''}><=  (less or equal)</option>
+                        <option value="has" ${currentOp === 'has' ? 'selected' : ''}>has (field exists)</option>
+                    </select>
+                </div>
+                <div class="mb-3"><label class="form-label">${t('editor.filter_value')}</label>
+                    <input type="text" class="form-control" id="modal-filter-value" value="${currentVal}" placeholder="${t('editor.filter_value_hint')}"></div>
+                <small class="text-muted"><i class="bi bi-info-circle"></i> ${t('editor.filter_hint')}</small>
+            `,
+            confirmText: t('action.apply'),
+        });
+        if (result === undefined) return; // cancelled
+
+        const field = document.getElementById('modal-filter-field')?.value;
+        const op = document.getElementById('modal-filter-op')?.value;
+        let val = document.getElementById('modal-filter-value')?.value;
+
+        try {
+            if (!field) {
+                // Remove filter
+                map.setFilter(mlLayerId, null);
+                if (map.getLayer(`${mlLayerId}-outline`)) map.setFilter(`${mlLayerId}-outline`, null);
+                delete layer.custom_style?.filter;
+            } else {
+                // Try numeric conversion
+                const numVal = parseFloat(val);
+                if (!isNaN(numVal) && String(numVal) === val) val = numVal;
+
+                let filter;
+                if (op === 'has') {
+                    filter = ['has', field];
+                } else {
+                    filter = [op, ['get', field], val];
+                }
+                map.setFilter(mlLayerId, filter);
+                if (map.getLayer(`${mlLayerId}-outline`)) map.setFilter(`${mlLayerId}-outline`, filter);
+                if (!layer.custom_style) layer.custom_style = {};
+                layer.custom_style.filter = filter;
+            }
+            App.toast(t('editor.filter_applied'), 'success');
+        } catch (err) {
+            App.toast(err.message, 'danger');
+        }
+    },
+
+    async _exportImage() {
+        const t = I18n.t.bind(I18n);
+        const map = TmMap.getMap();
+        if (!map) { App.toast('No map to export', 'warning'); return; }
+
+        try {
+            // Ensure map is rendered with preserveDrawingBuffer
+            const canvas = map.getCanvas();
+            const mapImage = canvas.toDataURL('image/png');
+
+            // Create export canvas with slide info
+            const exportCanvas = document.createElement('canvas');
+            const ctx = exportCanvas.getContext('2d');
+            const slide = this._slides[this._currentSlideIdx];
+
+            exportCanvas.width = canvas.width;
+            exportCanvas.height = canvas.height + 80;
+
+            // Draw map
+            const img = new Image();
+            img.onload = () => {
+                ctx.drawImage(img, 0, 0);
+
+                // Add title bar at bottom
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(0, canvas.height, exportCanvas.width, 80);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 20px Ubuntu, sans-serif';
+                ctx.fillText(slide?.title || this._story?.title || 'TalkingMaps', 20, canvas.height + 35);
+                ctx.font = '14px Ubuntu, sans-serif';
+                ctx.fillStyle = '#aaaaaa';
+                ctx.fillText(`TalkingMaps — ${new Date().toLocaleDateString()}`, 20, canvas.height + 60);
+
+                // Download
+                const link = document.createElement('a');
+                link.download = `talkingmaps-${this._storyId}-slide${this._currentSlideIdx + 1}.png`;
+                link.href = exportCanvas.toDataURL('image/png');
+                link.click();
+                App.toast(t('editor.export_success'), 'success');
+            };
+            img.src = mapImage;
+        } catch (err) {
+            App.toast(err.message, 'danger');
+        }
     },
 
     async _addWfsLayer() {

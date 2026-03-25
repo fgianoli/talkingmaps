@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "http://localhost:8080"
     UPLOAD_DIR: str = "/var/www/uploads"
     MAX_UPLOAD_SIZE_MB: int = 50
-    JWT_EXPIRE_MINUTES: int = 480
+    JWT_EXPIRE_MINUTES: int = 120  # 2 hours (was 8h - reduced for security)
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str = "admin"
     GOOGLE_CLIENT_ID: str = ""
