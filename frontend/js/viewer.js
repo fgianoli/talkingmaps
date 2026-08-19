@@ -223,12 +223,14 @@ const StoryViewer = {
         document.getElementById('viewer-toc-panel')?.remove();
         // Cleanup timeline
         this._stopTimeline();
+        this._clearTimelineFilter();
         document.getElementById('viewer-timeline-control')?.remove();
         // Cleanup audio
         if (this._currentAudio) {
             this._currentAudio.pause();
             this._currentAudio = null;
         }
+        document.getElementById('viewer-audio-control')?.remove();
         // Cleanup contributions
         this._contributionMarkers.forEach(m => m.remove());
         this._contributionMarkers = [];
@@ -768,12 +770,11 @@ const StoryViewer = {
 
         // ── Timeline ──
         this._stopTimeline();
+        this._clearTimelineFilter();
         document.getElementById('viewer-timeline-control')?.remove();
         const timeline = slide.map_config?.timeline;
         if (timeline?.enabled && timeline.layer_id && timeline.date_field && hasMap) {
-            // _initTimeline() is not implemented yet — guard so the rest of the slide still activates
-            if (typeof this._initTimeline === 'function') this._initTimeline(slide, timeline);
-            else console.warn('StoryViewer: slide has a timeline configured but _initTimeline() is not implemented');
+            this._initTimeline(slide, timeline);
         }
 
         // ── Audio ──
@@ -781,10 +782,9 @@ const StoryViewer = {
             this._currentAudio.pause();
             this._currentAudio = null;
         }
+        document.getElementById('viewer-audio-control')?.remove();
         if (slide.audio_url) {
-            // _initSlideAudio() is not implemented yet — guard so the rest of the slide still activates
-            if (typeof this._initSlideAudio === 'function') this._initSlideAudio(slide, index);
-            else console.warn('StoryViewer: slide has audio configured but _initSlideAudio() is not implemented');
+            this._initSlideAudio(slide, index);
         }
 
         // Auto-hide toolbar after a few seconds
@@ -1004,12 +1004,285 @@ const StoryViewer = {
         }, 100);
     },
 
+    // ═══════════════════════════════════════
+    //  TEMPORAL PLAYBACK
+    //  A slide can animate one of its layers through time by filtering it on a
+    //  date field. Configured per slide in map_config.timeline.
+    // ═══════════════════════════════════════
+
+    _timelineLayerId: null,
+    _timelineIndex: 0,
+
     _stopTimeline() {
         if (this._timelineInterval) {
             clearInterval(this._timelineInterval);
             this._timelineInterval = null;
         }
         this._timelinePlaying = false;
+    },
+
+    /** Stop playback and give the layer its original filter back. */
+    _clearTimelineFilter() {
+        if (!this._timelineLayerId) return;
+        TmMap.clearLayerTimeFilter(this._timelineLayerId);
+        this._timelineLayerId = null;
+    },
+
+    /**
+     * Turn the configured start/end into a list of playback steps.
+     * Two domains are supported: plain numbers (typically years) and dates.
+     * @returns {{values: Array, labels: string[], numeric: boolean}|null}
+     */
+    _buildTimelineSteps(start, end) {
+        const rawStart = String(start ?? '').trim();
+        const rawEnd = String(end ?? '').trim();
+        if (!rawStart || !rawEnd) return null;
+
+        const isPlainNumber = v => /^-?\d+(\.\d+)?$/.test(v);
+
+        // ── Numeric domain (years, counts, any ordinal number) ──
+        if (isPlainNumber(rawStart) && isPlainNumber(rawEnd)) {
+            let a = parseFloat(rawStart);
+            let b = parseFloat(rawEnd);
+            if (a > b) [a, b] = [b, a];
+
+            const wholeNumbers = Number.isInteger(a) && Number.isInteger(b);
+            const span = b - a;
+            let stepCount;
+            if (wholeNumbers && span <= 200) stepCount = span;
+            else stepCount = 100;
+
+            const values = [];
+            for (let i = 0; i <= stepCount; i++) {
+                const v = stepCount === 0 ? a : a + (span * i) / stepCount;
+                values.push(wholeNumbers ? Math.round(v) : v);
+            }
+            return {
+                values,
+                labels: values.map(v => (wholeNumbers ? String(v) : v.toFixed(2))),
+                numeric: true,
+            };
+        }
+
+        // ── Date domain ──
+        const t0 = Date.parse(rawStart);
+        const t1 = Date.parse(rawEnd);
+        if (!isFinite(t0) || !isFinite(t1)) return null;
+
+        const from = Math.min(t0, t1);
+        const to = Math.max(t0, t1);
+        const stepCount = 60;
+        // Sub-day ranges need the time of day to be part of the comparison
+        const withTime = (to - from) < 2 * 24 * 3600 * 1000;
+
+        const values = [];
+        const labels = [];
+        for (let i = 0; i <= stepCount; i++) {
+            const ms = stepCount === 0 ? from : from + ((to - from) * i) / stepCount;
+            const iso = new Date(ms).toISOString();
+            values.push(withTime ? iso.slice(0, 19) : iso.slice(0, 10));
+            labels.push(withTime
+                ? new Date(ms).toLocaleString(I18n.getLang())
+                : new Date(ms).toLocaleDateString(I18n.getLang()));
+        }
+        return { values, labels, numeric: false };
+    },
+
+    /**
+     * Build the playback control for a slide and start it.
+     * Features are shown cumulatively: everything up to the cursor is visible.
+     * @param {object} slide
+     * @param {object} timeline - {layer_id, date_field, start, end, speed}
+     */
+    _initTimeline(slide, timeline) {
+        const steps = this._buildTimelineSteps(timeline.start, timeline.end);
+        if (!steps) {
+            console.warn('StoryViewer: timeline start/end are neither numbers nor dates —',
+                JSON.stringify(timeline.start), JSON.stringify(timeline.end));
+            return;
+        }
+
+        const layerId = timeline.layer_id;
+        const field = timeline.date_field;
+        const last = steps.values.length - 1;
+
+        const filterFor = (i) => {
+            const cursor = steps.values[i];
+            if (steps.numeric) {
+                // Values that aren't numbers fall back to a sentinel no cursor can reach
+                return ['all', ['has', field], ['<=', ['to-number', ['get', field], 1e15], cursor]];
+            }
+            // Dates compare lexicographically, which is correct for ISO stamps — but only
+            // over as many characters as the cursor has, so a cursor of "2020-05-01" still
+            // matches a feature stamped "2020-05-01T09:30:00Z" on that same day.
+            return ['all', ['has', field],
+                ['<=', ['slice', ['to-string', ['get', field]], 0, cursor.length], cursor]];
+        };
+
+        const speeds = { slow: 1600, medium: 900, fast: 400 };
+        const interval = speeds[timeline.speed] || speeds.medium;
+
+        // ── Control ──
+        const control = document.createElement('div');
+        control.className = 'timeline-control';
+        control.id = 'viewer-timeline-control';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+
+        const range = document.createElement('input');
+        range.type = 'range';
+        range.min = '0';
+        range.max = String(last);
+        range.step = '1';
+        range.value = '0';
+        range.setAttribute('aria-label', I18n.t('viewer.timeline_scrub'));
+
+        const label = document.createElement('span');
+        label.className = 'timeline-label';
+
+        control.append(btn, range, label);
+        document.getElementById('story-viewer').appendChild(control);
+
+        // ── Behaviour ──
+        this._timelineLayerId = layerId;
+        this._timelineIndex = 0;
+
+        const setButton = (state) => {
+            const icons = { playing: 'pause-fill', paused: 'play-fill', ended: 'arrow-counterclockwise' };
+            const titles = {
+                playing: I18n.t('viewer.timeline_pause'),
+                paused: I18n.t('viewer.timeline_play'),
+                ended: I18n.t('viewer.timeline_replay'),
+            };
+            btn.innerHTML = `<i class="bi bi-${icons[state]}"></i>`;
+            btn.title = titles[state];
+            btn.setAttribute('aria-label', titles[state]);
+        };
+
+        const apply = (i) => {
+            this._timelineIndex = i;
+            range.value = String(i);
+            label.textContent = steps.labels[i];
+            TmMap.setLayerTimeFilter(layerId, filterFor(i));
+        };
+
+        const pause = () => {
+            this._stopTimeline();
+            setButton(this._timelineIndex >= last ? 'ended' : 'paused');
+        };
+
+        const play = () => {
+            this._stopTimeline();
+            if (this._timelineIndex >= last) apply(0); // replay from the start
+            this._timelinePlaying = true;
+            setButton('playing');
+            this._timelineInterval = setInterval(() => {
+                if (this._timelineIndex >= last) { pause(); return; }
+                apply(this._timelineIndex + 1);
+            }, interval);
+        };
+
+        btn.addEventListener('click', () => (this._timelinePlaying ? pause() : play()));
+        range.addEventListener('input', () => {
+            // Move the cursor before deciding the button state, so scrubbing to the
+            // far end offers "replay" rather than "play"
+            this._stopTimeline();
+            apply(parseInt(range.value, 10) || 0);
+            setButton(this._timelineIndex >= last ? 'ended' : 'paused');
+        });
+
+        apply(0);
+        play();
+    },
+
+    // ═══════════════════════════════════════
+    //  SLIDE AUDIO
+    // ═══════════════════════════════════════
+
+    /**
+     * Attach the narration track configured on a slide, with a small transport
+     * control inside the slide card. Autoplay is attempted when requested but
+     * browsers routinely block it, so the control is always there to fall back on.
+     */
+    _initSlideAudio(slide, index) {
+        const url = this._sanitizeUrl(slide.audio_url);
+        if (!url) return;
+
+        const audio = new Audio(url);
+        audio.preload = 'metadata';
+        this._currentAudio = audio;
+
+        const slideEl = document.querySelector(`[data-slide-index="${index}"]`);
+        const host = slideEl?.querySelector('.viewer-slide-content') || document.getElementById('story-viewer');
+        if (!host) return;
+
+        const control = document.createElement('div');
+        control.className = 'slide-audio-control';
+        control.id = 'viewer-audio-control';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+
+        const seek = document.createElement('input');
+        seek.type = 'range';
+        seek.min = '0';
+        seek.max = '1000';
+        seek.step = '1';
+        seek.value = '0';
+        seek.setAttribute('aria-label', I18n.t('viewer.audio_seek'));
+
+        const time = document.createElement('span');
+        time.className = 'slide-audio-time';
+        time.textContent = '0:00';
+
+        control.append(btn, seek, time);
+        host.appendChild(control);
+
+        const fmt = (secs) => {
+            if (!isFinite(secs) || secs < 0) return '0:00';
+            const m = Math.floor(secs / 60);
+            const s = Math.floor(secs % 60);
+            return `${m}:${String(s).padStart(2, '0')}`;
+        };
+
+        const setButton = () => {
+            const playing = !audio.paused && !audio.ended;
+            btn.innerHTML = `<i class="bi bi-${playing ? 'pause-fill' : 'play-fill'}"></i>`;
+            const title = I18n.t(playing ? 'viewer.audio_pause' : 'viewer.audio_play');
+            btn.title = title;
+            btn.setAttribute('aria-label', title);
+        };
+
+        btn.addEventListener('click', () => {
+            if (audio.paused) audio.play().catch(() => setButton());
+            else audio.pause();
+        });
+
+        seek.addEventListener('input', () => {
+            if (!isFinite(audio.duration)) return;
+            audio.currentTime = (parseInt(seek.value, 10) / 1000) * audio.duration;
+        });
+
+        audio.addEventListener('timeupdate', () => {
+            time.textContent = fmt(audio.currentTime);
+            if (isFinite(audio.duration) && audio.duration > 0) {
+                seek.value = String(Math.round((audio.currentTime / audio.duration) * 1000));
+            }
+        });
+        audio.addEventListener('play', setButton);
+        audio.addEventListener('pause', setButton);
+        audio.addEventListener('ended', setButton);
+        audio.addEventListener('error', () => {
+            control.innerHTML = `<span class="slide-audio-time">${I18n.t('viewer.audio_error')}</span>`;
+        });
+
+        setButton();
+
+        if (slide.audio_autoplay) {
+            // Rejected when the browser has no user gesture to go on — the button covers it
+            audio.play().catch(() => setButton());
+        }
     },
 
     _autoHideToolbar() {

@@ -6,6 +6,7 @@ const TmMap = {
     _map: null,
     _markers: [],
     _layerIdMap: {},
+    _timeFilterBase: {},
     _currentBasemap: 'osm',
     _basemaps: [],
     _onClickCallback: null,
@@ -54,6 +55,7 @@ const TmMap = {
         }
         this._markers = [];
         this._layerIdMap = {};
+        this._timeFilterBase = {};
     },
 
     // ── Basemap ──────────────────────────
@@ -316,6 +318,8 @@ const TmMap = {
             if (this._map.getLayer(layerId)) this._map.removeLayer(layerId);
             if (this._map.getSource(`layer-${id}`)) this._map.removeSource(`layer-${id}`);
         } catch { /* ok */ }
+        delete this._timeFilterBase[layerId];
+        delete this._timeFilterBase[`${layerId}-outline`];
         delete this._layerIdMap[id];
     },
 
@@ -329,6 +333,56 @@ const TmMap = {
                 this._map.setLayoutProperty(`${layerId}-outline`, 'visibility', val);
             }
         } catch { /* ok */ }
+    },
+
+    /**
+     * Apply a temporal filter to a layer, preserving any filter it already carries
+     * (clustered layers, for instance, are already filtered on point_count).
+     * Cluster sub-layers are hidden while the filter is active: clusters are
+     * aggregated by the source and cannot be filtered feature by feature.
+     * @param {string} id - logical layer id
+     * @param {Array} filter - MapLibre filter expression
+     */
+    setLayerTimeFilter(id, filter) {
+        const layerId = this._layerIdMap[id];
+        if (!layerId || !this._map) return;
+
+        [layerId, `${layerId}-outline`].forEach(target => {
+            if (!this._map.getLayer(target)) return;
+            if (!(target in this._timeFilterBase)) {
+                this._timeFilterBase[target] = this._map.getFilter(target) ?? null;
+            }
+            const base = this._timeFilterBase[target];
+            try {
+                this._map.setFilter(target, base ? ['all', base, filter] : filter);
+            } catch (err) {
+                console.warn(`Time filter could not be applied to ${target}:`, err.message);
+            }
+        });
+
+        [`${layerId}-clusters`, `${layerId}-cluster-count`].forEach(target => {
+            if (!this._map.getLayer(target)) return;
+            try { this._map.setLayoutProperty(target, 'visibility', 'none'); } catch { /* ok */ }
+        });
+    },
+
+    /** Restore the filters a layer had before setLayerTimeFilter() touched it. */
+    clearLayerTimeFilter(id) {
+        const layerId = this._layerIdMap[id];
+        if (!layerId || !this._map) return;
+
+        [layerId, `${layerId}-outline`].forEach(target => {
+            if (!(target in this._timeFilterBase)) return;
+            if (this._map.getLayer(target)) {
+                try { this._map.setFilter(target, this._timeFilterBase[target]); } catch { /* ok */ }
+            }
+            delete this._timeFilterBase[target];
+        });
+
+        [`${layerId}-clusters`, `${layerId}-cluster-count`].forEach(target => {
+            if (!this._map.getLayer(target)) return;
+            try { this._map.setLayoutProperty(target, 'visibility', 'visible'); } catch { /* ok */ }
+        });
     },
 
     setLayerOpacity(id, opacity) {

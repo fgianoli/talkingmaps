@@ -937,7 +937,9 @@
 }
 
 /* ── Timeline Control ────────────────── */
-.timeline-control { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); border-radius: 12px; padding: 8px 16px; display: flex; align-items: center; gap: 12px; z-index: 20; min-width: 300px; }
+/* z-index must clear .viewer-narrative-scroll (50), which covers the whole
+   viewer and would otherwise swallow clicks on the transport controls */
+.timeline-control { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); border-radius: 12px; padding: 8px 16px; display: flex; align-items: center; gap: 12px; z-index: 60; min-width: 300px; max-width: min(560px, calc(100vw - 32px)); }
 .timeline-control button { background: none; border: none; color: white; cursor: pointer; font-size: 18px; padding: 0; line-height: 1; }
 .timeline-control input[type=range] { flex: 1; accent-color: #4f6df5; }
 .timeline-label { color: white; font-size: 13px; font-weight: 600; min-width: 60px; text-align: center; }

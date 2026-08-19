@@ -424,6 +424,24 @@
 <h3>Map Comparison (Swipe)</h3>
 <p>Enable a <strong>swipe comparison</strong> between two basemaps on a single slide. In the Style tab, toggle "Compare" and select a second basemap.</p>
 
+<h3>Temporal Playback <span class="docs-badge docs-badge-new">New</span></h3>
+<p>Animate a layer through time: features appear <strong>cumulatively</strong> as the cursor advances, so the reader watches the pattern build up. In the Map tab, toggle <strong>Timeline</strong> and fill in:</p>
+<table>
+    <tr><th>Field</th><th>Description</th></tr>
+    <tr><td><strong>Layer</strong></td><td>Which of the slide's layers to filter.</td></tr>
+    <tr><td><strong>Date field</strong></td><td>The feature property holding the date or year, e.g. <code>year</code>, <code>date</code>, <code>timestamp</code>.</td></tr>
+    <tr><td><strong>Start / End</strong></td><td>The range to play through. Either plain numbers (<code>2000</code> &rarr; <code>2023</code>, one step per year) or dates (<code>2000-01-01</code> &rarr; <code>2000-12-31</code>, 60 steps).</td></tr>
+    <tr><td><strong>Speed</strong></td><td>Slow, Medium or Fast &mdash; how long each step is held.</td></tr>
+</table>
+<p>The viewer shows a playback bar at the bottom of the slide: play/pause, a scrubber and the current value. It starts playing when the slide comes into view and stops at the end; the button then offers a replay.</p>
+<div class="docs-callout">
+    <strong>Field values must be comparable.</strong> Numeric ranges expect numbers (or numeric strings); date ranges expect ISO-style stamps such as <code>2020-05-01</code> or <code>2020-05-01T09:30:00Z</code>, which sort correctly as text. Features missing the field are hidden for the whole animation. On a clustered layer the clusters are hidden while the timeline runs, since a cluster is aggregated by the source and cannot be filtered feature by feature.
+</div>
+
+<h3>Slide Narration (Audio) <span class="docs-badge docs-badge-new">New</span></h3>
+<p>Attach an audio track to a slide &mdash; a voiceover, an interview clip, a field recording. Upload it under <strong>Audio</strong> in the Slide tab; a compact transport control (play/pause, scrubber, elapsed time) appears inside the slide card.</p>
+<p>Switch on <strong>Autoplay</strong> to start it as the slide arrives. Note that browsers block autoplay of audible media unless the reader has already interacted with the page, so treat it as a hint rather than a guarantee &mdash; the play button is always there. The track stops automatically when the reader scrolls to another slide.</p>
+
 <!-- ═══════════════════════════════════════════════════ -->
 <h2 id="layers">Layers &amp; Data Sources</h2>
 <p>TalkingMaps supports multiple data source types that can be added as map layers:</p>

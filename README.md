@@ -8,6 +8,8 @@ Pensato per giornalisti, ricercatori, studenti e chiunque voglia raccontare stor
 
 - **Storytelling scroll-driven** – Narrazione che si sincronizza con le mappe, ispirata a ESRI StoryMaps
 - **Effetti narrativi** – Numeri chiave animati (contatori che salgono da zero allo scroll), transizioni testo parola-per-parola e a cascata, confronto immagini prima/dopo con maniglia trascinabile
+- **Animazione temporale** – Filtra un layer su un campo data e riproducilo nel tempo, con barra play/pausa e scrubber
+- **Narrazione audio** – Traccia audio per slide con controlli di riproduzione, upload dalla libreria media
 - **Mappe 2D** con MapLibre GL JS – Basemap, layer WMS/WMTS/GeoJSON, marker, simbologia avanzata
 - **Globe 3D** con CesiumJS – Terreno, 3D Tiles, nuvole di punti, mesh
 - **Nuvole di punti** con Potree – Visualizzazione LiDAR dedicata
