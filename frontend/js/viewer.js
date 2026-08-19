@@ -370,9 +370,15 @@ const StoryViewer = {
                 }
             }
 
-            // Scroll hint on first slide
+            // Scroll hint on first slide.
+            // Built with appendChild, not innerHTML +=: the latter re-serialises and
+            // re-parses the whole slide, silently dropping every listener the embeds
+            // above just attached (gallery, image comparison, express maps).
             if (idx === 0 && this._slides.length > 1) {
-                slideEl.innerHTML += `<div class="scroll-hint"><i class="bi bi-chevron-double-down"></i></div>`;
+                const hint = document.createElement('div');
+                hint.className = 'scroll-hint';
+                hint.innerHTML = '<i class="bi bi-chevron-double-down"></i>';
+                slideEl.appendChild(hint);
             }
 
             container.appendChild(slideEl);

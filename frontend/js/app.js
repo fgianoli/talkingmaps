@@ -869,11 +869,20 @@ const App = {
     },
 
     // ── Utilities ────────────────────────
+    /**
+     * Escape a value for interpolation into HTML. Quotes are escaped too, because
+     * most call sites drop the result into a double-quoted attribute — the HTML
+     * serializer alone leaves " and ' intact, which lets a value break out of the
+     * attribute and inject its own.
+     */
     escHtml(str) {
-        if (!str) return '';
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
+        if (str === null || str === undefined || str === '') return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     },
 
     /** Sanitize user-generated HTML (narratives, popups) via DOMPurify */

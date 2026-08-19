@@ -13,6 +13,20 @@ const TmAnimate = {
         return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
     },
 
+    /**
+     * Strict numeric coercion: the whole value must be a number.
+     * parseFloat would happily turn "1.2M" into 1.2 and silently drop the unit,
+     * so a pre-formatted figure like that is better shown as the author wrote it.
+     * @returns {number} NaN when the value is not entirely numeric
+     */
+    _toNumber(value) {
+        if (typeof value === 'number') return isFinite(value) ? value : NaN;
+        const str = String(value ?? '').trim();
+        if (!str) return NaN;
+        const num = Number(str);
+        return isFinite(num) ? num : NaN;
+    },
+
     // ── Number formatting ────────────────
     _format(value, opts = {}) {
         const decimals = Math.max(0, Math.min(6, parseInt(opts.decimals) || 0));
@@ -37,7 +51,7 @@ const TmAnimate = {
         if (!el) return;
         if (el._tmRaf) { cancelAnimationFrame(el._tmRaf); el._tmRaf = null; }
 
-        const target = parseFloat(opts.value);
+        const target = this._toNumber(opts.value);
         if (!isFinite(target)) { el.textContent = `${opts.prefix || ''}${opts.value ?? ''}${opts.suffix || ''}`; return; }
 
         const rawDuration = parseInt(opts.duration);
@@ -96,7 +110,11 @@ const TmAnimate = {
             val.dataset.decimals = decimals;
             val.dataset.duration = duration;
             if (it.color) val.style.color = it.color;
-            val.textContent = this._format(0, { prefix: it.prefix, suffix: it.suffix, decimals });
+            // Non-numeric values (a pre-formatted "1.2M", say) have nothing to count up
+            // to, so show them as they are rather than flashing a zero first
+            val.textContent = isFinite(this._toNumber(it.value))
+                ? this._format(0, { prefix: it.prefix, suffix: it.suffix, decimals })
+                : `${it.prefix || ''}${it.value}${it.suffix || ''}`;
             cell.appendChild(val);
 
             const label = document.createElement('div');
@@ -133,7 +151,9 @@ const TmAnimate = {
 
         values.forEach((el, i) => {
             const opts = {
-                value: parseFloat(el.dataset.value),
+                // Raw, not parsed: countUp() parses it itself and falls back to showing
+                // the value verbatim when it isn't a number (e.g. a pre-formatted "1.2M")
+                value: el.dataset.value,
                 prefix: el.dataset.prefix,
                 suffix: el.dataset.suffix,
                 decimals: parseInt(el.dataset.decimals) || 0,

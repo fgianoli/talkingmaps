@@ -79,6 +79,23 @@ const MediaLibrary = {
         `;
 
         this._setupUpload();
+        this._setupMediaItems();
+    },
+
+    /**
+     * Wire the grid tiles. Filenames are user-supplied, so they travel in data-*
+     * attributes and are read via dataset rather than being interpolated into an
+     * inline handler, where HTML escaping cannot protect the JS string context.
+     */
+    _setupMediaItems() {
+        document.querySelectorAll('.media-item[data-media-id]').forEach(item => {
+            item.addEventListener('click', () => this._showDetail(
+                parseInt(item.dataset.mediaId, 10),
+                item.dataset.mediaUrl,
+                item.dataset.mediaName,
+                item.dataset.mediaType,
+            ));
+        });
     },
 
     _renderMediaItems(items) {
@@ -89,7 +106,7 @@ const MediaLibrary = {
 
             let preview;
             if (isImage) {
-                preview = `<img src="${m.thumbnail_path || m.file_path}" alt="${App.escHtml(m.original_name)}" loading="lazy">`;
+                preview = `<img src="${App.escHtml(m.thumbnail_path || m.file_path)}" alt="${App.escHtml(m.original_name)}" loading="lazy">`;
             } else {
                 const icon = isVideo ? 'bi-camera-video-fill' : isAudio ? 'bi-music-note-beamed' : 'bi-file-earmark';
                 preview = `<div style="display:flex;align-items:center;justify-content:center;height:100%;background:var(--tm-surface)">
@@ -98,7 +115,8 @@ const MediaLibrary = {
             }
 
             return `
-                <div class="media-item" onclick="MediaLibrary._showDetail(${m.id}, '${App.escHtml(m.file_path)}', '${App.escHtml(m.original_name || '')}', '${m.mime_type}')">
+                <div class="media-item" data-media-id="${App.escHtml(m.id)}" data-media-url="${App.escHtml(m.file_path)}"
+                     data-media-name="${App.escHtml(m.original_name || '')}" data-media-type="${App.escHtml(m.mime_type || '')}">
                     ${preview}
                     <div class="media-overlay">${App.escHtml(m.original_name || m.filename)}</div>
                     ${!isImage ? `<div class="media-type-icon"><i class="bi ${isVideo ? 'bi-play-fill' : isAudio ? 'bi-music-note' : 'bi-file'}"></i></div>` : ''}
@@ -142,7 +160,7 @@ const MediaLibrary = {
         const isAudio = mimeType?.startsWith('audio');
 
         let preview;
-        if (isImage) preview = `<img src="${url}" style="max-width:100%;max-height:400px;border-radius:8px">`;
+        if (isImage) preview = `<img src="${App.escHtml(url)}" style="max-width:100%;max-height:400px;border-radius:8px">`;
         else if (isVideo) preview = `<video src="${url}" controls style="max-width:100%;border-radius:8px"></video>`;
         else if (isAudio) preview = `<audio src="${url}" controls style="width:100%"></audio>`;
         else preview = `<div class="text-center py-4"><i class="bi bi-file-earmark" style="font-size:48px;opacity:0.3;color:var(--tm-text-muted)"></i></div>`;

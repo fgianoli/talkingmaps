@@ -363,8 +363,12 @@ const StoryEditor = {
                 resultsEl.innerHTML = '<div class="list-group-item text-muted small">Nessun utente trovato</div>';
                 return;
             }
+            // Values ride in data-* attributes and are read back via dataset, never
+            // interpolated into an inline handler: HTML escaping cannot protect a JS
+            // string context, because the browser decodes the attribute first.
             resultsEl.innerHTML = users.map(u => `
-                <button class="list-group-item list-group-item-action d-flex align-items-center py-2" onclick="StoryEditor._addCollab(${u.id}, '${App.escHtml(u.username)}')">
+                <button class="list-group-item list-group-item-action d-flex align-items-center py-2"
+                        data-collab-user-id="${App.escHtml(u.id)}" data-collab-username="${App.escHtml(u.username)}">
                     ${u.avatar ? `<img src="${App.escHtml(u.avatar)}" class="rounded-circle me-2" width="24" height="24">` : '<i class="bi bi-person-circle me-2"></i>'}
                     <div>
                         <strong>${App.escHtml(u.display_name || u.username)}</strong>
@@ -373,6 +377,10 @@ const StoryEditor = {
                     <i class="bi bi-plus-circle ms-auto text-primary"></i>
                 </button>
             `).join('');
+            resultsEl.querySelectorAll('[data-collab-user-id]').forEach(btn => {
+                btn.addEventListener('click', () => this._addCollab(
+                    parseInt(btn.dataset.collabUserId, 10), btn.dataset.collabUsername));
+            });
         } catch (err) {
             resultsEl.innerHTML = '';
         }
@@ -1303,9 +1311,9 @@ const StoryEditor = {
                             <div class="stat-item" data-stat-index="${si}" style="border:1px solid var(--tm-border);border-radius:8px;padding:8px;margin-bottom:8px;font-size:12px">
                                 <div class="d-flex gap-1 mb-1">
                                     <input type="text" class="form-control form-control-sm stat-prefix" value="${App.escHtml(it.prefix || '')}" placeholder="$" title="${t('editor.stats_prefix')}" style="font-size:11px;max-width:52px">
-                                    <input type="number" class="form-control form-control-sm stat-value" value="${it.value ?? ''}" placeholder="${t('editor.stats_value')}" step="any" style="font-size:11px">
+                                    <input type="number" class="form-control form-control-sm stat-value" value="${App.escHtml(it.value ?? '')}" placeholder="${t('editor.stats_value')}" step="any" style="font-size:11px">
                                     <input type="text" class="form-control form-control-sm stat-suffix" value="${App.escHtml(it.suffix || '')}" placeholder="km²" title="${t('editor.stats_suffix')}" style="font-size:11px;max-width:62px">
-                                    <input type="number" class="form-control form-control-sm stat-decimals" value="${it.decimals || 0}" min="0" max="6" title="${t('editor.stats_decimals')}" style="font-size:11px;max-width:48px">
+                                    <input type="number" class="form-control form-control-sm stat-decimals" value="${App.escHtml(it.decimals || 0)}" min="0" max="6" title="${t('editor.stats_decimals')}" style="font-size:11px;max-width:48px">
                                     <button class="btn btn-sm btn-outline-danger" onclick="StoryEditor._removeStat(${si})" title="${t('editor.stats_remove')}" style="padding:0 6px"><i class="bi bi-trash"></i></button>
                                 </div>
                                 <input type="text" class="form-control form-control-sm stat-label mb-1" value="${App.escHtml(it.label || '')}" placeholder="${t('editor.stats_label')}" style="font-size:11px">
@@ -1324,7 +1332,7 @@ const StoryEditor = {
                         <div style="flex:1">
                             <label class="form-label" style="font-size:11px">${t('editor.stats_duration')}</label>
                             <input type="number" class="form-control form-control-sm" id="prop-stats-duration" min="0" max="10000" step="100"
-                                   value="${slide.style_overrides.stats.duration ?? 1800}" style="font-size:11px">
+                                   value="${App.escHtml(slide.style_overrides.stats.duration ?? 1800)}" style="font-size:11px">
                         </div>
                     </div>
                     ` : `<small class="text-muted">${t('editor.stats_empty')}</small>`}
@@ -1363,7 +1371,7 @@ const StoryEditor = {
                     <div class="prop-row">
                         <label>${t('editor.imgcmp_start')}</label>
                         <input type="range" class="form-range" id="prop-imgcmp-start" min="0" max="100" step="1"
-                               value="${slide.style_overrides?.image_compare?.start ?? 50}">
+                               value="${App.escHtml(slide.style_overrides?.image_compare?.start ?? 50)}">
                     </div>
                     <small class="text-muted"><i class="bi bi-info-circle"></i> ${t('editor.imgcmp_hint')}</small>
                 </div>
@@ -3764,10 +3772,12 @@ const StoryEditor = {
                                                 ${s.description ? `<small class="text-muted">${App.escHtml(s.description)}</small>` : ''}
                                             </div>
                                             <div style="display:flex;gap:4px">
-                                                <button class="btn btn-sm btn-outline-info" onclick="StoryEditor._exploreService(${s.id}, '${s.service_type}', '${App.escHtml(s.url)}')" title="${t('services.explore')}">
+                                                <button class="btn btn-sm btn-outline-info" data-explore-service="${App.escHtml(s.id)}"
+                                                        data-service-type="${App.escHtml(s.service_type)}" data-service-url="${App.escHtml(s.url)}"
+                                                        title="${t('services.explore')}">
                                                     <i class="bi bi-search"></i>
                                                 </button>
-                                                <button class="btn btn-sm btn-outline-danger" onclick="StoryEditor._deleteService(${s.id})" title="${t('action.delete')}">
+                                                <button class="btn btn-sm btn-outline-danger" data-delete-service="${App.escHtml(s.id)}" title="${t('action.delete')}">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
                                             </div>
@@ -3783,7 +3793,17 @@ const StoryEditor = {
         `;
         document.getElementById('service-catalog-modal')?.remove();
         document.body.insertAdjacentHTML('beforeend', html);
-        new bootstrap.Modal(document.getElementById('service-catalog-modal')).show();
+
+        const catalogModal = document.getElementById('service-catalog-modal');
+        catalogModal.querySelectorAll('[data-explore-service]').forEach(btn => {
+            btn.addEventListener('click', () => this._exploreService(
+                parseInt(btn.dataset.exploreService, 10), btn.dataset.serviceType, btn.dataset.serviceUrl));
+        });
+        catalogModal.querySelectorAll('[data-delete-service]').forEach(btn => {
+            btn.addEventListener('click', () => this._deleteService(parseInt(btn.dataset.deleteService, 10)));
+        });
+
+        new bootstrap.Modal(catalogModal).show();
     },
 
     async _addServiceToList() {
@@ -3835,15 +3855,23 @@ const StoryEditor = {
                 resultsDiv.innerHTML = '<small class="text-muted">No layers found</small>';
                 return;
             }
+            // Layer names come straight from a third-party GetCapabilities document,
+            // so they go in data-* attributes and are read via dataset — never spliced
+            // into an inline handler's JS string.
             resultsDiv.innerHTML = `<div style="max-height:200px;overflow-y:auto">` +
                 data.layers.map(l => `
                     <div class="d-flex justify-content-between align-items-center p-1 border-bottom" style="font-size:13px">
                         <div><strong>${App.escHtml(l.title)}</strong> <small class="text-muted">${App.escHtml(l.name)}</small></div>
-                        <button class="btn btn-sm btn-outline-success" onclick="StoryEditor._addLayerFromService('${serviceType}', '${App.escHtml(url)}', '${App.escHtml(l.name)}', '${App.escHtml(l.title)}')">
+                        <button class="btn btn-sm btn-outline-success" data-add-layer
+                                data-layer-name="${App.escHtml(l.name)}" data-layer-title="${App.escHtml(l.title)}">
                             <i class="bi bi-plus"></i>
                         </button>
                     </div>
                 `).join('') + `</div>`;
+            resultsDiv.querySelectorAll('[data-add-layer]').forEach(btn => {
+                btn.addEventListener('click', () => this._addLayerFromService(
+                    serviceType, url, btn.dataset.layerName, btn.dataset.layerTitle));
+            });
         } catch (err) {
             resultsDiv.innerHTML = `<small class="text-danger">${err.message}</small>`;
         }

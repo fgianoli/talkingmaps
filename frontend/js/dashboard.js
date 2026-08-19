@@ -112,6 +112,9 @@ const Dashboard = {
         const statusBadge = { draft: 'bg-warning text-dark', published: 'bg-success', archived: 'bg-secondary' };
 
         const currentUserId = Api.getUser()?.id;
+        // Titles are looked up by id rather than interpolated into an inline handler:
+        // HTML escaping cannot protect a JS string context inside onclick="..."
+        this._storyTitles = Object.fromEntries(stories.map(s => [s.id, s.title || '']));
         return stories.map(s => {
             const isCollab = s.collab_role && s.author_id !== currentUserId;
             const isCollabEditor = isCollab && s.collab_role === 'editor';
@@ -151,7 +154,7 @@ const Dashboard = {
                                         ${s.status === 'published' ? t('action.archive') : t('action.publish')}
                                     </a></li>` : ''}
                                     <li><a class="dropdown-item" href="#" onclick="Dashboard._exportStory(${s.id});return false"><i class="bi bi-download me-2"></i>${t('action.export')}</a></li>
-                                    ${isOwner && s.settings?.participatory_enabled ? `<li><a class="dropdown-item" href="#" onclick="Dashboard.renderModeration(${s.id}, '${s.title.replace(/'/g, "\\'")}');return false"><i class="bi bi-shield-check me-2"></i>${t('contrib.moderation')}</a></li>` : ''}
+                                    ${isOwner && s.settings?.participatory_enabled ? `<li><a class="dropdown-item" href="#" onclick="Dashboard.renderModeration(${s.id});return false"><i class="bi bi-shield-check me-2"></i>${t('contrib.moderation')}</a></li>` : ''}
                                     ${isOwner ? `<li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item text-danger" href="#" onclick="Dashboard._deleteStory(${s.id});return false"><i class="bi bi-trash me-2"></i>${t('action.delete')}</a></li>` : ''}
                                 </ul>
@@ -875,6 +878,7 @@ const Dashboard = {
     },
 
     async renderModeration(storyId, storyTitle) {
+        if (storyTitle === undefined) storyTitle = this._storyTitles?.[storyId] || '';
         const container = document.getElementById('dashboard-content') || document.querySelector('.dashboard-container');
         if (!container) return;
 
@@ -932,9 +936,9 @@ const Dashboard = {
                                 ${c.admin_note ? `<div class="small text-info"><i class="bi bi-chat-dots"></i> ${DOMPurify.sanitize(c.admin_note)}</div>` : ''}
                             </div>
                             ${c.media_url ? `<div class="mod-item-media">
-                                ${c.media_type === 'image' ? `<img src="${c.thumbnail_url || c.media_url}" alt="" onclick="window.open('${c.media_url}','_blank')">` :
-                                  c.media_type === 'video' ? `<video src="${c.media_url}" controls></video>` :
-                                  c.media_type === 'audio' ? `<audio src="${c.media_url}" controls></audio>` : ''}
+                                ${c.media_type === 'image' ? `<img src="${App.escHtml(c.thumbnail_url || c.media_url)}" alt="" class="mod-media-open" data-media-url="${App.escHtml(c.media_url)}">` :
+                                  c.media_type === 'video' ? `<video src="${App.escHtml(c.media_url)}" controls></video>` :
+                                  c.media_type === 'audio' ? `<audio src="${App.escHtml(c.media_url)}" controls></audio>` : ''}
                             </div>` : ''}
                         </div>
                         <div class="mod-item-actions">
@@ -946,6 +950,12 @@ const Dashboard = {
                 `).join('');
 
                 // Wire actions
+                listEl.querySelectorAll('.mod-media-open').forEach(img => {
+                    img.addEventListener('click', () => {
+                        const url = img.dataset.mediaUrl;
+                        if (/^https?:\/\//i.test(url) || url.startsWith('/')) window.open(url, '_blank', 'noopener');
+                    });
+                });
                 listEl.querySelectorAll('.mod-approve').forEach(btn => {
                     btn.onclick = async () => {
                         await Api.moderateContribution(parseInt(btn.dataset.id), 'approved');

@@ -18,7 +18,9 @@ const TmImageCompare = {
         const after = config.after_url;
         if (!container || !before || !after) return null;
 
-        const start = Math.max(0, Math.min(100, parseFloat(config.start) || 50));
+        // `|| 50` would swallow a deliberate 0, which the editor takes care to preserve
+        const rawStart = parseFloat(config.start);
+        const start = Math.max(0, Math.min(100, isFinite(rawStart) ? rawStart : 50));
 
         const widget = document.createElement('div');
         widget.className = 'tm-imgcmp';
