@@ -319,6 +319,9 @@ const StoryViewer = {
             // Process embedded elements in narrative
             this._processEmbeds(content, slide, idx);
 
+            // Prepare word-by-word / staggered reveals (no-op for other transitions)
+            TmAnimate.prepareText(content, slideEl.dataset.transition);
+
             // For text-media: wrap content + background media side by side
             if (layout === 'text-media' && slide.background_media) {
                 const wrapper = document.createElement('div');
@@ -379,6 +382,12 @@ const StoryViewer = {
      */
     _processEmbeds(contentEl, slide, slideIdx) {
         const overrides = slide.style_overrides || {};
+
+        // Key figures — rendered at zero, counted up when the slide becomes active
+        if (overrides.stats?.items?.length) {
+            TmAnimate.renderStats(contentEl, overrides.stats);
+        }
+
         if (overrides.chart) {
             const chartContainer = document.createElement('div');
             chartContainer.className = 'slide-chart-container';
@@ -424,6 +433,19 @@ const StoryViewer = {
             galleryContainer.className = 'slide-gallery-container';
             contentEl.appendChild(galleryContainer);
             TmGallery.render(galleryContainer, overrides.gallery.images, overrides.gallery);
+        }
+
+        // Before/after image comparison
+        const imgCmp = overrides.image_compare;
+        if (imgCmp?.before_url && imgCmp?.after_url) {
+            const cmpContainer = document.createElement('div');
+            cmpContainer.className = 'slide-imgcmp-container';
+            contentEl.appendChild(cmpContainer);
+            TmImageCompare.render(cmpContainer, {
+                ...imgCmp,
+                before_url: this._sanitizeUrl(imgCmp.before_url),
+                after_url: this._sanitizeUrl(imgCmp.after_url),
+            });
         }
 
         // TimelineJS
@@ -729,6 +751,8 @@ const StoryViewer = {
                 void content.offsetWidth; // force reflow
                 content.classList.add('slide-animate-in');
             }
+            // Count up any key figures on this slide
+            TmAnimate.runStats(slideEl);
         }
 
         // Highlight active slide
@@ -747,7 +771,9 @@ const StoryViewer = {
         document.getElementById('viewer-timeline-control')?.remove();
         const timeline = slide.map_config?.timeline;
         if (timeline?.enabled && timeline.layer_id && timeline.date_field && hasMap) {
-            this._initTimeline(slide, timeline);
+            // _initTimeline() is not implemented yet — guard so the rest of the slide still activates
+            if (typeof this._initTimeline === 'function') this._initTimeline(slide, timeline);
+            else console.warn('StoryViewer: slide has a timeline configured but _initTimeline() is not implemented');
         }
 
         // ── Audio ──
@@ -756,7 +782,9 @@ const StoryViewer = {
             this._currentAudio = null;
         }
         if (slide.audio_url) {
-            this._initSlideAudio(slide, index);
+            // _initSlideAudio() is not implemented yet — guard so the rest of the slide still activates
+            if (typeof this._initSlideAudio === 'function') this._initSlideAudio(slide, index);
+            else console.warn('StoryViewer: slide has audio configured but _initSlideAudio() is not implemented');
         }
 
         // Auto-hide toolbar after a few seconds
@@ -974,6 +1002,14 @@ const StoryViewer = {
                 }
             });
         }, 100);
+    },
+
+    _stopTimeline() {
+        if (this._timelineInterval) {
+            clearInterval(this._timelineInterval);
+            this._timelineInterval = null;
+        }
+        this._timelinePlaying = false;
     },
 
     _autoHideToolbar() {

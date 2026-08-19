@@ -7,6 +7,7 @@ Pensato per giornalisti, ricercatori, studenti e chiunque voglia raccontare stor
 ## Caratteristiche
 
 - **Storytelling scroll-driven** – Narrazione che si sincronizza con le mappe, ispirata a ESRI StoryMaps
+- **Effetti narrativi** – Numeri chiave animati (contatori che salgono da zero allo scroll), transizioni testo parola-per-parola e a cascata, confronto immagini prima/dopo con maniglia trascinabile
 - **Mappe 2D** con MapLibre GL JS – Basemap, layer WMS/WMTS/GeoJSON, marker, simbologia avanzata
 - **Globe 3D** con CesiumJS – Terreno, 3D Tiles, nuvole di punti, mesh
 - **Nuvole di punti** con Potree – Visualizzazione LiDAR dedicata
@@ -155,6 +156,8 @@ talkingmaps-master/
 │       ├── cesium3d.js         # CesiumJS 3D globe wrapper
 │       ├── potree-viewer.js    # Potree point cloud viewer
 │       ├── charts.js           # Chart.js wrapper per grafici e dashboard
+│       ├── animate.js          # Contatori animati e reveal del testo allo scroll
+│       ├── compare-image.js    # Confronto immagini prima/dopo
 │       ├── viewer.js           # Story viewer scroll-driven
 │       ├── editor.js           # Story editor completo
 │       ├── dashboard.js        # Dashboard, catalogo layer, utenti

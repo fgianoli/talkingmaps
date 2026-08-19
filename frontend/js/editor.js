@@ -957,7 +957,10 @@ const StoryEditor = {
                             <option value="slide-up" ${slide.style_overrides?.transition === 'slide-up' ? 'selected' : ''}>Slide Up</option>
                             <option value="slide-left" ${slide.style_overrides?.transition === 'slide-left' ? 'selected' : ''}>Slide Left</option>
                             <option value="zoom" ${slide.style_overrides?.transition === 'zoom' ? 'selected' : ''}>Zoom</option>
+                            <option value="reveal-words" ${slide.style_overrides?.transition === 'reveal-words' ? 'selected' : ''}>${t('editor.transition_reveal_words')}</option>
+                            <option value="stagger" ${slide.style_overrides?.transition === 'stagger' ? 'selected' : ''}>${t('editor.transition_stagger')}</option>
                         </select>
+                        <small class="text-muted">${t('editor.transition_hint')}</small>
                     </div>
                 </div>
 
@@ -1290,6 +1293,79 @@ const StoryEditor = {
                             style="font-family:monospace;font-size:11px">${JSON.stringify(slide.style_overrides?.chart || '', null, 2) === '""' ? '' : JSON.stringify(slide.style_overrides?.chart || '', null, 2)}</textarea>
                         <small class="text-muted">${t('editor.chart_types')}</small>
                     </div>
+                </div>
+
+                <!-- Key figures (animated counters) -->
+                <div class="prop-section">
+                    <div class="prop-section-title"><i class="bi bi-123"></i> ${t('editor.stats')}</div>
+                    <div id="stats-items-list">
+                        ${(slide.style_overrides?.stats?.items || []).map((it, si) => `
+                            <div class="stat-item" data-stat-index="${si}" style="border:1px solid var(--tm-border);border-radius:8px;padding:8px;margin-bottom:8px;font-size:12px">
+                                <div class="d-flex gap-1 mb-1">
+                                    <input type="text" class="form-control form-control-sm stat-prefix" value="${App.escHtml(it.prefix || '')}" placeholder="$" title="${t('editor.stats_prefix')}" style="font-size:11px;max-width:52px">
+                                    <input type="number" class="form-control form-control-sm stat-value" value="${it.value ?? ''}" placeholder="${t('editor.stats_value')}" step="any" style="font-size:11px">
+                                    <input type="text" class="form-control form-control-sm stat-suffix" value="${App.escHtml(it.suffix || '')}" placeholder="km²" title="${t('editor.stats_suffix')}" style="font-size:11px;max-width:62px">
+                                    <input type="number" class="form-control form-control-sm stat-decimals" value="${it.decimals || 0}" min="0" max="6" title="${t('editor.stats_decimals')}" style="font-size:11px;max-width:48px">
+                                    <button class="btn btn-sm btn-outline-danger" onclick="StoryEditor._removeStat(${si})" title="${t('editor.stats_remove')}" style="padding:0 6px"><i class="bi bi-trash"></i></button>
+                                </div>
+                                <input type="text" class="form-control form-control-sm stat-label mb-1" value="${App.escHtml(it.label || '')}" placeholder="${t('editor.stats_label')}" style="font-size:11px">
+                                <input type="text" class="form-control form-control-sm stat-desc" value="${App.escHtml(it.desc || '')}" placeholder="${t('editor.stats_desc')}" style="font-size:11px">
+                            </div>
+                        `).join('')}
+                    </div>
+                    ${(slide.style_overrides?.stats?.items?.length) ? `
+                    <div class="d-flex gap-2 mb-1">
+                        <div style="flex:1">
+                            <label class="form-label" style="font-size:11px">${t('editor.stats_columns')}</label>
+                            <select class="form-select form-select-sm" id="prop-stats-columns" style="font-size:11px">
+                                ${[1, 2, 3, 4].map(c => `<option value="${c}" ${(slide.style_overrides.stats.columns || 4) == c ? 'selected' : ''}>${c}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div style="flex:1">
+                            <label class="form-label" style="font-size:11px">${t('editor.stats_duration')}</label>
+                            <input type="number" class="form-control form-control-sm" id="prop-stats-duration" min="0" max="10000" step="100"
+                                   value="${slide.style_overrides.stats.duration ?? 1800}" style="font-size:11px">
+                        </div>
+                    </div>
+                    ` : `<small class="text-muted">${t('editor.stats_empty')}</small>`}
+                    <button class="btn btn-sm btn-outline-light w-100 mt-1" onclick="StoryEditor._addStat()">
+                        <i class="bi bi-plus-lg"></i> ${t('editor.stats_add')}
+                    </button>
+                </div>
+
+                <!-- Before/after image comparison -->
+                <div class="prop-section">
+                    <div class="prop-section-title"><i class="bi bi-layout-split"></i> ${t('editor.imgcmp')}</div>
+                    <div class="prop-row">
+                        <label>${t('editor.imgcmp_before')}</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="prop-imgcmp-before" value="${App.escHtml(slide.style_overrides?.image_compare?.before_url || '')}" placeholder="URL">
+                            <button class="btn btn-outline-light" onclick="StoryEditor._pickMedia('prop-imgcmp-before')"><i class="bi bi-folder2-open"></i></button>
+                        </div>
+                        <input type="text" class="form-control mt-1" id="prop-imgcmp-before-label" value="${App.escHtml(slide.style_overrides?.image_compare?.before_label || '')}" placeholder="${t('editor.imgcmp_before_label')}">
+                    </div>
+                    <div class="prop-row">
+                        <label>${t('editor.imgcmp_after')}</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="prop-imgcmp-after" value="${App.escHtml(slide.style_overrides?.image_compare?.after_url || '')}" placeholder="URL">
+                            <button class="btn btn-outline-light" onclick="StoryEditor._pickMedia('prop-imgcmp-after')"><i class="bi bi-folder2-open"></i></button>
+                        </div>
+                        <input type="text" class="form-control mt-1" id="prop-imgcmp-after-label" value="${App.escHtml(slide.style_overrides?.image_compare?.after_label || '')}" placeholder="${t('editor.imgcmp_after_label')}">
+                    </div>
+                    <div class="prop-row">
+                        <label>${t('editor.imgcmp_aspect')}</label>
+                        <select class="form-select" id="prop-imgcmp-aspect">
+                            ${['16/9', '4/3', '3/2', '1/1', '21/9'].map(a =>
+                                `<option value="${a}" ${(slide.style_overrides?.image_compare?.aspect || '16/9') === a ? 'selected' : ''}>${a}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="prop-row">
+                        <label>${t('editor.imgcmp_start')}</label>
+                        <input type="range" class="form-range" id="prop-imgcmp-start" min="0" max="100" step="1"
+                               value="${slide.style_overrides?.image_compare?.start ?? 50}">
+                    </div>
+                    <small class="text-muted"><i class="bi bi-info-circle"></i> ${t('editor.imgcmp_hint')}</small>
                 </div>
 
                 <!-- TimelineJS -->
@@ -2071,6 +2147,52 @@ const StoryEditor = {
             tljsConfig = { events: tljsEvents, options: tljsConfig?.options || {} };
         }
 
+        // Key figures collection
+        const statItems = document.querySelectorAll('.stat-item');
+        let statsConfig = slide.style_overrides?.stats || null;
+        if (statItems.length > 0) {
+            const items = [];
+            statItems.forEach(item => {
+                const rawValue = item.querySelector('.stat-value')?.value;
+                const parsed = parseFloat(rawValue);
+                items.push({
+                    value: isFinite(parsed) ? parsed : 0,
+                    prefix: item.querySelector('.stat-prefix')?.value || '',
+                    suffix: item.querySelector('.stat-suffix')?.value || '',
+                    decimals: parseInt(item.querySelector('.stat-decimals')?.value) || 0,
+                    label: item.querySelector('.stat-label')?.value || '',
+                    desc: item.querySelector('.stat-desc')?.value || '',
+                });
+            });
+            const rawDur = parseInt(document.getElementById('prop-stats-duration')?.value);
+            statsConfig = {
+                items,
+                columns: parseInt(document.getElementById('prop-stats-columns')?.value) || 4,
+                duration: isFinite(rawDur) ? Math.max(0, rawDur) : 1800,
+            };
+        }
+
+        // Before/after image comparison
+        const imgcmpBeforeEl = document.getElementById('prop-imgcmp-before');
+        let imgCompareConfig = slide.style_overrides?.image_compare || null;
+        if (imgcmpBeforeEl) {
+            const beforeUrl = imgcmpBeforeEl.value.trim();
+            const afterUrl = document.getElementById('prop-imgcmp-after')?.value.trim() || '';
+            if (beforeUrl && afterUrl) {
+                const rawStart = parseInt(document.getElementById('prop-imgcmp-start')?.value);
+                imgCompareConfig = {
+                    before_url: beforeUrl,
+                    after_url: afterUrl,
+                    before_label: document.getElementById('prop-imgcmp-before-label')?.value || '',
+                    after_label: document.getElementById('prop-imgcmp-after-label')?.value || '',
+                    aspect: document.getElementById('prop-imgcmp-aspect')?.value || '16/9',
+                    start: isFinite(rawStart) ? Math.max(0, Math.min(100, rawStart)) : 50,
+                };
+            } else {
+                imgCompareConfig = null;
+            }
+        }
+
         updates.style_overrides = {
             ...(slide.style_overrides || {}),
             ...(updates.style_overrides || {}),
@@ -2082,6 +2204,8 @@ const StoryEditor = {
             transition: transitionVal,
             chapter: chapterVal,
             timelinejs: tljsConfig,
+            stats: statsConfig,
+            image_compare: imgCompareConfig,
         };
 
         // Timeline config
@@ -2332,6 +2456,35 @@ const StoryEditor = {
         try {
             await Api.updateSlide(slide.id, { style_overrides: slide.style_overrides });
         } catch (err) { console.error('TimelineJS save failed:', err); }
+        this._renderProps(slide);
+    },
+
+    // ── Key figures (animated counters) ──
+    async _addStat() {
+        const slide = this._slides[this._currentSlideIdx];
+        if (!slide) return;
+        // Persist whatever is currently typed before the panel is re-rendered
+        await this._saveCurrentSlideProps();
+        this._undoPush();
+        if (!slide.style_overrides) slide.style_overrides = {};
+        if (!slide.style_overrides.stats) slide.style_overrides.stats = { items: [], columns: 4, duration: 1800 };
+        slide.style_overrides.stats.items.push({ value: 0, label: '', desc: '', prefix: '', suffix: '', decimals: 0 });
+        try {
+            await Api.updateSlide(slide.id, { style_overrides: slide.style_overrides });
+        } catch (err) { console.error('Stats save failed:', err); }
+        this._renderProps(slide);
+    },
+
+    async _removeStat(index) {
+        const slide = this._slides[this._currentSlideIdx];
+        if (!slide?.style_overrides?.stats?.items) return;
+        await this._saveCurrentSlideProps();
+        this._undoPush();
+        slide.style_overrides.stats.items.splice(index, 1);
+        if (!slide.style_overrides.stats.items.length) slide.style_overrides.stats = null;
+        try {
+            await Api.updateSlide(slide.id, { style_overrides: slide.style_overrides });
+        } catch (err) { console.error('Stats save failed:', err); }
         this._renderProps(slide);
     },
 

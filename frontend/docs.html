@@ -178,6 +178,7 @@
     <a href="#editor">The Editor</a>
     <a href="#layouts">Slide Layouts</a>
     <a href="#narrative">Writing Narrative</a>
+    <a href="#storytelling-effects">Storytelling Effects</a>
     <a href="#map-config">Map Configuration</a>
 
     <h6>Data & Layers</h6>
@@ -362,6 +363,40 @@
 
 <h3>Quick Actions</h3>
 <p>At the top of the narrative area you'll find <strong>quick action buttons</strong> to insert images, videos, charts or iframes with a single click.</p>
+
+<!-- ── Storytelling Effects ──────────── -->
+<h2 id="storytelling-effects">Storytelling Effects <span class="docs-badge docs-badge-new">New</span></h2>
+<p>Three scroll-driven effects that make a data story feel alive. All three are per-slide and configured in the properties panel.</p>
+
+<h3>Key Figures</h3>
+<p>A grid of headline numbers that <strong>count up from zero</strong> when the slide scrolls into view &mdash; the standard way to open a data story with its most striking statistics.</p>
+<p>In the <strong>Media</strong> tab, open <strong>Key figures</strong> and click <em>Add figure</em>. Each figure has:</p>
+<table>
+    <tr><th>Field</th><th>Description</th></tr>
+    <tr><td><strong>Value</strong></td><td>The target number. It is formatted with thousands separators in the reader's language.</td></tr>
+    <tr><td><strong>Prefix / Suffix</strong></td><td>Units around the number, e.g. <code>$</code> and <code>B</code>, or <code> km²</code>.</td></tr>
+    <tr><td><strong>Decimals</strong></td><td>How many decimal places to show (0&ndash;6).</td></tr>
+    <tr><td><strong>Label</strong></td><td>The caption under the number.</td></tr>
+    <tr><td><strong>Description</strong></td><td>An optional smaller line of context.</td></tr>
+</table>
+<p><strong>Columns</strong> sets the grid width (1&ndash;4; it collapses automatically on mobile) and <strong>Duration</strong> the count-up length in milliseconds &mdash; set it to <code>0</code> for no animation. Readers who ask their system for reduced motion always see the final values immediately.</p>
+
+<h3>Text Transitions</h3>
+<p>Beyond the classic Fade / Slide / Zoom, the <strong>Transition</strong> selector in the Slide tab offers two entrance animations:</p>
+<table>
+    <tr><th>Transition</th><th>Description</th></tr>
+    <tr><td><strong>Word reveal</strong></td><td>The slide title animates in one word at a time, each sliding up from behind a mask. Best on cover and chapter-opening slides.</td></tr>
+    <tr><td><strong>Staggered blocks</strong></td><td>Paragraphs, lists and embedded blocks fade in one after another instead of all at once. Best on text-heavy slides.</td></tr>
+</table>
+<p>Word reveal only touches plain-text headings &mdash; a title containing links or other markup is left as it is.</p>
+
+<h3>Before/After Image Comparison</h3>
+<p>Two images stacked with a draggable divider, for showing change over time: satellite imagery from two dates, a site before and after restoration, a historical photo against a modern one.</p>
+<p>In the <strong>Media</strong> tab, open <strong>Image comparison</strong>, pick the "before" and "after" images (upload or paste a URL) and optionally label them (e.g. <code>2010</code> and <code>2024</code>). Both images are required &mdash; clearing either one removes the widget.</p>
+<p><strong>Aspect ratio</strong> controls the shape of the frame and <strong>Initial handle position</strong> where the divider sits when the slide opens. Readers can drag the handle, click anywhere on the image to jump the divider there, or focus it and use the arrow keys (Shift for larger steps, Home/End to snap to either edge).</p>
+<div class="docs-callout">
+    <strong>Not the same as map comparison.</strong> This compares two <em>images</em> inside the narrative. To swipe between two live basemaps on the map itself, use <a href="#map-config">Map Comparison (Swipe)</a> instead.
+</div>
 
 <!-- ── Map Config ────────────────────── -->
 <h2 id="map-config">Map Configuration</h2>
