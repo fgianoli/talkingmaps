@@ -879,7 +879,9 @@ const Dashboard = {
 
     async renderModeration(storyId, storyTitle) {
         if (storyTitle === undefined) storyTitle = this._storyTitles?.[storyId] || '';
-        const container = document.getElementById('dashboard-content') || document.querySelector('.dashboard-container');
+        // #panel-dashboard is the real container; the two ids tried before are not in
+        // the document, so this panel never opened at all.
+        const container = document.getElementById('panel-dashboard');
         if (!container) return;
 
         container.innerHTML = `
@@ -902,7 +904,7 @@ const Dashboard = {
             </div>
         `;
 
-        document.getElementById('mod-back').onclick = () => this.render();
+        document.getElementById('mod-back').onclick = () => this.load();
 
         let currentFilter = '';
 

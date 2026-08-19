@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.security import get_current_user, require_editor
 from core.config import settings
+from core.safe_files import safe_extract
 import aiofiles
 import os
 import uuid
@@ -206,7 +207,7 @@ async def _convert_to_geojson(content: bytes, filename: str) -> dict:
                 f.write(content)
             if zipfile.is_zipfile(zip_path):
                 with zipfile.ZipFile(zip_path, "r") as zf:
-                    zf.extractall(tmpdir)
+                    safe_extract(zf, tmpdir)
             # Find .shp
             shp_files = [os.path.join(tmpdir, f) for f in os.listdir(tmpdir) if f.endswith(".shp")]
             if not shp_files:

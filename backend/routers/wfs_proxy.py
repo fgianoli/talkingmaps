@@ -4,6 +4,7 @@ Extends the WMS proxy with capabilities parsing and WFS support.
 """
 from urllib.parse import urlparse, urlencode
 from fastapi import APIRouter, HTTPException, Query, Depends
+from core.safe_http import fetch_validated
 from fastapi.responses import Response
 import httpx
 import xml.etree.ElementTree as ET
@@ -90,8 +91,11 @@ async def get_capabilities(
     full_url = f"{url}?{urlencode(params)}" if "?" not in url else f"{url}&{urlencode(params)}"
 
     try:
-        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-            resp = await client.get(full_url)
+        # Redirects are followed by hand so the SSRF guard is re-checked on each hop
+        async with httpx.AsyncClient(timeout=30, follow_redirects=False) as client:
+            resp = await fetch_validated(
+                client, full_url, lambda u: _is_host_allowed(u, db, user["id"])
+            )
             if resp.status_code != 200:
                 raise HTTPException(status_code=resp.status_code, detail="Error from service")
 
@@ -194,8 +198,10 @@ async def get_features(
     full_url = f"{url}?{urlencode(params)}" if "?" not in url else f"{url}&{urlencode(params)}"
 
     try:
-        async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
-            resp = await client.get(full_url)
+        async with httpx.AsyncClient(timeout=60, follow_redirects=False) as client:
+            resp = await fetch_validated(
+                client, full_url, lambda u: _is_host_allowed(u, db, user["id"])
+            )
             content_type = resp.headers.get("content-type", "application/json")
             return Response(
                 content=resp.content,

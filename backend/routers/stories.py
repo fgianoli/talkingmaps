@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db, get_system_db
-from core.security import get_current_user, require_editor
+from core.security import get_current_user, get_current_user_optional, require_editor
 
 router = APIRouter()
 
@@ -37,6 +37,26 @@ async def _check_story_access(db: AsyncSession, system_db: AsyncSession, story_i
     if require_role == "editor" and collab_role == "viewer":
         return None  # viewer can't edit
     return collab_role
+
+
+async def _can_read_story(db: AsyncSession, story: dict, user: dict | None) -> bool:
+    """Whether a caller may read a story in full.
+
+    Published public/unlisted stories are readable by anyone; anything else only by
+    its author, its collaborators, or an admin. Callers should answer a failure with
+    404 rather than 403, so the endpoint does not confirm that the story exists.
+    """
+    if story.get("status") == "published" and story.get("visibility") in ("public", "unlisted"):
+        return True
+    if not user:
+        return False
+    if user["role"] == "admin" or story.get("author_id") == user["id"]:
+        return True
+    collab = await db.execute(
+        text("SELECT 1 FROM story_collaborators WHERE story_id = :sid AND user_id = :uid"),
+        {"sid": story["id"], "uid": user["id"]},
+    )
+    return collab.fetchone() is not None
 
 
 def _hash_ip(ip: str | None) -> str | None:
@@ -91,9 +111,11 @@ async def list_stories(
                FROM stories s
                LEFT JOIN (SELECT story_id, COUNT(*) as view_count FROM story_views GROUP BY story_id) v ON v.story_id = s.id
                LEFT JOIN story_collaborators sc ON sc.story_id = s.id AND sc.user_id = :uid
-               WHERE s.author_id = :uid OR sc.user_id = :uid"""
+               WHERE (s.author_id = :uid OR sc.user_id = :uid)"""
         params = {"uid": user["id"]}
         if status:
+            # The OR group must stay parenthesised: AND binds tighter, so without the
+            # brackets the status filter silently stops applying to the caller's own stories
             q += " AND s.status = :status"
             params["status"] = status
         q += " ORDER BY s.updated_at DESC"
@@ -203,7 +225,9 @@ async def get_shared_story(token: str, request: Request, db: AsyncSession = Depe
             "ua": request.headers.get("user-agent", "")[:500], "ref": request.headers.get("referer", "")[:500]})
         await db.commit()
     except Exception:
-        pass
+        # A failed insert leaves the session dirty; without a rollback every later
+        # statement in this request fails too.
+        await db.rollback()
     return dict(story)
 
 
@@ -225,7 +249,9 @@ async def get_story_embed(story_id: int, request: Request, db: AsyncSession = De
             "ua": request.headers.get("user-agent", "")[:500], "ref": request.headers.get("referer", "")[:500]})
         await db.commit()
     except Exception:
-        pass
+        # A failed insert leaves the session dirty; without a rollback every later
+        # statement in this request fails too.
+        await db.rollback()
 
     # Slides
     slides_r = await db.execute(text(
@@ -262,7 +288,7 @@ async def get_story_embed(story_id: int, request: Request, db: AsyncSession = De
         if token_row and token_row[0]:
             cesium_token = token_row[0]
     except Exception:
-        pass
+        await system_db.rollback()
 
     story_dict = dict(story)
     settings = story_dict.get("settings") or {}
@@ -283,14 +309,21 @@ async def get_story_embed(story_id: int, request: Request, db: AsyncSession = De
 
 
 @router.get("/{story_id}")
-async def get_story(story_id: int, db: AsyncSession = Depends(get_db)):
+async def get_story(
+    story_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: dict | None = Depends(get_current_user_optional),
+):
     result = await db.execute(text(
         "SELECT s.* FROM stories s WHERE s.id = :id"
     ), {"id": story_id})
     story = result.mappings().fetchone()
     if not story:
         raise HTTPException(status_code=404, detail="Storia non trovata")
-    return dict(story)
+    story = dict(story)
+    if not await _can_read_story(db, story, user):
+        raise HTTPException(status_code=404, detail="Storia non trovata")
+    return story
 
 
 @router.post("/")
@@ -379,6 +412,10 @@ async def delete_story(story_id: int, user: dict = Depends(require_editor), db: 
 @router.post("/{story_id}/duplicate")
 async def duplicate_story(story_id: int, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
     import json
+    # Duplicating copies the whole story into the caller's account, so it needs read
+    # rights on the source — otherwise any editor could clone private work by id
+    if not await _check_story_access(db, None, story_id, user, require_role="viewer"):
+        raise HTTPException(status_code=404, detail="Storia non trovata")
     # Get original story
     result = await db.execute(text("SELECT * FROM stories WHERE id = :id"), {"id": story_id})
     original = result.mappings().fetchone()
@@ -440,7 +477,13 @@ async def duplicate_story(story_id: int, user: dict = Depends(require_editor), d
 
 
 @router.get("/{story_id}/full")
-async def get_story_full(story_id: int, request: Request, db: AsyncSession = Depends(get_db), system_db: AsyncSession = Depends(get_system_db)):
+async def get_story_full(
+    story_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    system_db: AsyncSession = Depends(get_system_db),
+    user: dict | None = Depends(get_current_user_optional),
+):
     """Get complete story with slides, layers, markers - for the viewer."""
     # Story (data DB)
     story_r = await db.execute(text(
@@ -448,6 +491,8 @@ async def get_story_full(story_id: int, request: Request, db: AsyncSession = Dep
     ), {"id": story_id})
     story = story_r.mappings().fetchone()
     if not story:
+        raise HTTPException(status_code=404, detail="Storia non trovata")
+    if not await _can_read_story(db, dict(story), user):
         raise HTTPException(status_code=404, detail="Storia non trovata")
 
     # Record view
@@ -458,7 +503,9 @@ async def get_story_full(story_id: int, request: Request, db: AsyncSession = Dep
             "ua": request.headers.get("user-agent", "")[:500], "ref": request.headers.get("referer", "")[:500]})
         await db.commit()
     except Exception:
-        pass
+        # A failed insert leaves the session dirty; without a rollback every later
+        # statement in this request fails too and the whole read turns into a 500.
+        await db.rollback()
 
     # Slides
     slides_r = await db.execute(text(
@@ -495,7 +542,7 @@ async def get_story_full(story_id: int, request: Request, db: AsyncSession = Dep
         if token_row and token_row[0]:
             cesium_token = token_row[0]
     except Exception:
-        pass
+        await system_db.rollback()
 
     story_dict = dict(story)
     # Inject cesium token into story settings so the frontend can use it
@@ -627,6 +674,10 @@ async def list_versions(story_id: int, user: dict = Depends(get_current_user), d
 @router.post("/{story_id}/versions/{version_id}/restore")
 async def restore_version(story_id: int, version_id: int, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
     """Restore a story to a specific version."""
+    # This wipes every slide in the story, so it needs edit rights on that story,
+    # not merely the editor role
+    if not await _check_story_access(db, None, story_id, user, require_role="editor"):
+        raise HTTPException(status_code=403, detail="Non autorizzato a modificare questa storia")
     version = await db.execute(text("SELECT snapshot FROM story_versions WHERE id = :vid AND story_id = :sid"), {"vid": version_id, "sid": story_id})
     row = version.fetchone()
     if not row:

@@ -215,7 +215,13 @@ async def me(user: dict = Depends(get_current_user), db: AsyncSession = Depends(
 async def change_password(req: ChangePasswordRequest, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_system_db)):
     result = await db.execute(text("SELECT password_hash FROM users WHERE id = :id"), {"id": user["id"]})
     row = result.fetchone()
-    if not row or not verify_password(req.current_password, row[0]):
+    if not row or not row[0]:
+        # Accounts created through OAuth have no password to compare against
+        raise HTTPException(
+            status_code=400,
+            detail="Questo account accede tramite provider esterno e non ha una password",
+        )
+    if not verify_password(req.current_password, row[0]):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     new_hash = hash_password(req.new_password)
     await db.execute(text("UPDATE users SET password_hash = :p, updated_at = NOW() WHERE id = :id"), {"p": new_hash, "id": user["id"]})

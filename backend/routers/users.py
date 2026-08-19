@@ -69,17 +69,6 @@ async def toggle_user(user_id: int, user: dict = Depends(require_admin), db: Asy
     return {"id": user_id, "active": row[0]}
 
 
-@router.put("/{user_id}/password")
-async def reset_password(user_id: int, user: dict = Depends(require_admin), db: AsyncSession = Depends(get_system_db)):
-    from pydantic import BaseModel
-
-    class PwReset(BaseModel):
-        password: str
-
-    # This is handled via dependency injection in the actual request
-    pass
-
-
 @router.put("/{user_id}/reset-password")
 async def admin_reset_password(user_id: int, body: dict, user: dict = Depends(require_admin), db: AsyncSession = Depends(get_system_db)):
     new_password = body.get("password", "")

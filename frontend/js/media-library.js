@@ -161,8 +161,8 @@ const MediaLibrary = {
 
         let preview;
         if (isImage) preview = `<img src="${App.escHtml(url)}" style="max-width:100%;max-height:400px;border-radius:8px">`;
-        else if (isVideo) preview = `<video src="${url}" controls style="max-width:100%;border-radius:8px"></video>`;
-        else if (isAudio) preview = `<audio src="${url}" controls style="width:100%"></audio>`;
+        else if (isVideo) preview = `<video src="${App.escHtml(url)}" controls style="max-width:100%;border-radius:8px"></video>`;
+        else if (isAudio) preview = `<audio src="${App.escHtml(url)}" controls style="width:100%"></audio>`;
         else preview = `<div class="text-center py-4"><i class="bi bi-file-earmark" style="font-size:48px;opacity:0.3;color:var(--tm-text-muted)"></i></div>`;
 
         const html = `
@@ -175,7 +175,7 @@ const MediaLibrary = {
                         </div>
                         <div class="modal-body text-center">${preview}</div>
                         <div class="modal-footer">
-                            <button class="btn btn-sm btn-outline-light" onclick="navigator.clipboard.writeText('${url}');App.toast('${t('media.url_copied')}','success')">
+                            <button class="btn btn-sm btn-outline-light" id="media-copy-url" data-url="${App.escHtml(url)}">
                                 <i class="bi bi-clipboard"></i> ${t('action.copy_url')}
                             </button>
                             <button class="btn btn-sm btn-outline-danger" onclick="MediaLibrary._deleteMedia(${id})">
@@ -188,6 +188,15 @@ const MediaLibrary = {
         `;
         document.getElementById('media-detail-modal')?.remove();
         document.body.insertAdjacentHTML('beforeend', html);
+
+        const copyBtn = document.getElementById('media-copy-url');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard?.writeText(copyBtn.dataset.url);
+                App.toast(t('media.url_copied'), 'success');
+            });
+        }
+
         new bootstrap.Modal(document.getElementById('media-detail-modal')).show();
     },
 

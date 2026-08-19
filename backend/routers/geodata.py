@@ -3,6 +3,7 @@ TalkingMaps – External Geodata Router
 Wikipedia geosearch, OSM Overpass queries, Wikidata enrichment.
 No API keys required — uses public APIs with respectful rate limiting.
 """
+import re
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from core.security import get_current_user
@@ -24,6 +25,10 @@ async def wikipedia_nearby(
     _user: dict = Depends(get_current_user),
 ):
     """Find Wikipedia articles near a geographic point."""
+    # lang becomes part of the hostname, so it has to be a bare language code and
+    # nothing else — otherwise it is a request-forgery primitive.
+    if not re.fullmatch(r"[a-z]{2,3}(-[a-z]{2,8})?", lang or ""):
+        raise HTTPException(status_code=400, detail="Codice lingua non valido")
     async with httpx.AsyncClient(timeout=10, headers=HEADERS) as client:
         resp = await client.get(
             f"https://{lang}.wikipedia.org/w/api.php",

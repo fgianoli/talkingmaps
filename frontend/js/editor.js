@@ -1311,7 +1311,7 @@ const StoryEditor = {
                             <div class="stat-item" data-stat-index="${si}" style="border:1px solid var(--tm-border);border-radius:8px;padding:8px;margin-bottom:8px;font-size:12px">
                                 <div class="d-flex gap-1 mb-1">
                                     <input type="text" class="form-control form-control-sm stat-prefix" value="${App.escHtml(it.prefix || '')}" placeholder="$" title="${t('editor.stats_prefix')}" style="font-size:11px;max-width:52px">
-                                    <input type="number" class="form-control form-control-sm stat-value" value="${App.escHtml(it.value ?? '')}" placeholder="${t('editor.stats_value')}" step="any" style="font-size:11px">
+                                    <input type="text" inputmode="decimal" class="form-control form-control-sm stat-value" value="${App.escHtml(it.value ?? '')}" placeholder="${t('editor.stats_value')}" style="font-size:11px">
                                     <input type="text" class="form-control form-control-sm stat-suffix" value="${App.escHtml(it.suffix || '')}" placeholder="km²" title="${t('editor.stats_suffix')}" style="font-size:11px;max-width:62px">
                                     <input type="number" class="form-control form-control-sm stat-decimals" value="${App.escHtml(it.decimals || 0)}" min="0" max="6" title="${t('editor.stats_decimals')}" style="font-size:11px;max-width:48px">
                                     <button class="btn btn-sm btn-outline-danger" onclick="StoryEditor._removeStat(${si})" title="${t('editor.stats_remove')}" style="padding:0 6px"><i class="bi bi-trash"></i></button>
@@ -2161,10 +2161,13 @@ const StoryEditor = {
         if (statItems.length > 0) {
             const items = [];
             statItems.forEach(item => {
-                const rawValue = item.querySelector('.stat-value')?.value;
-                const parsed = parseFloat(rawValue);
+                // Keep the text when it is not entirely a number: the viewer shows such a
+                // value verbatim (a pre-formatted "1.2M"), and coercing it here to 0 would
+                // silently destroy the author's figure on the next save.
+                const rawValue = (item.querySelector('.stat-value')?.value ?? '').trim();
+                const parsed = rawValue === '' ? NaN : Number(rawValue);
                 items.push({
-                    value: isFinite(parsed) ? parsed : 0,
+                    value: isFinite(parsed) ? parsed : rawValue,
                     prefix: item.querySelector('.stat-prefix')?.value || '',
                     suffix: item.querySelector('.stat-suffix')?.value || '',
                     decimals: parseInt(item.querySelector('.stat-decimals')?.value) || 0,

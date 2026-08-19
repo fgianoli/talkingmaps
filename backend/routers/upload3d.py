@@ -12,6 +12,8 @@ import uuid
 import zipfile
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+
+from core.safe_files import safe_extract, safe_filename
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db, get_system_db
@@ -153,8 +155,10 @@ async def upload_3d(
     asset_dir = os.path.join(user_dir, asset_id)
     os.makedirs(asset_dir, exist_ok=True)
 
-    # Save original file
-    original_filename = file.filename or f"upload{ext}"
+    # Save original file. The name is sanitised first: os.path.join() returns an
+    # absolute member outright and follows "..", so a crafted filename would
+    # otherwise write anywhere the process can reach.
+    original_filename = safe_filename(file.filename, f"upload{ext}")
     original_path = os.path.join(asset_dir, original_filename)
     with open(original_path, "wb") as f:
         f.write(content)
@@ -391,7 +395,7 @@ def _process_tileset_zip(asset_dir, filepath, asset_id, user_id, info):
 
     try:
         with zipfile.ZipFile(filepath, "r") as zf:
-            zf.extractall(extract_dir)
+            safe_extract(zf, extract_dir)
     except zipfile.BadZipFile:
         raise HTTPException(status_code=400, detail="File ZIP non valido")
 
@@ -468,7 +472,7 @@ def _process_kml(asset_dir, filepath, ext, asset_id, user_id, info):
         os.makedirs(extract_dir, exist_ok=True)
         try:
             with zipfile.ZipFile(filepath, "r") as zf:
-                zf.extractall(extract_dir)
+                safe_extract(zf, extract_dir)
             # Find the .kml inside
             for f in os.listdir(extract_dir):
                 if f.endswith(".kml"):

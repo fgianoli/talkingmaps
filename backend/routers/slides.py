@@ -5,6 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.security import require_editor
+from core.authz import require_story_access, require_slide_access, require_marker_access
 
 router = APIRouter()
 
@@ -53,8 +54,41 @@ class ReorderRequest(BaseModel):
     slide_ids: list[int]
 
 
+# Registered before "/{slide_id}": FastAPI matches in declaration order, and a
+# literal path must win over the parameterised one that would otherwise swallow it.
+@router.put("/reorder")
+async def reorder_slides(req: ReorderRequest, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
+    if not req.slide_ids:
+        return {"detail": "Ordine aggiornato"}
+    if len(req.slide_ids) > 500:
+        raise HTTPException(status_code=400, detail="Troppe slide da riordinare")
+    # Every slide must belong to a story the caller may edit, and to the same story.
+    # One bind parameter per id keeps this driver-agnostic; the placeholders are
+    # generated here, never taken from the request.
+    placeholders = ", ".join(f":id{i}" for i in range(len(req.slide_ids)))
+    rows = await db.execute(
+        text(f"SELECT id, story_id FROM slides WHERE id IN ({placeholders})"),
+        {f"id{i}": sid for i, sid in enumerate(req.slide_ids)},
+    )
+    found = {r[0]: r[1] for r in rows.fetchall()}
+    if len(found) != len(set(req.slide_ids)):
+        raise HTTPException(status_code=404, detail="Slide non trovata")
+    story_ids = set(found.values())
+    if len(story_ids) != 1:
+        raise HTTPException(status_code=400, detail="Le slide appartengono a storie diverse")
+    story_id = story_ids.pop()
+    await require_story_access(db, story_id, user, require_role="editor")
+
+    for idx, slide_id in enumerate(req.slide_ids):
+        await db.execute(text("UPDATE slides SET position = :pos WHERE id = :id"), {"pos": idx, "id": slide_id})
+    await db.execute(text("UPDATE stories SET updated_at = NOW() WHERE id = :sid"), {"sid": story_id})
+    await db.commit()
+    return {"detail": "Ordine aggiornato"}
+
+
 @router.get("/story/{story_id}")
-async def list_slides(story_id: int, db: AsyncSession = Depends(get_db)):
+async def list_slides(story_id: int, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
+    await require_story_access(db, story_id, user, require_role="viewer")
     result = await db.execute(text(
         "SELECT * FROM slides WHERE story_id = :sid ORDER BY position"
     ), {"sid": story_id})
@@ -62,7 +96,8 @@ async def list_slides(story_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{slide_id}")
-async def get_slide(slide_id: int, db: AsyncSession = Depends(get_db)):
+async def get_slide(slide_id: int, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
+    await require_slide_access(db, slide_id, user, require_role="viewer")
     result = await db.execute(text("SELECT * FROM slides WHERE id = :id"), {"id": slide_id})
     slide = result.mappings().fetchone()
     if not slide:
@@ -76,6 +111,7 @@ async def get_slide(slide_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.post("/")
 async def create_slide(req: SlideCreate, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
+    await require_story_access(db, req.story_id, user, require_role="editor")
     # Get next position
     if req.position is None:
         pos_r = await db.execute(text("SELECT COALESCE(MAX(position), -1) + 1 FROM slides WHERE story_id = :sid"), {"sid": req.story_id})
@@ -101,6 +137,7 @@ async def create_slide(req: SlideCreate, user: dict = Depends(require_editor), d
 
 @router.put("/{slide_id}")
 async def update_slide(slide_id: int, req: SlideUpdate, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
+    await require_slide_access(db, slide_id, user)
     sets = []
     params = {"id": slide_id}
 
@@ -132,6 +169,7 @@ async def update_slide(slide_id: int, req: SlideUpdate, user: dict = Depends(req
 
 @router.delete("/{slide_id}")
 async def delete_slide(slide_id: int, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
+    await require_slide_access(db, slide_id, user)
     result = await db.execute(text("DELETE FROM slides WHERE id = :id RETURNING story_id, position"), {"id": slide_id})
     row = result.fetchone()
     if not row:
@@ -145,18 +183,11 @@ async def delete_slide(slide_id: int, user: dict = Depends(require_editor), db: 
     return {"detail": "Slide eliminata"}
 
 
-@router.put("/reorder")
-async def reorder_slides(req: ReorderRequest, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
-    for idx, slide_id in enumerate(req.slide_ids):
-        await db.execute(text("UPDATE slides SET position = :pos WHERE id = :id"), {"pos": idx, "id": slide_id})
-    await db.commit()
-    return {"detail": "Ordine aggiornato"}
-
-
 # ── Markers ──────────────────────────────────────────
 
 @router.post("/{slide_id}/markers")
 async def add_marker(slide_id: int, req: MarkerCreate, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
+    await require_slide_access(db, slide_id, user)
     # Encode icon|size|shape into the icon column (avoids DB migration)
     icon_packed = f"{req.icon}|{req.size}|{req.shape}"
     result = await db.execute(text(
@@ -171,6 +202,7 @@ async def add_marker(slide_id: int, req: MarkerCreate, user: dict = Depends(requ
 
 @router.put("/markers/{marker_id}")
 async def update_marker(marker_id: int, req: MarkerCreate, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
+    await require_marker_access(db, marker_id, user)
     icon_packed = f"{req.icon}|{req.size}|{req.shape}"
     result = await db.execute(text(
         """UPDATE markers SET geom = ST_SetSRID(ST_MakePoint(:lng, :lat), 4326),
@@ -185,6 +217,7 @@ async def update_marker(marker_id: int, req: MarkerCreate, user: dict = Depends(
 
 @router.delete("/markers/{marker_id}")
 async def delete_marker(marker_id: int, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_db)):
+    await require_marker_access(db, marker_id, user)
     result = await db.execute(text("DELETE FROM markers WHERE id = :id RETURNING id"), {"id": marker_id})
     if not result.fetchone():
         raise HTTPException(status_code=404, detail="Marker non trovato")

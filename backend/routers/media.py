@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.security import get_current_user, require_editor
 from core.config import settings
+from core.safe_files import safe_extension
 
 router = APIRouter()
 
@@ -25,12 +26,17 @@ async def list_media(
 ):
     q = "SELECT id, filename, original_name, mime_type, file_size, file_path, thumbnail_path, width, height, story_id, created_at FROM media"
     params = {}
+    # story_id narrows the list; it must never replace the ownership filter, or any
+    # user could enumerate another user's media by guessing story ids.
+    clauses = []
     if story_id is not None:
-        q += " WHERE story_id = :sid"
+        clauses.append("story_id = :sid")
         params["sid"] = story_id
-    elif user["role"] != "admin":
-        q += " WHERE owner_id = :uid"
+    if user["role"] != "admin":
+        clauses.append("owner_id = :uid")
         params["uid"] = user["id"]
+    if clauses:
+        q += " WHERE " + " AND ".join(clauses)
     q += " ORDER BY created_at DESC"
     result = await db.execute(text(q), params)
     return [dict(r) for r in result.mappings().all()]
@@ -50,7 +56,9 @@ async def upload_media(
     if len(content) > settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024:
         raise HTTPException(status_code=400, detail=f"File troppo grande (max {settings.MAX_UPLOAD_SIZE_MB}MB)")
 
-    ext = os.path.splitext(file.filename)[1].lower() if file.filename else ""
+    # Taken from the user's filename, so it must be sanitised: it becomes part of
+    # the served URL and is rendered into src="..." attributes in the frontend.
+    ext = safe_extension(file.filename)
     filename = f"{uuid.uuid4().hex}{ext}"
 
     # Determine subdirectory based on type

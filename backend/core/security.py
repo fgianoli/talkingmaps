@@ -8,6 +8,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from core.config import settings
 
 security_scheme = HTTPBearer()
+security_scheme_optional = HTTPBearer(auto_error=False)
 
 _redis: aioredis.Redis | None = None
 _revoked_tokens: set[str] = set()
@@ -88,6 +89,22 @@ async def get_current_user(
         "role": payload["role"],
         "token": token,
     }
+
+
+async def get_current_user_optional(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme_optional),
+) -> dict | None:
+    """Like get_current_user, but anonymous callers get None instead of a 401.
+
+    For endpoints that serve public content yet must widen access for the owner:
+    the endpoint decides what an anonymous caller may see.
+    """
+    if credentials is None:
+        return None
+    try:
+        return await get_current_user(credentials)
+    except HTTPException:
+        return None
 
 
 async def require_admin(user: dict = Depends(get_current_user)) -> dict:

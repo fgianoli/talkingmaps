@@ -13,6 +13,21 @@ from core.security import get_current_user, require_editor
 router = APIRouter()
 
 
+async def _require_symbology_owner(db: AsyncSession, symbology_id: int, user: dict) -> None:
+    """A symbology may only be changed by its owner or an admin.
+
+    Rows with no owner are the seeded defaults, so those are admin-only.
+    """
+    row = await db.execute(text("SELECT owner_id FROM symbologies WHERE id = :id"), {"id": symbology_id})
+    found = row.fetchone()
+    if not found:
+        raise HTTPException(status_code=404, detail="Simbologia non trovata")
+    if user.get("role") == "admin":
+        return
+    if found[0] is None or found[0] != user["id"]:
+        raise HTTPException(status_code=403, detail="Non autorizzato a modificare questa simbologia")
+
+
 class SymbologyCreate(BaseModel):
     name: str
     description: str | None = None
@@ -105,6 +120,7 @@ async def create_symbology(req: SymbologyCreate, user: dict = Depends(require_ed
 
 @router.put("/{symbology_id}")
 async def update_symbology(symbology_id: int, req: SymbologyUpdate, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_system_db)):
+    await _require_symbology_owner(db, symbology_id, user)
     # Get current record for style_type / geometry_type fallback
     current = await db.execute(text("SELECT * FROM symbologies WHERE id = :id"), {"id": symbology_id})
     row = current.mappings().fetchone()
@@ -150,6 +166,7 @@ async def update_symbology(symbology_id: int, req: SymbologyUpdate, user: dict =
 
 @router.delete("/{symbology_id}")
 async def delete_symbology(symbology_id: int, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_system_db)):
+    await _require_symbology_owner(db, symbology_id, user)
     result = await db.execute(text("DELETE FROM symbologies WHERE id = :id RETURNING id"), {"id": symbology_id})
     if not result.fetchone():
         raise HTTPException(status_code=404, detail="Simbologia non trovata")
@@ -158,8 +175,10 @@ async def delete_symbology(symbology_id: int, user: dict = Depends(require_edito
 
 
 @router.post("/{symbology_id}/compile")
-async def recompile_symbology(symbology_id: int, db: AsyncSession = Depends(get_system_db)):
+async def recompile_symbology(symbology_id: int, user: dict = Depends(require_editor), db: AsyncSession = Depends(get_system_db)):
     """Recompile config to MapLibre style spec."""
+    # This writes maplibre_style back to the row, so it needs the same rights as an update
+    await _require_symbology_owner(db, symbology_id, user)
     result = await db.execute(text("SELECT * FROM symbologies WHERE id = :id"), {"id": symbology_id})
     row = result.mappings().fetchone()
     if not row:

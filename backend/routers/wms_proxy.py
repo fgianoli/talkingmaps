@@ -4,6 +4,7 @@ Proxies WMS requests to whitelisted servers, handling CORS and reprojection.
 """
 from urllib.parse import urlparse, urlencode, parse_qs
 from fastapi import APIRouter, HTTPException, Query
+from core.safe_http import fetch_validated
 from fastapi.responses import Response
 import httpx
 
@@ -42,8 +43,9 @@ async def proxy_tile(url: str = Query(..., description="URL del servizio WMS/til
         raise HTTPException(status_code=403, detail="Host non consentito")
 
     try:
-        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-            resp = await client.get(url)
+        # Redirects are followed by hand so the allow-list is re-checked on each hop
+        async with httpx.AsyncClient(timeout=30, follow_redirects=False) as client:
+            resp = await fetch_validated(client, url, _is_host_allowed)
             if resp.status_code != 200:
                 raise HTTPException(status_code=resp.status_code, detail="Errore dal server WMS")
             content_type = resp.headers.get("content-type", "image/png")
@@ -102,8 +104,8 @@ async def proxy_wms(
     full_url = f"{url}?{urlencode(params)}"
 
     try:
-        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-            resp = await client.get(full_url)
+        async with httpx.AsyncClient(timeout=30, follow_redirects=False) as client:
+            resp = await fetch_validated(client, full_url, _is_host_allowed)
             content_type = resp.headers.get("content-type", "image/png")
             return Response(
                 content=resp.content,
