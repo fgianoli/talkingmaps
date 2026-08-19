@@ -106,7 +106,12 @@ docker-compose exec db pg_dump -U talkingmaps talkingmaps > backup.sql
 
 ### Troubleshooting Windows
 
-- **Porta 8080 già in uso**: Modificare la porta in `docker-compose.yml` (riga `ports: "8080:80"`)
+- **Porta 8080 già in uso**: Avviare con `LISTEN_PORT=8099 docker compose up -d` (oppure modificare la porta in `docker-compose.yml`)
+- **Upload che falliscono con 500 (`Permission denied: /var/www/uploads/...`)**: il volume `uploads` è più vecchio della versione in cui il backend ha iniziato a girare come utente non-root, quindi è rimasto di proprietà di `root`. Sistemarlo senza perdere i file già caricati:
+  ```bash
+  docker run --rm -v talkingmaps-master_uploads:/v alpine chown -R 999:999 /v
+  ```
+  Su un volume creato da zero il problema non si presenta.
 - **Errore WSL**: Eseguire `wsl --install` da PowerShell come admin
 - **Container non partono**: `docker-compose down -v && docker-compose up -d --build`
 - **Hot-reload frontend**: Il frontend viene servito direttamente dalla cartella `frontend/` – le modifiche sono immediate (F5 nel browser)
@@ -173,9 +178,16 @@ talkingmaps-master/
 
 ## API Documentation
 
-Con il backend in esecuzione, la documentazione Swagger è disponibile su:
+Con il backend in esecuzione, la documentazione Swagger è servita da FastAPI su `/docs`.
+Nginx però inoltra al backend solo il prefisso `/api/`, quindi da fuori quel percorso
+finisce sulla single-page app. Per raggiungerla, interrogare il container direttamente:
 
-**http://localhost:8080/api/docs**
+```bash
+docker compose exec backend python -c "import urllib.request; print(urllib.request.urlopen('http://localhost:8000/openapi.json').read().decode()[:400])"
+```
+
+oppure pubblicare temporaneamente la porta del backend aggiungendo `ports: ["8000:8000"]`
+al servizio `backend` e aprire **http://localhost:8000/docs**.
 
 ### Endpoint principali
 

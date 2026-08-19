@@ -17,6 +17,17 @@ ALLOWED_TYPES = {
     "application/pdf",
 }
 
+# Fallback extension per accepted type, used when the uploaded filename carries
+# nothing usable. content_type is validated against ALLOWED_TYPES first, so this
+# never trusts the client any further than that check already does.
+_EXT_BY_TYPE = {
+    "image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif",
+    "image/webp": ".webp", "image/svg+xml": ".svg",
+    "video/mp4": ".mp4", "video/webm": ".webm",
+    "audio/mpeg": ".mp3", "audio/ogg": ".ogg", "audio/wav": ".wav",
+    "application/pdf": ".pdf",
+}
+
 
 @router.get("/")
 async def list_media(
@@ -58,7 +69,7 @@ async def upload_media(
 
     # Taken from the user's filename, so it must be sanitised: it becomes part of
     # the served URL and is rendered into src="..." attributes in the frontend.
-    ext = safe_extension(file.filename)
+    ext = safe_extension(file.filename) or _EXT_BY_TYPE.get(file.content_type, "")
     filename = f"{uuid.uuid4().hex}{ext}"
 
     # Determine subdirectory based on type
