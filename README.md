@@ -67,14 +67,18 @@ cd C:\Users\giano\Desktop\SVILUPPO\talkingmaps-master
 # 2. Copiare e configurare il file .env (già presente con configurazione locale)
 # Modificare .env se necessario (SECRET_KEY, password, ecc.)
 
-# 3. Avviare i container
+# 3. Abilitare l'hot-reload del backend (solo sviluppo — non è in git di proposito,
+#    così un git pull sul server non lo reintroduce)
+cp docker-compose.override.yml.example docker-compose.override.yml
+
+# 4. Avviare i container
 docker-compose up -d --build
 
-# 4. Attendere che il database sia pronto (circa 30 secondi al primo avvio)
+# 5. Attendere che il database sia pronto (circa 30 secondi al primo avvio)
 docker-compose logs -f backend
 # Aspettare: "[INIT] Admin user 'admin' created"
 
-# 5. Aprire il browser
+# 6. Aprire il browser
 # http://localhost:8080
 # Login: admin / admin
 ```

@@ -10,3 +10,6 @@ _old/
 db_data/
 node_modules/
 .claude/
+
+# Dev-only compose override: ricreare da docker-compose.override.yml.example
+docker-compose.override.yml
