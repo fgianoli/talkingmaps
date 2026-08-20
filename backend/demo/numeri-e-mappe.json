@@ -11,7 +11,7 @@
     {
       "layout": "cover",
       "title": "Raccontare con i numeri",
-      "narrative": "<h1>Raccontare con i numeri</h1><p>Una data story si apre quasi sempre con le cifre che colpiscono. Scorri per vederle salire.</p><p><em>I valori di questa storia sono di esempio e servono solo a mostrare il funzionamento degli effetti.</em></p>",
+      "narrative": "<h1>Raccontare con i numeri</h1><p>Una data story si apre quasi sempre con le cifre che colpiscono. Scorri per vederle salire da zero.</p><p><em>I valori di questa storia sono di esempio: servono solo a mostrare come funzionano gli effetti.</em></p>",
       "position": 0,
       "map_center": { "lng": 12.5674, "lat": 41.8719 },
       "map_zoom": 4.5,
@@ -20,15 +20,16 @@
     {
       "layout": "text-only",
       "title": "Le cifre",
-      "narrative": "<h2>Le cifre</h2><p>Ogni numero parte da zero quando la slide entra in vista. Prefisso, suffisso e decimali sono impostabili uno per uno, e la formattazione segue la lingua del lettore.</p>",
+      "narrative": "<h2>Quattro numeri, una storia</h2><p>Ogni cifra parte da zero quando la slide entra in vista. Prefisso, suffisso e decimali si impostano uno per uno, e la formattazione segue la lingua del lettore.</p>",
       "position": 1,
       "style_overrides": {
         "transition": "stagger",
-        "card_style": "card",
+        "card_style": "full-width",
+        "text_align": "left",
         "stats": {
           "items": [
-            { "value": 332000000, "label": "Superficie", "suffix": " km²", "desc": "Valore di esempio", "prefix": "", "decimals": 0 },
-            { "value": 65, "label": "Quota interessata", "suffix": "%", "desc": "", "prefix": "", "decimals": 0 },
+            { "value": 332, "label": "Superficie", "suffix": " mln km²", "prefix": "", "decimals": 0, "desc": "Valore di esempio" },
+            { "value": 65, "label": "Quota interessata", "suffix": "%", "prefix": "", "decimals": 0, "desc": "" },
             { "value": 3.4, "label": "Impatto stimato", "prefix": "€", "suffix": " mld", "decimals": 1, "desc": "" },
             { "value": 34, "label": "Aree monitorate", "prefix": "", "suffix": "", "decimals": 0, "desc": "" }
           ],
@@ -40,26 +41,33 @@
     {
       "layout": "text-only",
       "title": "Prima e dopo",
-      "narrative": "<h2>Prima e dopo</h2><p>Trascina la maniglia per confrontare le due immagini. Funziona anche col click sull'immagine e con le frecce della tastiera.</p><p>Serve per mostrare un cambiamento nel tempo: due date satellitari, un sito prima e dopo un intervento, una foto storica accanto a una attuale.</p>",
+      "narrative": "<h2>Prima e dopo</h2><p>Trascina la maniglia per confrontare le due immagini. Funziona anche col click e con le frecce della tastiera.</p>",
       "position": 2,
       "style_overrides": {
-        "transition": "stagger",
-        "card_style": "card",
+        "transition": "fade",
+        "card_style": "full-width",
         "image_compare": {
           "before_url": "/img/demo/copertura-2010.svg",
           "after_url": "/img/demo/copertura-2024.svg",
           "before_label": "2010",
           "after_label": "2024",
-          "aspect": "16/9",
+          "aspect": "21/9",
           "start": 50
         }
       }
     },
     {
+      "layout": "text-only",
+      "title": "A cosa serve",
+      "narrative": "<h2>A cosa serve</h2><p>Due date satellitari sulla stessa area. Un sito prima e dopo un intervento. Una fotografia storica accanto a una attuale.</p><p>Il confronto affiancato costringe l'occhio a cercare la differenza, e la trova da solo: è più efficace di qualsiasi didascalia che la descriva.</p>",
+      "position": 3,
+      "style_overrides": { "transition": "stagger", "card_style": "card" }
+    },
+    {
       "layout": "side-left",
       "title": "E la mappa",
-      "narrative": "<h2>E la mappa</h2><p>Gli effetti si combinano con tutto il resto: la camera si sposta per slide, i layer si accendono e si spengono, i grafici stanno nel testo.</p><p>Questa slide usa la transizione a cascata: titolo e paragrafi entrano uno dopo l'altro.</p>",
-      "position": 3,
+      "narrative": "<h2>E la mappa</h2><p>Gli effetti si combinano con tutto il resto: la camera si sposta per slide, i layer si accendono e si spengono, i grafici stanno dentro al testo.</p><p>Questa slide usa la transizione a cascata: titolo e paragrafi entrano uno dopo l'altro.</p>",
+      "position": 4,
       "map_center": { "lng": 9.1900, "lat": 45.4642 },
       "map_zoom": 11,
       "map_animation": "flyTo",

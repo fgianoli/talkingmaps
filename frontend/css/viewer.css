@@ -251,8 +251,12 @@
 
 /* Default: card style (already styled above) */
 
-/* Full-width: stretches across the entire narrative column */
-.viewer-card-full-width {
+/* Full-width: stretches across the entire narrative column.
+   The selector carries the extra .viewer-slide so it outranks the per-layout width
+   rules below (.slide-layout-text-only .viewer-slide-content and friends). Without
+   it the card style is silently ignored on every layout that pins a width, which is
+   most of them — the editor offered the option and nothing happened. */
+.viewer-slide .viewer-slide-content.viewer-card-full-width {
     border-radius: 0;
     width: 100vw;
     max-width: 100vw;
@@ -260,7 +264,8 @@
     padding: 40px 10vw;
     box-shadow: none;
     border: none;
-    background: rgba(255,255,255,0.96);
+    /* Background deliberately not set here: it must stay with the card and the story
+       theme, or a full-width card would be white on a dark story. */
 }
 
 /* Transparent: text floats directly on map */
@@ -1240,26 +1245,40 @@
    KEY FIGURES (animated counters)
    ═══════════════════════════════════════ */
 .tm-stats {
+    /* A container, so the figures size themselves against the space they actually
+       have. Keying them to the viewport made a 44px number sit in a 160px column
+       and break apart mid-digit. */
+    container-type: inline-size;
     display: grid;
     grid-template-columns: repeat(var(--tm-stats-cols, 4), minmax(0, 1fr));
-    gap: 20px 24px;
-    margin: 22px 0 8px;
+    gap: 22px 26px;
+    margin: 26px 0 10px;
+}
+/* Below this width the author's column count stops fitting, whatever it was */
+@container (max-width: 640px) {
+    .tm-stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 }
 .tm-stat {
+    container-type: inline-size;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 5px;
     min-width: 0;
 }
 .tm-stat-value {
     font-family: var(--tm-font-display);
-    font-size: clamp(26px, 3.4vw, 44px);
+    /* Relative to the cell, not the window: 14cqi keeps a long figure inside its
+       column instead of overflowing it */
+    font-size: clamp(21px, 14cqi, 46px);
     font-weight: 700;
-    line-height: 1.05;
+    line-height: 1.08;
     letter-spacing: -0.02em;
     color: var(--tm-primary);
     font-variant-numeric: tabular-nums;
-    overflow-wrap: anywhere;
+    /* Wrap between the number and its unit if needed, never inside the digits */
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
 }
 .tm-stat-label {
     font-size: 12px;
@@ -1274,7 +1293,9 @@
     color: #94a3b8;
 }
 @media (max-width: 640px) {
-    .tm-stats { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 16px; }
+    /* The container query above already reflows the columns; on a phone the gap
+       is the only thing left worth tightening. */
+    .tm-stats { gap: 16px; }
 }
 
 /* ═══════════════════════════════════════

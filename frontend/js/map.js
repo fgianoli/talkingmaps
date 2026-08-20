@@ -139,8 +139,25 @@ const TmMap = {
     },
 
     // ── Layers ───────────────────────────
+    /**
+     * Run a callback once the map style is usable — immediately if it already is.
+     * MapLibre refuses addSource/addLayer until the style has loaded.
+     */
+    whenReady(callback) {
+        if (!this._map) return;
+        if (this._map.isStyleLoaded()) { callback(); return; }
+        this._map.once('styledata', () => this.whenReady(callback));
+    },
+
     addLayer(layerConfig) {
         if (!this._map) return;
+        // The map is created and returned before its style finishes loading, so a
+        // caller adding layers straight after init() would hit "Style is not done
+        // loading" and lose them silently. Defer instead of throwing away the layer.
+        if (!this._map.isStyleLoaded()) {
+            this._map.once('styledata', () => this.addLayer(layerConfig));
+            return;
+        }
         const { id, layer_type, source_config, style_config } = layerConfig;
         const sourceId = `layer-${id}`;
         const layerId = `layer-${id}`;

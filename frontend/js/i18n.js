@@ -128,6 +128,11 @@ const I18n = {
             'nav.settings': 'Impostazioni',
             'nav.docs': 'Documentazione',
             'nav.report': 'Segnala un problema',
+            // Vetrina storie pubbliche
+            'landing.demos_nav': 'Esempi',
+            'landing.demos_title': 'Guardale in funzione',
+            'landing.demos_subtitle': 'Storymap pubbliche costruite con TalkingMaps. Aprile e scorri: nessuna registrazione richiesta.',
+            'landing.demos_open': 'Apri la storia',
             'landing.report_bug': 'Segnala bug',
             'landing.request_feature': 'Proponi funzionalità',
 
@@ -958,6 +963,11 @@ const I18n = {
             'nav.settings': 'Settings',
             'nav.docs': 'Documentation',
             'nav.report': 'Report a problem',
+            // Public story showcase
+            'landing.demos_nav': 'Examples',
+            'landing.demos_title': 'See them running',
+            'landing.demos_subtitle': 'Public storymaps built with TalkingMaps. Open one and scroll — no sign-up needed.',
+            'landing.demos_open': 'Open the story',
             'landing.report_bug': 'Report bug',
             'landing.request_feature': 'Request feature',
 
@@ -1774,6 +1784,11 @@ const I18n = {
             'nav.settings': 'Configuración',
             'nav.docs': 'Documentación',
             'nav.report': 'Reportar un problema',
+            // Escaparate de historias públicas
+            'landing.demos_nav': 'Ejemplos',
+            'landing.demos_title': 'Míralas en funcionamiento',
+            'landing.demos_subtitle': 'Storymaps públicos creados con TalkingMaps. Ábrelos y desplázate: sin registro.',
+            'landing.demos_open': 'Abrir la historia',
             'landing.report_bug': 'Reportar error',
             'landing.request_feature': 'Solicitar función',
 
@@ -2590,6 +2605,11 @@ const I18n = {
             'nav.settings': 'Configuració',
             'nav.docs': 'Documentació',
             'nav.report': 'Informa d\'un problema',
+            // Aparador d'històries públiques
+            'landing.demos_nav': 'Exemples',
+            'landing.demos_title': 'Mira-les en funcionament',
+            'landing.demos_subtitle': 'Storymaps públics fets amb TalkingMaps. Obre\'ls i desplaça\'t: sense registre.',
+            'landing.demos_open': 'Obre la història',
             'landing.report_bug': 'Informa d\'un error',
             'landing.request_feature': 'Proposa funcionalitat',
 
@@ -3406,6 +3426,11 @@ const I18n = {
             'nav.settings': 'Paramètres',
             'nav.docs': 'Documentation',
             'nav.report': 'Signaler un problème',
+            // Vitrine des histoires publiques
+            'landing.demos_nav': 'Exemples',
+            'landing.demos_title': 'Voyez-les à l\'œuvre',
+            'landing.demos_subtitle': 'Des storymaps publiques réalisées avec TalkingMaps. Ouvrez et faites défiler, sans inscription.',
+            'landing.demos_open': 'Ouvrir l\'histoire',
             'landing.report_bug': 'Signaler un bug',
             'landing.request_feature': 'Proposer une fonctionnalité',
 

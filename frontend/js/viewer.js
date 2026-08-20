@@ -164,8 +164,10 @@ const StoryViewer = {
         // Make map interactive: pointer events pass through empty slide areas
         this._setupMapInteractivity();
 
-        // Load initial slide
-        setTimeout(() => this._onSlideEnter(0), 500);
+        // Load initial slide once the style is usable: the first slide may switch
+        // basemap, filter a layer or start the timeline, and none of that can attach
+        // to a style that has not loaded yet.
+        TmMap.whenReady(() => setTimeout(() => this._onSlideEnter(0), 150));
 
         // Autoplay: auto-scroll slides every 8 seconds
         if (App.embedMode && App.embedOptions.autoplay) {
@@ -264,21 +266,25 @@ const StoryViewer = {
             basemaps: data.basemaps,
         });
 
-        // Add story layers
-        if (data.layers) {
-            data.layers.forEach(l => {
-                TmMap.addLayer({
-                    id: l.layer_id,
-                    layer_type: l.layer_type,
-                    source_config: l.source_config,
-                    style_config: l.custom_style && Object.keys(l.custom_style).length ? l.custom_style : l.style_config,
-                    opacity: l.opacity,
+        // Add story layers once the style can take them. Visibility and auto-refresh
+        // have to wait too: both look the layer up by id, and until it exists they
+        // would quietly do nothing.
+        if (data.layers?.length) {
+            TmMap.whenReady(() => {
+                data.layers.forEach(l => {
+                    TmMap.addLayer({
+                        id: l.layer_id,
+                        layer_type: l.layer_type,
+                        source_config: l.source_config,
+                        style_config: l.custom_style && Object.keys(l.custom_style).length ? l.custom_style : l.style_config,
+                        opacity: l.opacity,
+                    });
+                    if (!l.visible) TmMap.setLayerVisibility(l.layer_id, false);
+                    // Start auto-refresh if configured
+                    if (l.source_config?.autoRefreshMinutes > 0) {
+                        TmMap.startAutoRefresh(l.layer_id, l.source_config.autoRefreshMinutes);
+                    }
                 });
-                if (!l.visible) TmMap.setLayerVisibility(l.layer_id, false);
-                // Start auto-refresh if configured
-                if (l.source_config?.autoRefreshMinutes > 0) {
-                    TmMap.startAutoRefresh(l.layer_id, l.source_config.autoRefreshMinutes);
-                }
             });
         }
     },

@@ -147,6 +147,13 @@ const App = {
         const featureLink = document.getElementById('landing-link-feature');
         if (featureLink) featureLink.textContent = t('landing.request_feature');
 
+        const demosTitle = document.getElementById('landing-demos-title');
+        if (demosTitle) demosTitle.textContent = t('landing.demos_title');
+        const demosSubtitle = document.getElementById('landing-demos-subtitle');
+        if (demosSubtitle) demosSubtitle.textContent = t('landing.demos_subtitle');
+        const demosLink = document.getElementById('landing-link-demos');
+        if (demosLink) demosLink.textContent = t('landing.demos_nav');
+
         // Features grid
         const grid = document.getElementById('landing-features-grid');
         if (grid) {
@@ -171,8 +178,56 @@ const App = {
         }
     },
 
+    /**
+     * Showcase of the public storymaps on the landing page.
+     *
+     * Reads whatever is actually published rather than a hardcoded list, so an
+     * installation that seeded the demos shows them and one that did not simply
+     * keeps the section hidden.
+     */
+    async _loadLandingDemos() {
+        const grid = document.getElementById('landing-demos-grid');
+        const section = document.getElementById('demos');
+        const navLink = document.getElementById('landing-link-demos');
+        if (!grid || !section) return;
+
+        let stories = [];
+        try {
+            stories = await Api.get('/api/stories/public');
+        } catch {
+            return; // nothing published, or the API is unreachable: leave it hidden
+        }
+        if (!Array.isArray(stories) || !stories.length) return;
+
+        const t = I18n.t.bind(I18n);
+        const icons = ['bi-geo-alt', 'bi-123', 'bi-clock-history', 'bi-map', 'bi-camera', 'bi-bar-chart'];
+
+        grid.innerHTML = stories.slice(0, 6).map((s, i) => `
+            <button class="demo-card" data-story-id="${this.escHtml(s.id)}">
+                ${s.cover_image
+                    ? `<div class="demo-card-cover" style="background-image:url('${this.escHtml(s.cover_image)}')"></div>`
+                    : `<div class="demo-card-cover demo-card-cover-blank"><i class="bi ${icons[i % icons.length]}"></i></div>`}
+                <div class="demo-card-body">
+                    <h3>${this.escHtml(s.title)}</h3>
+                    <p>${this.escHtml(s.description || '')}</p>
+                    <span class="demo-card-cta">${t('landing.demos_open')} <i class="bi bi-arrow-right"></i></span>
+                </div>
+            </button>
+        `).join('');
+
+        grid.querySelectorAll('[data-story-id]').forEach(card => {
+            card.addEventListener('click', () => {
+                window.location.hash = '#/view/' + card.dataset.storyId;
+            });
+        });
+
+        section.classList.remove('d-none');
+        navLink?.classList.remove('d-none');
+    },
+
     // ── Navigation ───────────────────────
     showLanding() {
+        this._loadLandingDemos();
         document.getElementById('landing-page').classList.remove('d-none');
         document.getElementById('login-screen').classList.add('d-none');
         document.getElementById('app').classList.add('d-none');
