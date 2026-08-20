@@ -7,6 +7,7 @@ from sqlalchemy import text
 from core.config import settings as app_settings
 from core.database import engine, engine_system
 from core.security import hash_password
+from core.migrate import run_migrations
 from routers import auth, stories, slides, media, layers, basemaps, wms_proxy, wfs_proxy, services, users, symbology, ckan, upload3d, settings as settings_router, ai as ai_router, oauth, geodata, contributions
 
 
@@ -20,6 +21,20 @@ async def lifespan(app: FastAPI):
     for subdir in ["images", "videos", "audio", "docs", "layers", "3d", "avatars"]:
         os.makedirs(os.path.join(app_settings.UPLOAD_DIR, subdir), exist_ok=True)
     print(f"[INIT] Upload directories ready at {app_settings.UPLOAD_DIR}")
+
+    # Bring the data schema up to date. The init SQL only ever runs on an empty data
+    # directory, so without this an existing installation silently misses every table
+    # added after its first start.
+    try:
+        result = await run_migrations(engine)
+        if result["applied"]:
+            print(f"[INIT] Migrations applied: {', '.join(result['applied'])}")
+        else:
+            print(f"[INIT] Schema up to date ({len(result['skipped'])} migrations already applied)")
+        for filename, err in result["failed"]:
+            print(f"[INIT] MIGRATION FAILED {filename}: {err}")
+    except Exception as e:
+        print(f"[INIT] Migration runner error: {e}")
 
     # Create initial admin user if not exists (in system DB)
     try:

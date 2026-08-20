@@ -102,10 +102,11 @@ docker-compose down -v
 docker-compose up -d --build backend
 
 # Accesso al database
-docker-compose exec db psql -U talkingmaps -d talkingmaps
+docker-compose exec db psql -U talkingmaps -d talkingmaps_data
 
 # Backup database
-docker-compose exec db pg_dump -U talkingmaps talkingmaps > backup.sql
+docker-compose exec db pg_dump -U talkingmaps talkingmaps_data > backup.sql
+docker-compose exec db pg_dump -U talkingmaps talkingmaps_system > backup_system.sql
 ```
 
 ### Troubleshooting Windows
@@ -133,7 +134,9 @@ talkingmaps-master/
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   ├── main.py                 # Entry point FastAPI
-│   ├── setup.sql               # Schema database
+│   ├── setup_system.sql        # Schema DB di sistema (utenti, basemap, simbologie)
+│   ├── setup_data.sql          # Schema DB dati (storie, slide, layer, media)
+│   ├── migrations/             # Migrazioni applicate automaticamente all'avvio
 │   ├── core/
 │   │   ├── config.py           # Configurazione da .env
 │   │   ├── database.py         # SQLAlchemy async engine
