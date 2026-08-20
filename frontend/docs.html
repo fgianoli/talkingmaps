@@ -188,6 +188,8 @@
     <a href="#markers">Markers</a>
     <a href="#charts">Charts & Dashboards</a>
     <a href="#symbology">Symbology & Styling</a>
+    <a href="#geodata">Wikipedia & OpenStreetMap</a>
+    <a href="#opendata">Open Data (CKAN)</a>
 
     <h6>Advanced</h6>
     <a href="#globe-3d">3D Globe (Cesium)</a>
@@ -196,6 +198,7 @@
     <a href="#participatory">Participatory Maps</a>
     <a href="#ai">AI Assistant</a>
     <a href="#collaboration">Collaboration</a>
+    <a href="#versions">Story Versions</a>
 
     <h6>Publish</h6>
     <a href="#publishing">Publishing & Sharing</a>
@@ -361,10 +364,38 @@
     <li>Embedded iframes (click the embed icon) &mdash; YouTube, Google Sheets, Metabase dashboards, etc.</li>
 </ul>
 
+<h3>Undo and Redo <span class="docs-badge docs-badge-new">Documented</span></h3>
+<p>The editor keeps a history of up to 50 snapshots of the whole slide deck, so a mistake is never more than one keystroke away from being undone.</p>
+<ul>
+    <li><strong>Ctrl+Z</strong> or the arrow button in the toolbar steps backwards</li>
+    <li><strong>Ctrl+Shift+Z</strong> steps forwards again</li>
+</ul>
+<p>A snapshot is taken before each structural change: adding, deleting or reordering a slide, changing a layout, and when you start typing in the title or narrative. The buttons are greyed out when there is nothing left to undo.</p>
+<div class="docs-callout">
+    History lives in the browser for the current editing session. Reloading the page starts a fresh history — for a checkpoint that survives, save a <a href="#versions">version</a>.
+</div>
+
 <h3>Quick Actions</h3>
 <p>At the top of the narrative area you'll find <strong>quick action buttons</strong> to insert images, videos, charts or iframes with a single click.</p>
 
 <!-- ── Storytelling Effects ──────────── -->
+<h3>Image Gallery <span class="docs-badge docs-badge-new">Documented</span></h3>
+<p>A slide can carry a gallery: a responsive carousel with captions, thumbnails, keyboard arrows and touch swipe. Open <strong>Image gallery</strong> in the Media tab, then <em>Add gallery</em>.</p>
+<p>Pick images by uploading them or choosing from the media library, and give each one a caption. Two switches control playback: <strong>autoplay</strong> advances every few seconds, and <strong>thumbnails</strong> shows the strip beneath the main image. Readers can also open an image full screen.</p>
+
+<h3>Express Map <span class="docs-badge docs-badge-new">Documented</span></h3>
+<p>Sometimes a paragraph needs a small map of its own rather than a move of the main one — a location mentioned in passing, a detail inset. The <i class="bi bi-pin-map"></i> button in the narrative toolbar inserts an <strong>express map</strong>: a self-contained mini-map placed inline in the text.</p>
+<p>The dialog opens on the current map view, and clicking the preview sets the coordinates. Choose the zoom, whether to drop a marker, and whether the reader may pan it. The result sits in the narrative flow like an image.</p>
+
+<h3>Hotspot Links <span class="docs-badge docs-badge-new">Documented</span></h3>
+<p>Any word in the narrative can become a link that drives the map instead of navigating away. Select the text, press <i class="bi bi-geo-alt"></i> in the toolbar, and choose what it should point at:</p>
+<table>
+    <tr><th>Target</th><th>What happens on click</th></tr>
+    <tr><td><strong>Marker</strong></td><td>The map flies to that marker at close zoom.</td></tr>
+    <tr><td><strong>Layer</strong></td><td>The layer is switched on and pulses briefly so the reader's eye finds it.</td></tr>
+</table>
+<p>This is what turns a paragraph into an interface: "the eastern district" becomes something the reader can press to be taken there, without leaving the sentence.</p>
+
 <h2 id="storytelling-effects">Storytelling Effects <span class="docs-badge docs-badge-new">New</span></h2>
 <p>Three scroll-driven effects that make a data story feel alive. All three are per-slide and configured in the properties panel.</p>
 
@@ -513,6 +544,38 @@
 </table>
 
 <!-- ── Heatmap ────────────────────────── -->
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="geodata">Wikipedia &amp; OpenStreetMap <span class="docs-badge docs-badge-new">Documented</span></h2>
+<p>The editor can pull context straight from two public sources, so a story about a place does not have to be researched somewhere else and pasted in. No API key is needed for either.</p>
+
+<h3>Wikipedia</h3>
+<p>Two ways in: <strong>nearby</strong> finds articles with coordinates around the current map centre, and <strong>search</strong> looks one up by title. Results carry a summary and a thumbnail, and can be inserted into the narrative or turned into markers.</p>
+<p>The language of the Wikipedia edition to query is selectable — an Italian story usually wants <code>it</code>, but the English edition is often richer for places outside Italy.</p>
+
+<h3>OpenStreetMap</h3>
+<p><strong>Points of interest nearby</strong> queries the Overpass API around a point, filtered by category (food and drink, culture, transport, services, and so on) within a radius you choose. Each result can become a marker with its name and type already filled in.</p>
+
+<h3>Geocoding</h3>
+<p>Typing a place name in the editor's search box moves the map there. The reverse also works: clicking the map while adding a marker fills in the address, so a marker gets a sensible title without typing one.</p>
+<div class="docs-callout">
+    These are public services used politely and without keys. They rate-limit heavy use, so they suit research while authoring rather than bulk import of thousands of features.
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="opendata">Open Data (CKAN)</h2>
+<p>CKAN is the software behind most public open-data portals — <a href="https://dati.gov.it" target="_blank">dati.gov.it</a>, <a href="https://data.europa.eu" target="_blank">data.europa.eu</a> and many regional ones. TalkingMaps can search those catalogues and import a geospatial resource directly as a layer.</p>
+<div class="docs-callout docs-callout-warn">
+    <strong>Currently available through the API only.</strong> The endpoints work and are documented below, but no button in the editor calls them yet, so importing from CKAN today means issuing the requests yourself.
+</div>
+<table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>GET /api/ckan/portals</code></td><td>The list of known portals, with their base URLs.</td></tr>
+    <tr><td><code>GET /api/ckan/search</code></td><td>Search datasets on a portal. Takes <code>q</code> and <code>portal_url</code>.</td></tr>
+    <tr><td><code>GET /api/ckan/resource</code></td><td>Details of one resource inside a dataset.</td></tr>
+    <tr><td><code>POST /api/ckan/import-as-layer</code></td><td>Fetch a GeoJSON resource and store it as a reusable layer.</td></tr>
+</table>
+<p>Until the interface catches up, the practical route for a one-off dataset is to download the file from the portal and upload it under <a href="#layers">Layers &amp; Data Sources</a>, which accepts GeoJSON, Shapefile and GeoPackage.</p>
+
 <h2 id="heatmap">Heatmap Layers <span class="docs-badge docs-badge-new">New</span></h2>
 <p>Turn point data into a heatmap visualization to show density patterns.</p>
 
@@ -689,6 +752,17 @@
 <p>Collaborators see the story in their dashboard and can access it based on their assigned role.</p>
 
 <!-- ═══════════════════════════════════════════════════ -->
+<h2 id="versions">Story Versions <span class="docs-badge docs-badge-new">Documented</span></h2>
+<p>A version is a named snapshot of every slide in a story, taken on demand. It is the checkpoint that <a href="#editor">undo</a> is not: it survives a reload, a logout, and a week of further editing.</p>
+<ol>
+    <li>Open the <strong>Versions</strong> panel from the editor toolbar</li>
+    <li><strong>Save version</strong>, with a short message describing where the story stands</li>
+    <li>Any listed version can be restored later</li>
+</ol>
+<div class="docs-callout docs-callout-warn">
+    <strong>Restoring replaces the current slides entirely.</strong> Every slide in the story is deleted and rebuilt from the snapshot, so save a version of the present state before restoring an older one if you might want it back. Restoring needs edit rights on that specific story, not merely the editor role.
+</div>
+
 <h2 id="publishing">Publishing &amp; Sharing</h2>
 
 <h3>Publishing a Story</h3>
@@ -722,6 +796,17 @@
 
 <!-- ── Viewer ─────────────────────────── -->
 <h2 id="viewer">Viewer Controls</h2>
+
+<h3>Guided or free navigation <span class="docs-badge docs-badge-new">Documented</span></h3>
+<p>A story is read one of two ways, chosen per story under <strong>Navigation mode</strong> in the Slide tab.</p>
+<table>
+    <tr><th>Mode</th><th>How the reader moves</th></tr>
+    <tr><td><strong>Guided</strong> (default)</td><td>Slide after slide, in the order you wrote them. The narrative leads; the map follows.</td></tr>
+    <tr><td><strong>Free</strong></td><td>A row of numbered buttons appears in the viewer and any slide can be reached directly, in any order.</td></tr>
+</table>
+<p>Guided suits an argument that builds. Free suits a story the reader is meant to browse — a catalogue of places, a set of cases where no one order is the right one.</p>
+
+<h3>Controls</h3>
 <p>When viewing a story, the following controls are available:</p>
 <table>
     <tr><th>Control</th><th>Action</th></tr>
