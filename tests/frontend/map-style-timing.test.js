@@ -135,5 +135,54 @@ TmMap.clearLayerTimeFilter(7);
 check('and restored on clear', TmMap._map.getFilter('layer-7') === null,
     JSON.stringify(TmMap._map.getFilter('layer-7')));
 
+
+// ── Basemap churn ──────────────────────────────────────
+// setStyle() rebuilds the style and briefly removes every story layer. The viewer
+// asks for a basemap on each slide, so doing it unconditionally wiped the layers on
+// every scroll and left the temporal filter with nothing to attach to.
+console.log('\nsetBasemap only rebuilds when the basemap changes');
+TmMap._map = new w.__FakeMap();
+TmMap._layerIdMap = {};
+TmMap._timeFilterBase = {};
+TmMap._currentBasemapKey = TmMap._basemapKey({ id: 1, name: 'Streets' }, false);
+TmMap._map.finishLoading();
+
+let styleRebuilds = 0;
+TmMap._map.setStyle = () => { styleRebuilds++; };
+
+TmMap.setBasemap({ id: 1, name: 'Streets' });
+check('asking for the basemap already shown does nothing', styleRebuilds === 0, String(styleRebuilds));
+TmMap.setBasemap({ id: 1, name: 'Streets' });
+TmMap.setBasemap({ id: 1, name: 'Streets' });
+check('and repeating it still does nothing', styleRebuilds === 0, String(styleRebuilds));
+
+TmMap.setBasemap({ id: 2, name: 'Satellite' });
+check('a different basemap does rebuild', styleRebuilds === 1, String(styleRebuilds));
+check('the new one is remembered', TmMap._currentBasemapKey === '2', TmMap._currentBasemapKey);
+TmMap.setBasemap({ id: 2, name: 'Satellite' });
+check('and is then skipped in turn', styleRebuilds === 1, String(styleRebuilds));
+
+TmMap.setBasemap(null, true);
+check('"no background" counts as its own basemap', styleRebuilds === 2 && TmMap._currentBasemapKey === 'none',
+    TmMap._currentBasemapKey);
+
+console.log('\nA time filter waits for a layer the style has not rebuilt yet');
+TmMap._map = new w.__FakeMap();
+TmMap._layerIdMap = {};
+TmMap._timeFilterBase = {};
+TmMap.addLayer(layerConfig);
+TmMap._map.finishLoading();
+check('layer present', !!TmMap._map.getLayer('layer-7'));
+TmMap._map.removeLayer('layer-7');          // as a setStyle would, mid-rebuild
+TmMap._map._styleLoaded = false;
+TmMap.setLayerTimeFilter(7, ['all', ['has', 'anno']]);
+check('the filter is not lost while the layer is missing', TmMap._map.getFilter('layer-7') === null);
+TmMap._map.addLayerRaw = TmMap._map.addLayer;
+TmMap._map._styleLoaded = true;
+TmMap._map.layers['layer-7'] = { id: 'layer-7', type: 'circle' };
+TmMap._map.fire('styledata');
+check('and lands once the layer is back', Array.isArray(TmMap._map.getFilter('layer-7')),
+    JSON.stringify(TmMap._map.getFilter('layer-7')));
+
 console.log('\n' + (failures ? failures + ' FAILURE(S)' : 'ALL MAP TIMING CHECKS PASSED'));
 process.exit(failures ? 1 : 0);

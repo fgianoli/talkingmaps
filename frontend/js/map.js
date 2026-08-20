@@ -8,6 +8,7 @@ const TmMap = {
     _layerIdMap: {},
     _timeFilterBase: {},
     _currentBasemap: 'osm',
+    _currentBasemapKey: null,
     _basemaps: [],
     _onClickCallback: null,
     _cogProtocolRegistered: false,
@@ -23,6 +24,9 @@ const TmMap = {
         const zoom = opts.zoom || 6;
 
         this._basemaps = opts.basemaps || [];
+        // A fresh map starts from the style built below, not from whatever the
+        // previous one showed
+        this._currentBasemapKey = this._basemapKey(this._basemaps[0], false);
 
         const style = this._buildStyle(this._basemaps[0]);
 
@@ -56,6 +60,7 @@ const TmMap = {
         this._markers = [];
         this._layerIdMap = {};
         this._timeFilterBase = {};
+        this._currentBasemapKey = null;
     },
 
     // ── Basemap ──────────────────────────
@@ -124,8 +129,26 @@ const TmMap = {
         return `/api/wms-proxy/tile?url=${encodeURIComponent(baseUrl + '?' + params.toString())}`;
     },
 
+    /** Identify a basemap so repeated requests for the same one can be skipped. */
+    _basemapKey(basemap, noBackground) {
+        if (noBackground) return 'none';
+        if (!basemap) return 'default';
+        return String(basemap.id ?? basemap.url ?? basemap.name ?? 'default');
+    },
+
     setBasemap(basemap, noBackground) {
         if (!this._map) return;
+
+        // setStyle() tears the style down and rebuilds it, which briefly removes every
+        // story layer. The viewer asks for a basemap on each slide, so doing that
+        // unconditionally destroyed the layers on every scroll and left anything
+        // applied straight afterwards — a temporal filter, say — with nothing to
+        // attach to. Only rebuild when the basemap actually changes.
+        const key = this._basemapKey(basemap, noBackground);
+        if (key === this._currentBasemapKey) return;
+        this._currentBasemapKey = key;
+        this._currentBasemap = basemap?.id ?? basemap?.name ?? key;
+
         const style = noBackground ? { version: 8, sources: {}, layers: [] } : this._buildStyle(basemap);
         // Preserve existing layers
         const currentLayers = this._map.getStyle().layers.filter(l => l.id !== 'basemap-tiles' && l.id !== 'osm-tiles');
@@ -363,6 +386,13 @@ const TmMap = {
     setLayerTimeFilter(id, filter) {
         const layerId = this._layerIdMap[id];
         if (!layerId || !this._map) return;
+
+        // A basemap change rebuilds the style, so the layer can be momentarily absent.
+        // Wait for it rather than filtering nothing and showing every feature at once.
+        if (!this._map.isStyleLoaded() || !this._map.getLayer(layerId)) {
+            this._map.once('styledata', () => this.setLayerTimeFilter(id, filter));
+            return;
+        }
 
         [layerId, `${layerId}-outline`].forEach(target => {
             if (!this._map.getLayer(target)) return;

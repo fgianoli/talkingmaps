@@ -289,6 +289,26 @@ const StoryViewer = {
         }
     },
 
+    /**
+     * Whether the narrative already opens with a heading saying the same thing as
+     * the slide title, in which case the viewer should not print it a second time.
+     * Compared on normalised text, so punctuation and spacing do not matter.
+     */
+    _narrativeRepeatsTitle(slide) {
+        if (!slide.title || !slide.narrative) return false;
+        const match = slide.narrative.match(/<h([1-3])[^>]*>([\s\S]*?)<\/h\1>/i);
+        if (!match) return false;
+
+        const probe = document.createElement('div');
+        probe.innerHTML = match[2];
+        const normalise = str => (str || '')
+            .replace(/\s+/g, ' ')
+            .replace(/[.,;:!?"'’“”]/g, '')
+            .trim()
+            .toLowerCase();
+        return normalise(probe.textContent) === normalise(slide.title);
+    },
+
     // ── Narrative Build (per-slide layout) ──
     _buildNarrative() {
         const container = document.getElementById('viewer-narrative');
@@ -313,8 +333,11 @@ const StoryViewer = {
             content.className = `viewer-slide-content viewer-card-${cardStyle}`;
             if (textAlign !== 'left') content.style.textAlign = textAlign;
 
-            // Title (sanitized)
-            if (slide.title && layout !== 'full-map') {
+            // Title (sanitized). Narratives conventionally open with their own
+            // heading — every built-in template writes the title into both fields —
+            // so rendering this one unconditionally showed it twice. The title is
+            // still what the editor list and the table of contents use.
+            if (slide.title && layout !== 'full-map' && !this._narrativeRepeatsTitle(slide)) {
                 const titleTag = layout === 'separator' ? 'h1' : 'h2';
                 content.innerHTML += `<${titleTag}>${App.escHtml(slide.title)}</${titleTag}>`;
             }

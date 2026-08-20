@@ -19,7 +19,7 @@
     },
     {
       "layout": "text-only",
-      "title": "Le cifre",
+      "title": "Quattro numeri, una storia",
       "narrative": "<h2>Quattro numeri, una storia</h2><p>Ogni cifra parte da zero quando la slide entra in vista. Prefisso, suffisso e decimali si impostano uno per uno, e la formattazione segue la lingua del lettore.</p>",
       "position": 1,
       "style_overrides": {
