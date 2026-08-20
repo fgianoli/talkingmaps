@@ -1,0 +1,15 @@
+{
+  "name": "talkingmaps-tests",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Test harness for TalkingMaps. The application itself has no build step; this exists only to run the suites.",
+  "scripts": {
+    "test": "node tests/run.js",
+    "test:frontend": "node tests/run.js frontend",
+    "test:backend": "node tests/run.js backend",
+    "test:e2e": "node tests/run.js e2e"
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0"
+  }
+}

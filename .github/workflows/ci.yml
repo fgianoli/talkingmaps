@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  static:
+    name: Static checks and unit suites
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Compile every backend file
+        run: |
+          python - <<'PY'
+          import pathlib, sys
+          bad = 0
+          files = sorted(p for p in pathlib.Path('backend').rglob('*.py') if '__pycache__' not in str(p))
+          for f in files:
+              try:
+                  compile(f.read_text(encoding='utf-8'), str(f), 'exec')
+              except SyntaxError as e:
+                  print(f'::error file={f},line={e.lineno}::{e.msg}')
+                  bad += 1
+          print(f'{len(files)} files checked')
+          sys.exit(1 if bad else 0)
+          PY
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Backend and frontend suites
+        run: npm test
+
+  e2e:
+    name: End-to-end against a running stack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Write a throwaway .env
+        run: |
+          cat > .env <<'ENV'
+          POSTGRES_DB=talkingmaps_data
+          POSTGRES_USER=talkingmaps
+          POSTGRES_PASSWORD=ci-postgres-password
+          DATABASE_URL=postgresql+asyncpg://talkingmaps:ci-postgres-password@db:5432/talkingmaps_data
+          DATABASE_SYSTEM_URL=postgresql+asyncpg://talkingmaps:ci-postgres-password@db:5432/talkingmaps_system
+          REDIS_URL=redis://redis:6379/0
+          SECRET_KEY=ci-secret-key-not-used-anywhere-else
+          ALLOWED_ORIGINS=http://localhost:8080
+          UPLOAD_DIR=/var/www/uploads
+          MAX_UPLOAD_SIZE_MB=50
+          JWT_EXPIRE_MINUTES=120
+          ADMIN_USERNAME=admin
+          ADMIN_PASSWORD=ci-admin-password
+          SEED_DEMO_STORIES=true
+          LISTEN_PORT=8080
+          ENV
+
+      - name: Start the stack
+        run: |
+          # The dev override bind-mounts the source and is not what we want to test
+          rm -f docker-compose.override.yml
+          docker compose up -d --build
+
+      - name: Wait for the API
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8080/api/stories/public > /dev/null; then
+              echo "API up after ${i} attempts"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "::error::API did not come up in time"
+          docker compose logs --tail 100
+          exit 1
+
+      - name: Migrations and demo seed reported success
+        run: |
+          docker compose logs backend | grep -E '\[INIT\]' || true
+          if docker compose logs backend | grep -qE 'MIGRATION FAILED|DEMO SEED FAILED'; then
+            echo "::error::a migration or the demo seed failed"
+            exit 1
+          fi
+
+      - name: e2e suites
+        env:
+          TM_BASE: http://localhost:8080
+          TM_ADMIN_PW: ci-admin-password
+        run: node tests/run.js e2e
+
+      - name: Backend logs on failure
+        if: failure()
+        run: docker compose logs --tail 200
