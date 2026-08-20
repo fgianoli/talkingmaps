@@ -1,0 +1,94 @@
+{
+  "talkingmaps_version": "2.0",
+  "demo_slug": "demo-linea-del-tempo",
+  "story": {
+    "title": "Linea del tempo: animare un layer",
+    "description": "Dimostrazione della riproduzione temporale: un layer filtrato su un campo data che si accumula anno dopo anno.",
+    "theme": {},
+    "settings": { "theme": "light", "navigation_mode": "guided" }
+  },
+  "layers": [
+    {
+      "key": "rilevazioni",
+      "name": "Rilevazioni di esempio",
+      "description": "Punti generati per dimostrare la riproduzione temporale. Non sono misure reali.",
+      "layer_type": "geojson",
+      "public": true,
+      "style_config": {
+        "type": "circle",
+        "paint": {
+          "circle-radius": 8,
+          "circle-color": "#1b6b7a",
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#ffffff",
+          "circle-opacity": 0.85
+        }
+      },
+      "source_config": {
+        "data": {
+          "type": "FeatureCollection",
+          "features": [
+            { "type": "Feature", "properties": { "nome": "Torino", "anno": 2018 }, "geometry": { "type": "Point", "coordinates": [7.6869, 45.0703] } },
+            { "type": "Feature", "properties": { "nome": "Milano", "anno": 2018 }, "geometry": { "type": "Point", "coordinates": [9.1900, 45.4642] } },
+            { "type": "Feature", "properties": { "nome": "Genova", "anno": 2019 }, "geometry": { "type": "Point", "coordinates": [8.9463, 44.4056] } },
+            { "type": "Feature", "properties": { "nome": "Venezia", "anno": 2019 }, "geometry": { "type": "Point", "coordinates": [12.3155, 45.4408] } },
+            { "type": "Feature", "properties": { "nome": "Bologna", "anno": 2020 }, "geometry": { "type": "Point", "coordinates": [11.3426, 44.4949] } },
+            { "type": "Feature", "properties": { "nome": "Firenze", "anno": 2020 }, "geometry": { "type": "Point", "coordinates": [11.2558, 43.7696] } },
+            { "type": "Feature", "properties": { "nome": "Perugia", "anno": 2021 }, "geometry": { "type": "Point", "coordinates": [12.3888, 43.1107] } },
+            { "type": "Feature", "properties": { "nome": "Roma", "anno": 2021 }, "geometry": { "type": "Point", "coordinates": [12.4964, 41.9028] } },
+            { "type": "Feature", "properties": { "nome": "Pescara", "anno": 2022 }, "geometry": { "type": "Point", "coordinates": [14.2081, 42.4643] } },
+            { "type": "Feature", "properties": { "nome": "Napoli", "anno": 2022 }, "geometry": { "type": "Point", "coordinates": [14.2681, 40.8518] } },
+            { "type": "Feature", "properties": { "nome": "Bari", "anno": 2023 }, "geometry": { "type": "Point", "coordinates": [16.8719, 41.1171] } },
+            { "type": "Feature", "properties": { "nome": "Cosenza", "anno": 2023 }, "geometry": { "type": "Point", "coordinates": [16.2542, 39.2983] } },
+            { "type": "Feature", "properties": { "nome": "Palermo", "anno": 2024 }, "geometry": { "type": "Point", "coordinates": [13.3615, 38.1157] } },
+            { "type": "Feature", "properties": { "nome": "Catania", "anno": 2024 }, "geometry": { "type": "Point", "coordinates": [15.0873, 37.5079] } },
+            { "type": "Feature", "properties": { "nome": "Cagliari", "anno": 2024 }, "geometry": { "type": "Point", "coordinates": [9.1217, 39.2238] } }
+          ]
+        }
+      }
+    }
+  ],
+  "slides": [
+    {
+      "layout": "cover",
+      "title": "Animare il tempo",
+      "narrative": "<h1>Animare il tempo</h1><p>Un layer con un campo data può essere riprodotto: le geometrie compaiono man mano che il cursore avanza, e il lettore vede il fenomeno costruirsi.</p><p><em>I punti di questa storia sono generati per la dimostrazione e non corrispondono a rilevazioni reali.</em></p>",
+      "position": 0,
+      "map_center": { "lng": 12.5674, "lat": 41.8719 },
+      "map_zoom": 5,
+      "style_overrides": { "transition": "reveal-words" }
+    },
+    {
+      "layout": "side-left",
+      "title": "La riproduzione",
+      "narrative": "<h2>La riproduzione</h2><p>In basso compare la barra di riproduzione: play, pausa, cursore trascinabile e valore corrente. Parte da sola quando la slide entra in vista e si ferma alla fine, offrendo il riavvio.</p><p>Qui il campo è <code>anno</code> e l'intervallo va dal 2018 al 2024: uno passo per anno.</p>",
+      "position": 1,
+      "map_center": { "lng": 12.5674, "lat": 41.8719 },
+      "map_zoom": 5,
+      "map_animation": "flyTo",
+      "layer_visibility": { "rilevazioni": { "visible": true, "opacity": 1 } },
+      "map_config": {
+        "timeline": {
+          "enabled": true,
+          "layer_key": "rilevazioni",
+          "date_field": "anno",
+          "start": "2018",
+          "end": "2024",
+          "speed": "medium"
+        }
+      },
+      "style_overrides": { "transition": "fade" }
+    },
+    {
+      "layout": "full-map",
+      "title": "Il quadro completo",
+      "narrative": "",
+      "position": 2,
+      "map_center": { "lng": 12.5674, "lat": 41.8719 },
+      "map_zoom": 5,
+      "map_animation": "easeTo",
+      "layer_visibility": { "rilevazioni": { "visible": true, "opacity": 1 } },
+      "style_overrides": { "transition": "fade" }
+    }
+  ]
+}

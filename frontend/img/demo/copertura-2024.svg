@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="800" height="450" role="img" aria-label="Grafico illustrativo: copertura vegetale 2024">
+  <defs>
+    <linearGradient id="sky24" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8fb8d8"/><stop offset="100%" stop-color="#d8e6ef"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#sky24)"/>
+  <path d="M0 300 L120 250 L260 285 L400 235 L540 275 L680 240 L800 270 L800 450 L0 450 Z" fill="#cbb98d"/>
+  <path d="M0 340 L800 320 L800 450 L0 450 Z" fill="#c3ab72"/>
+  <g fill="#6b8f4e" opacity="0.75">
+    <circle cx="170" cy="385" r="18"/><circle cx="415" cy="358" r="14"/>
+    <circle cx="660" cy="390" r="16"/><circle cx="290" cy="428" r="13"/>
+  </g>
+  <rect x="0" y="0" width="800" height="46" fill="#0f172a" opacity="0.72"/>
+  <text x="24" y="30" font-family="Ubuntu, Arial, sans-serif" font-size="19" fill="#ffffff">2024 — copertura vegetale</text>
+  <text x="776" y="30" text-anchor="end" font-family="Ubuntu, Arial, sans-serif" font-size="13" fill="#cbd5e1">grafico illustrativo, non dati reali</text>
+</svg>

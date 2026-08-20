@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     JWT_EXPIRE_MINUTES: int = 120  # 2 hours (was 8h - reduced for security)
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str = "admin"
+    # Create the sample public storymaps in backend/demo at startup. Off by default:
+    # an organisation deploying TalkingMaps for its own work does not necessarily
+    # want sample content in the dashboard.
+    SEED_DEMO_STORIES: bool = False
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
     MICROSOFT_CLIENT_ID: str = ""

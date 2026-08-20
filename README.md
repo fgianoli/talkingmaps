@@ -23,6 +23,7 @@ Pensato per giornalisti, ricercatori, studenti e chiunque voglia raccontare stor
 - **Gestione utenti** – Ruoli admin/editor/viewer, autenticazione JWT
 - **Condivisione** – Storie pubbliche, link di condivisione, embed
 - **Assistente AI** – Genera testi, traduzioni, grafici e immagini con OpenAI (GPT/DALL-E), Anthropic (Claude), Google (Gemini). Chiavi API criptate per utente
+- **Storymap di esempio** – Tre storie dimostrative pubbliche create all'avvio con `SEED_DEMO_STORIES=true` (tour cinematico, effetti narrativi, riproduzione temporale)
 - **Dockerizzato** – Deploy con un comando
 
 ## Stack Tecnologico

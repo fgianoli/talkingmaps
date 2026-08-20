@@ -1,0 +1,70 @@
+{
+  "talkingmaps_version": "2.0",
+  "demo_slug": "demo-numeri-e-mappe",
+  "story": {
+    "title": "Numeri e mappe: gli effetti narrativi",
+    "description": "Dimostrazione dei tre effetti narrativi: numeri chiave animati, transizioni del testo e confronto immagini prima/dopo.",
+    "theme": {},
+    "settings": { "theme": "dark", "navigation_mode": "guided" }
+  },
+  "slides": [
+    {
+      "layout": "cover",
+      "title": "Raccontare con i numeri",
+      "narrative": "<h1>Raccontare con i numeri</h1><p>Una data story si apre quasi sempre con le cifre che colpiscono. Scorri per vederle salire.</p><p><em>I valori di questa storia sono di esempio e servono solo a mostrare il funzionamento degli effetti.</em></p>",
+      "position": 0,
+      "map_center": { "lng": 12.5674, "lat": 41.8719 },
+      "map_zoom": 4.5,
+      "style_overrides": { "transition": "reveal-words" }
+    },
+    {
+      "layout": "text-only",
+      "title": "Le cifre",
+      "narrative": "<h2>Le cifre</h2><p>Ogni numero parte da zero quando la slide entra in vista. Prefisso, suffisso e decimali sono impostabili uno per uno, e la formattazione segue la lingua del lettore.</p>",
+      "position": 1,
+      "style_overrides": {
+        "transition": "stagger",
+        "card_style": "card",
+        "stats": {
+          "items": [
+            { "value": 332000000, "label": "Superficie", "suffix": " km²", "desc": "Valore di esempio", "prefix": "", "decimals": 0 },
+            { "value": 65, "label": "Quota interessata", "suffix": "%", "desc": "", "prefix": "", "decimals": 0 },
+            { "value": 3.4, "label": "Impatto stimato", "prefix": "€", "suffix": " mld", "decimals": 1, "desc": "" },
+            { "value": 34, "label": "Aree monitorate", "prefix": "", "suffix": "", "decimals": 0, "desc": "" }
+          ],
+          "columns": 4,
+          "duration": 1800
+        }
+      }
+    },
+    {
+      "layout": "text-only",
+      "title": "Prima e dopo",
+      "narrative": "<h2>Prima e dopo</h2><p>Trascina la maniglia per confrontare le due immagini. Funziona anche col click sull'immagine e con le frecce della tastiera.</p><p>Serve per mostrare un cambiamento nel tempo: due date satellitari, un sito prima e dopo un intervento, una foto storica accanto a una attuale.</p>",
+      "position": 2,
+      "style_overrides": {
+        "transition": "stagger",
+        "card_style": "card",
+        "image_compare": {
+          "before_url": "/img/demo/copertura-2010.svg",
+          "after_url": "/img/demo/copertura-2024.svg",
+          "before_label": "2010",
+          "after_label": "2024",
+          "aspect": "16/9",
+          "start": 50
+        }
+      }
+    },
+    {
+      "layout": "side-left",
+      "title": "E la mappa",
+      "narrative": "<h2>E la mappa</h2><p>Gli effetti si combinano con tutto il resto: la camera si sposta per slide, i layer si accendono e si spengono, i grafici stanno nel testo.</p><p>Questa slide usa la transizione a cascata: titolo e paragrafi entrano uno dopo l'altro.</p>",
+      "position": 3,
+      "map_center": { "lng": 9.1900, "lat": 45.4642 },
+      "map_zoom": 11,
+      "map_animation": "flyTo",
+      "style_overrides": { "transition": "stagger" }
+    }
+  ],
+  "layers": []
+}

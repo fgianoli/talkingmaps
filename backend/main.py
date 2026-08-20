@@ -8,6 +8,7 @@ from core.config import settings as app_settings
 from core.database import engine, engine_system
 from core.security import hash_password
 from core.migrate import run_migrations
+from core.seed_demo import seed_demo_stories
 from routers import auth, stories, slides, media, layers, basemaps, wms_proxy, wfs_proxy, services, users, symbology, ckan, upload3d, settings as settings_router, ai as ai_router, oauth, geodata, contributions
 
 
@@ -37,18 +38,34 @@ async def lifespan(app: FastAPI):
         print(f"[INIT] Migration runner error: {e}")
 
     # Create initial admin user if not exists (in system DB)
+    admin_id = None
     try:
         async with engine_system.begin() as conn:
             result = await conn.execute(text("SELECT id FROM users WHERE username = :u"), {"u": app_settings.ADMIN_USERNAME})
-            if not result.fetchone():
+            row = result.fetchone()
+            if not row:
                 pw = hash_password(app_settings.ADMIN_PASSWORD)
-                await conn.execute(
-                    text("INSERT INTO users (username, password_hash, display_name, role) VALUES (:u, :p, :d, 'admin')"),
+                created = await conn.execute(
+                    text("INSERT INTO users (username, password_hash, display_name, role) VALUES (:u, :p, :d, 'admin') RETURNING id"),
                     {"u": app_settings.ADMIN_USERNAME, "p": pw, "d": "Amministratore"},
                 )
+                admin_id = created.fetchone()[0]
                 print(f"[INIT] Admin user '{app_settings.ADMIN_USERNAME}' created")
+            else:
+                admin_id = row[0]
     except Exception as e:
         print(f"[INIT] DB init warning: {e}")
+
+    # Sample public storymaps, so a fresh install shows what the tool can do
+    if app_settings.SEED_DEMO_STORIES and admin_id is not None:
+        try:
+            seeded = await seed_demo_stories(engine, admin_id)
+            if seeded["created"]:
+                print(f"[INIT] Demo stories created: {', '.join(seeded['created'])}")
+            for filename, err in seeded["failed"]:
+                print(f"[INIT] DEMO SEED FAILED {filename}: {err}")
+        except Exception as e:
+            print(f"[INIT] Demo seed error: {e}")
     yield
     await engine.dispose()
     await engine_system.dispose()
