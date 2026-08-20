@@ -34,13 +34,40 @@ def _is_safe_url(url: str) -> bool:
         return False
 
 
-# Well-known CKAN portals
+# Well-known CKAN portals. Each URL is the CKAN root, i.e. the prefix that answers
+# /api/3/action/package_search — dati.gov.it serves its catalogue under /opendata,
+# not at the domain root, and pointing at the root only returns the HTML site.
 KNOWN_PORTALS = {
-    "dati.gov.it": "https://dati.gov.it",
-    "data.europa.eu": "https://data.europa.eu/data/api",
-    "opendata.comune.venezia": "https://dati.venezia.it",
-    "dati.trentino": "https://dati.trentino.it",
+    "dati.gov.it": "https://dati.gov.it/opendata",
+    "dati.toscana.it": "https://dati.toscana.it",
+    "dati.emilia-romagna.it": "https://dati.emilia-romagna.it",
+    "dati.trentino.it": "https://dati.trentino.it",
 }
+
+
+def _parse_ckan_response(resp, portal_url: str) -> dict:
+    """Turn a CKAN reply into a dict, or explain why it is not one.
+
+    Anything that is not a working CKAN endpoint — a redirect to an HTML site, a
+    404 page, a maintenance notice — used to reach resp.json() and raise, which the
+    caller surfaced as a bare 500 with nothing for the user to act on.
+    """
+    if resp.status_code >= 400:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Il portale ha risposto {resp.status_code}. Verifica che l'URL sia la radice CKAN (quella che espone /api/3/action).",
+        )
+    try:
+        data = resp.json()
+    except ValueError:
+        content_type = resp.headers.get("content-type", "sconosciuto")
+        raise HTTPException(
+            status_code=502,
+            detail=f"{portal_url} non ha risposto in JSON ({content_type}): non sembra un portale CKAN.",
+        )
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=502, detail="Risposta inattesa dal portale CKAN")
+    return data
 
 
 @router.get("/portals")
@@ -67,11 +94,11 @@ async def search_datasets(
         params["fq"] = f"res_format:{format_filter.upper()}"
 
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
             resp = await client.get(api_url, params=params)
-            data = resp.json()
+            data = _parse_ckan_response(resp, portal_url)
             if not data.get("success"):
-                raise HTTPException(status_code=502, detail="Errore dal portale CKAN")
+                raise HTTPException(status_code=502, detail="Il portale ha rifiutato la ricerca")
             result = data.get("result", {})
             return {
                 "count": result.get("count", 0),

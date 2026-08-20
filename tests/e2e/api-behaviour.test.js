@@ -123,6 +123,27 @@ async function req(method, path, { token, body, raw } = {}) {
         realReset.status === 404 && typeof realReset.data === 'object' && 'detail' in realReset.data,
         `${realReset.status} ${JSON.stringify(realReset.data).slice(0, 80)}`);
 
+    // ── 7c. CKAN: the endpoints the browser calls ──
+    // Only network-free assertions here: searching a real portal would make CI
+    // depend on someone else's uptime.
+    console.log('\n7c. CKAN endpoints');
+    const portals = await req('GET', '/api/ckan/portals', { token });
+    check('portal list served', portals.status === 200 && Array.isArray(portals.data), portals.status);
+    check('every portal points at a CKAN root, not a bare domain page',
+        portals.data.every(p => p.url && p.url.startsWith('https://')),
+        JSON.stringify(portals.data));
+    check('dati.gov.it uses its /opendata prefix',
+        portals.data.some(p => p.url === 'https://dati.gov.it/opendata'),
+        JSON.stringify(portals.data.map(p => p.url)));
+
+    const ssrf = await req('GET', '/api/ckan/search?portal_url=' + encodeURIComponent('http://127.0.0.1:8000') + '&q=x', { token });
+    check('a private address is refused', ssrf.status === 400, ssrf.status);
+    const anonCkan = await req('GET', '/api/ckan/portals');
+    check('portals need no auth, search does',
+        (await req('GET', '/api/ckan/search?portal_url=https%3A%2F%2Fexample.org&q=x')).status === 403
+        || (await req('GET', '/api/ckan/search?portal_url=https%3A%2F%2Fexample.org&q=x')).status === 401,
+        anonCkan.status);
+
     // ── 8. Geodata lang validation (SSRF primitive) ──
     console.log('\n8. Geodata lang validation');
     const badLang = await req('GET', '/api/geodata/wikipedia/nearby?lat=45&lng=9&lang=evil.example.com%23', { token });

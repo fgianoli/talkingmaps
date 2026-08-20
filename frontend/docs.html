@@ -564,17 +564,35 @@
 <!-- ═══════════════════════════════════════════════════ -->
 <h2 id="opendata">Open Data (CKAN)</h2>
 <p>CKAN is the software behind most public open-data portals — <a href="https://dati.gov.it" target="_blank">dati.gov.it</a>, <a href="https://data.europa.eu" target="_blank">data.europa.eu</a> and many regional ones. TalkingMaps can search those catalogues and import a geospatial resource directly as a layer.</p>
-<div class="docs-callout docs-callout-warn">
-    <strong>Currently available through the API only.</strong> The endpoints work and are documented below, but no button in the editor calls them yet, so importing from CKAN today means issuing the requests yourself.
+<h3>Searching a catalogue</h3>
+<p>Open <strong>Manage layers</strong> in the editor and press <strong>Open Data (CKAN)</strong>. Pick a portal, type what you are looking for, and press Search.</p>
+<p>Four Italian portals ship preconfigured — the national <a href="https://dati.gov.it" target="_blank">dati.gov.it</a> catalogue and the Tuscany, Emilia-Romagna and Trentino ones. Any other CKAN instance works too: choose <em>Another portal…</em> and paste its address.</p>
+<div class="docs-callout">
+    The address must be the <strong>CKAN root</strong> — the prefix that answers <code>/api/3/action</code> — which is not always the domain root. The national portal, for instance, serves its catalogue at <code>https://dati.gov.it/opendata</code>. If you paste something that is not a CKAN endpoint, the error message says so rather than failing silently.
 </div>
+
+<h3>Importing a resource</h3>
+<p>Results list each dataset with its publishing organisation and the resources it offers. Only the formats that can become a map layer get an <strong>Import</strong> button; the rest are listed so you can see what else is in the dataset.</p>
+<table>
+    <tr><th>Format</th><th>What happens</th></tr>
+    <tr><td><strong>GeoJSON</strong></td><td>Imported directly as a vector layer, styled by geometry type.</td></tr>
+    <tr><td><strong>CSV</strong></td><td>TalkingMaps reads the header and asks which columns hold latitude and longitude, guessing the usual names. Rows with unreadable coordinates are skipped.</td></tr>
+    <tr><td><strong>WMS / WFS</strong></td><td>Registered as a remote service layer rather than being copied.</td></tr>
+    <tr><td>Everything else</td><td>Listed but not importable — download it and use <a href="#layers">Layers &amp; Data Sources</a> instead.</td></tr>
+</table>
+<p>An imported resource becomes a normal layer: it is added to the current story straight away, appears in your layer catalogue for reuse, and can be restyled like any other.</p>
+
+<h3>Through the API</h3>
 <table>
     <tr><th>Endpoint</th><th>Purpose</th></tr>
-    <tr><td><code>GET /api/ckan/portals</code></td><td>The list of known portals, with their base URLs.</td></tr>
-    <tr><td><code>GET /api/ckan/search</code></td><td>Search datasets on a portal. Takes <code>q</code> and <code>portal_url</code>.</td></tr>
-    <tr><td><code>GET /api/ckan/resource</code></td><td>Details of one resource inside a dataset.</td></tr>
-    <tr><td><code>POST /api/ckan/import-as-layer</code></td><td>Fetch a GeoJSON resource and store it as a reusable layer.</td></tr>
+    <tr><td><code>GET /api/ckan/portals</code></td><td>The list of known portals, with their CKAN root URLs.</td></tr>
+    <tr><td><code>GET /api/ckan/search</code></td><td>Search datasets on a portal. Takes <code>portal_url</code>, <code>q</code> and an optional <code>format_filter</code>.</td></tr>
+    <tr><td><code>GET /api/ckan/resource</code></td><td>Fetch one resource — GeoJSON as-is, CSV parsed into columns and rows.</td></tr>
+    <tr><td><code>POST /api/ckan/import-as-layer</code></td><td>Import a resource as a layer. Body: <code>url</code>, <code>name</code>, <code>format</code>, plus <code>lat_field</code> and <code>lon_field</code> for CSV.</td></tr>
 </table>
-<p>Until the interface catches up, the practical route for a one-off dataset is to download the file from the portal and upload it under <a href="#layers">Layers &amp; Data Sources</a>, which accepts GeoJSON, Shapefile and GeoPackage.</p>
+<div class="docs-callout">
+    Requests go out from the server, not the browser, and private addresses are refused — the proxy cannot be pointed at something inside your network.
+</div>
 
 <h2 id="heatmap">Heatmap Layers <span class="docs-badge docs-badge-new">New</span></h2>
 <p>Turn point data into a heatmap visualization to show density patterns.</p>

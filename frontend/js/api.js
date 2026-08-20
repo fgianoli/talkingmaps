@@ -224,6 +224,16 @@ const Api = {
     generateImage(data) { return this.post('/api/ai/generate-image', data); },
 
     // Geodata (Wikipedia, OSM)
+    // ── CKAN open data ──
+    ckanPortals() { return this.get('/api/ckan/portals'); },
+    ckanSearch(portalUrl, q, formatFilter, rows = 20) {
+        let url = `/api/ckan/search?portal_url=${encodeURIComponent(portalUrl)}&q=${encodeURIComponent(q || '')}&rows=${rows}`;
+        if (formatFilter) url += `&format_filter=${encodeURIComponent(formatFilter)}`;
+        return this.get(url);
+    },
+    ckanResource(url) { return this.get(`/api/ckan/resource?url=${encodeURIComponent(url)}`); },
+    ckanImportAsLayer(body) { return this.post('/api/ckan/import-as-layer', body); },
+
     wikiNearby(lat, lng, radius = 5000, lang = 'it') { return this.get(`/api/geodata/wikipedia/nearby?lat=${lat}&lng=${lng}&radius=${radius}&lang=${lang}`); },
     wikiSearch(q, lang = 'it') { return this.get(`/api/geodata/wikipedia/search?q=${encodeURIComponent(q)}&lang=${lang}`); },
     osmNearby(lat, lng, radius = 1000, category = 'all') { return this.get(`/api/geodata/osm/nearby?lat=${lat}&lng=${lng}&radius=${radius}&category=${category}`); },

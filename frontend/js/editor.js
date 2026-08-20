@@ -3293,6 +3293,9 @@ const StoryEditor = {
                                 <button class="btn btn-sm btn-outline-light" onclick="StoryEditor._addVectorTileLayer()">
                                     <i class="bi bi-grid-3x3"></i> ${t('layers.add_vector_tiles')}
                                 </button>
+                                <button class="btn btn-sm btn-outline-light" onclick="StoryEditor._openCkanBrowser()">
+                                    <i class="bi bi-database-down"></i> ${t('ckan.button')}
+                                </button>
                                 <button class="btn btn-sm btn-outline-light" onclick="StoryEditor._addCogLayer()">
                                     <i class="bi bi-file-earmark-image"></i> ${t('editor.add_cog')}
                                 </button>
@@ -3353,6 +3356,229 @@ const StoryEditor = {
             App.toast(I18n.t('layers.removed'), 'success');
             bootstrap.Modal.getInstance(document.getElementById('layers-modal'))?.hide();
         } catch (err) { App.toast(err.message, 'danger'); }
+    },
+
+
+    // ══════════════════════════════════════════════════
+    //  CKAN open data browser
+    //  Search a portal's catalogue and import a resource as a layer. The backend
+    //  does the fetching and the SSRF checks; this is the interface that was
+    //  missing, which left four working endpoints unreachable.
+    // ══════════════════════════════════════════════════
+
+    async _openCkanBrowser() {
+        const t = I18n.t.bind(I18n);
+        let portals = [];
+        try {
+            portals = await Api.ckanPortals();
+        } catch (err) {
+            App.toast(err.message, 'danger');
+            return;
+        }
+
+        const html = `
+            <div class="modal fade" id="ckan-modal" tabindex="-1">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><i class="bi bi-database-down"></i> ${t('ckan.title')}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="text-muted" style="font-size:13px">${t('ckan.intro')}</p>
+                            <div class="d-flex gap-2 mb-2 flex-wrap">
+                                <select class="form-select form-select-sm" id="ckan-portal" style="flex:1;min-width:180px">
+                                    ${portals.map(p => `<option value="${App.escHtml(p.url)}">${App.escHtml(p.id)}</option>`).join('')}
+                                    <option value="__custom__">${t('ckan.other_portal')}</option>
+                                </select>
+                                <select class="form-select form-select-sm" id="ckan-format" style="max-width:150px">
+                                    <option value="">${t('ckan.any_format')}</option>
+                                    <option value="GEOJSON">GeoJSON</option>
+                                    <option value="CSV">CSV</option>
+                                    <option value="WMS">WMS</option>
+                                    <option value="SHP">Shapefile</option>
+                                </select>
+                            </div>
+                            <input type="url" class="form-control form-control-sm mb-2 d-none" id="ckan-custom-url"
+                                   placeholder="https://portale-ckan.example.org">
+                            <div class="input-group input-group-sm mb-3">
+                                <input type="text" class="form-control" id="ckan-query" placeholder="${t('ckan.search_placeholder')}">
+                                <button class="btn btn-primary" id="ckan-search-btn"><i class="bi bi-search"></i> ${t('ckan.search')}</button>
+                            </div>
+                            <div id="ckan-results"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+        document.getElementById('ckan-modal')?.remove();
+        document.body.insertAdjacentHTML('beforeend', html);
+        const modalEl = document.getElementById('ckan-modal');
+
+        const portalSel = document.getElementById('ckan-portal');
+        const customUrl = document.getElementById('ckan-custom-url');
+        portalSel.addEventListener('change', () => {
+            customUrl.classList.toggle('d-none', portalSel.value !== '__custom__');
+            if (portalSel.value === '__custom__') customUrl.focus();
+        });
+
+        const run = () => this._ckanSearch();
+        document.getElementById('ckan-search-btn').addEventListener('click', run);
+        document.getElementById('ckan-query').addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); run(); }
+        });
+
+        new bootstrap.Modal(modalEl).show();
+    },
+
+    /** The portal to query: a known one, or whatever was typed. */
+    _ckanPortalUrl() {
+        const sel = document.getElementById('ckan-portal');
+        if (!sel) return '';
+        if (sel.value !== '__custom__') return sel.value;
+        return (document.getElementById('ckan-custom-url')?.value || '').trim();
+    },
+
+    async _ckanSearch() {
+        const t = I18n.t.bind(I18n);
+        const results = document.getElementById('ckan-results');
+        const portalUrl = this._ckanPortalUrl();
+        if (!portalUrl) { App.toast(t('ckan.no_portal'), 'warning'); return; }
+
+        results.innerHTML = `<div class="text-muted"><i class="bi bi-hourglass-split"></i> ${t('loading')}</div>`;
+        try {
+            const data = await Api.ckanSearch(
+                portalUrl,
+                document.getElementById('ckan-query').value,
+                document.getElementById('ckan-format').value,
+            );
+            this._ckanRenderResults(data, portalUrl);
+        } catch (err) {
+            results.innerHTML = `<div class="alert alert-danger py-2 px-3 mb-0" style="font-size:13px">${App.escHtml(err.message)}</div>`;
+        }
+    },
+
+    _ckanRenderResults(data, portalUrl) {
+        const t = I18n.t.bind(I18n);
+        const results = document.getElementById('ckan-results');
+        const datasets = (data?.datasets || []).filter(d => d.resources?.length);
+
+        if (!datasets.length) {
+            results.innerHTML = `<div class="text-muted" style="font-size:13px">${t('ckan.no_results')}</div>`;
+            return;
+        }
+
+        // Only these can become a layer; the rest are listed but not offered
+        const IMPORTABLE = ['GEOJSON', 'CSV', 'WMS', 'WFS'];
+
+        results.innerHTML = `
+            <div class="text-muted mb-2" style="font-size:12px">${t('ckan.found', { n: data.count })}</div>
+            ${datasets.map(ds => `
+                <div class="layer-card mb-2">
+                    <h4 style="margin-bottom:2px">${App.escHtml(ds.title || '')}</h4>
+                    ${ds.organization ? `<small class="text-muted d-block">${App.escHtml(ds.organization)}</small>` : ''}
+                    ${ds.notes ? `<small class="text-muted d-block mt-1">${App.escHtml(ds.notes)}</small>` : ''}
+                    <div class="mt-2" style="display:flex;flex-direction:column;gap:4px">
+                        ${ds.resources.map(r => `
+                            <div class="d-flex align-items-center gap-2" style="font-size:12px">
+                                <span class="layer-type-badge">${App.escHtml(r.format || '?')}</span>
+                                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${App.escHtml(r.name || r.url || '')}</span>
+                                ${IMPORTABLE.includes((r.format || '').toUpperCase())
+                                    ? `<button class="btn btn-sm btn-outline-success ckan-import"
+                                            data-url="${App.escHtml(r.url || '')}"
+                                            data-format="${App.escHtml((r.format || '').toUpperCase())}"
+                                            data-name="${App.escHtml(r.name || ds.title || 'CKAN')}">
+                                            <i class="bi bi-plus"></i> ${t('ckan.import')}
+                                       </button>`
+                                    : `<span class="text-muted" style="font-size:11px">${t('ckan.not_importable')}</span>`}
+                            </div>`).join('')}
+                    </div>
+                </div>`).join('')}`;
+
+        results.querySelectorAll('.ckan-import').forEach(btn => {
+            btn.addEventListener('click', () => this._ckanImport(btn));
+        });
+    },
+
+    async _ckanImport(btn) {
+        const t = I18n.t.bind(I18n);
+        const { url, format, name } = btn.dataset;
+
+        // A CSV only becomes a map once we know which columns hold the coordinates,
+        // so read its header first and let the author pick.
+        if (format === 'CSV') {
+            const picked = await this._ckanAskCoordinateColumns(url);
+            if (!picked) return;
+            return this._ckanDoImport(btn, { url, name, format, lat_field: picked.lat, lon_field: picked.lon });
+        }
+        return this._ckanDoImport(btn, { url, name, format });
+    },
+
+    async _ckanDoImport(btn, body) {
+        const t = I18n.t.bind(I18n);
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+        try {
+            const res = await Api.ckanImportAsLayer(body);
+            await this._addLayerToStory(res.id);
+            App.toast(t('ckan.imported', { n: res.features ?? '' }), 'success');
+            btn.innerHTML = '<i class="bi bi-check-lg"></i>';
+        } catch (err) {
+            App.toast(err.message, 'danger');
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    },
+
+    /** Read a CSV's columns and ask which two carry latitude and longitude. */
+    async _ckanAskCoordinateColumns(url) {
+        const t = I18n.t.bind(I18n);
+        let columns = [];
+        try {
+            App.toast(t('ckan.reading_csv'), 'info');
+            const data = await Api.ckanResource(url);
+            columns = data?.columns || [];
+        } catch (err) {
+            App.toast(err.message, 'danger');
+            return null;
+        }
+        if (!columns.length) {
+            App.toast(t('ckan.no_columns'), 'warning');
+            return null;
+        }
+
+        // Pre-select the usual suspects so most files need no thought
+        const guess = (candidates) => columns.find(c => candidates.includes(c.trim().toLowerCase())) || '';
+        const latGuess = guess(['lat', 'latitude', 'latitudine', 'y', 'coord_y']);
+        const lonGuess = guess(['lon', 'lng', 'long', 'longitude', 'longitudine', 'x', 'coord_x']);
+
+        const options = (selected) => columns
+            .map(c => `<option value="${App.escHtml(c)}" ${c === selected ? 'selected' : ''}>${App.escHtml(c)}</option>`)
+            .join('');
+
+        const result = await App.modal({
+            title: t('ckan.csv_title'),
+            body: `
+                <p style="font-size:13px" class="text-muted">${t('ckan.csv_hint')}</p>
+                <div class="mb-2">
+                    <label class="form-label small">${t('ckan.lat_field')}</label>
+                    <select class="form-select form-select-sm" id="ckan-lat">${options(latGuess)}</select>
+                </div>
+                <div>
+                    <label class="form-label small">${t('ckan.lon_field')}</label>
+                    <select class="form-select form-select-sm" id="ckan-lon">${options(lonGuess)}</select>
+                </div>`,
+            confirmText: t('ckan.import'),
+            onConfirm: () => ({
+                lat: document.getElementById('ckan-lat')?.value,
+                lon: document.getElementById('ckan-lon')?.value,
+            }),
+        });
+
+        if (!result || !result.lat || !result.lon) return null;
+        if (result.lat === result.lon) { App.toast(t('ckan.same_field'), 'warning'); return null; }
+        return result;
     },
 
     async _uploadGeoJSON() {

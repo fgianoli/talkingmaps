@@ -19,7 +19,7 @@ Pensato per giornalisti, ricercatori, studenti e chiunque voglia raccontare stor
 - **Libreria media** – Upload e gestione immagini, video, audio, PDF con thumbnailing automatico
 - **Gestione layer** – Catalogo layer riutilizzabili, upload GeoJSON, WMS proxy per servizi esterni
 - **Simbologia avanzata** – Simple, graduated, categorized, rule-based, heatmap, cluster, icon, label
-- **Import dati CKAN** – Cerca e importa dataset da portali open data (dati.gov.it, data.europa.eu, ecc.). _Al momento raggiungibile solo via API: non c'è ancora un pulsante nell'editor._
+- **Import dati CKAN** – Cerca nel catalogo di un portale open data e importa una risorsa come layer, direttamente dall'editor. GeoJSON e WMS entrano così come sono, per i CSV si scelgono le colonne delle coordinate
 - **Gestione utenti** – Ruoli admin/editor/viewer, autenticazione JWT
 - **Condivisione** – Storie pubbliche, link di condivisione, embed
 - **Assistente AI** – Genera testi, traduzioni, grafici e immagini con OpenAI (GPT/DALL-E), Anthropic (Claude), Google (Gemini). Chiavi API criptate per utente
