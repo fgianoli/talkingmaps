@@ -663,8 +663,8 @@ const StoryEditor = {
     _applyImageMap(url) {
         if (!this._map) return;
         // Set MapLibre style to show the image as a pannable/zoomable layer
-        const coords = [[-180, 85], [180, 85], [180, -85], [-180, -85]];
-        TmMap.setBasemap({ type: 'image', url: url, config: { coordinates: coords } });
+        // Same footprint the viewer uses, so the preview matches what a reader sees
+        TmMap.setBasemap({ type: 'image', url: url, config: {} });
     },
 
     // ── Slides List ──────────────────────

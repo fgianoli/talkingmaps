@@ -86,7 +86,11 @@ const TmMap = {
         if (basemap.type === 'image') {
             // config.coordinates = [[topLeftLng, topLeftLat], [topRightLng, topRightLat],
             //                       [bottomRightLng, bottomRightLat], [bottomLeftLng, bottomLeftLat]]
-            const coords = config.coordinates || [[-180, 85], [180, 85], [180, -85], [-180, -85]];
+            // Default footprint: a bounded box in the middle of the world rather than
+            // the full -180/+180 by -85/+85 span. Stretching a drawing across the
+            // whole Mercator plane distorts it beyond recognition and puts its edges
+            // exactly on the antimeridian and the projection limit.
+            const coords = config.coordinates || [[-40, 19], [40, 19], [40, -19], [-40, -19]];
             return {
                 version: 8,
                 sources: {

@@ -30,17 +30,35 @@
         "lng": 0,
         "lat": 0
       },
-      "map_zoom": 2,
+      "map_zoom": 2.4,
       "map_config": {
-        "image_url": "/img/demo/pianta-scavo.png"
+        "image_url": "/img/demo/pianta-scavo.png",
+        "image_coordinates": [
+          [
+            -40,
+            18.87
+          ],
+          [
+            40,
+            18.87
+          ],
+          [
+            40,
+            -18.87
+          ],
+          [
+            -40,
+            -18.87
+          ]
+        ]
       },
       "style_overrides": {
         "transition": "fade"
       },
       "markers": [
         {
-          "lng": -55,
-          "lat": 22,
+          "lng": -24,
+          "lat": 9,
           "title": "Ambiente A1",
           "popup_content": "<p>Vano d'angolo sul lato ovest.</p>",
           "icon": "bi-1-circle-fill|md|pin",
@@ -55,8 +73,8 @@
           "color": "#1f6f8c"
         },
         {
-          "lng": 62,
-          "lat": 20,
+          "lng": 26,
+          "lat": 8,
           "title": "Ambiente C1",
           "popup_content": "<p>Il vano più ampio del lato est.</p>",
           "icon": "bi-3-circle-fill|md|pin",
@@ -75,7 +93,25 @@
       },
       "map_zoom": 4,
       "map_config": {
-        "image_url": "/img/demo/pianta-scavo.png"
+        "image_url": "/img/demo/pianta-scavo.png",
+        "image_coordinates": [
+          [
+            -40,
+            18.87
+          ],
+          [
+            40,
+            18.87
+          ],
+          [
+            40,
+            -18.87
+          ],
+          [
+            -40,
+            -18.87
+          ]
+        ]
       },
       "style_overrides": {
         "transition": "fade"

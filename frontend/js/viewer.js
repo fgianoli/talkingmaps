@@ -657,11 +657,17 @@ const StoryViewer = {
         // Per-slide basemap
         if (hasMap && !is3DLayout) {
             if (layout === 'image-map' && slide.map_config?.image_url) {
-                // Navigable image: use MapLibre image source as basemap
+                // Navigable image: use MapLibre image source as basemap. The corners
+                // can be given per slide; the default keeps the image well away from
+                // the poles and the antimeridian, where a world-spanning image source
+                // is both wildly stretched and awkward for the renderer.
                 TmMap.setBasemap({
                     type: 'image',
                     url: slide.map_config.image_url,
                     name: 'Navigable Image',
+                    config: slide.map_config.image_coordinates
+                        ? { coordinates: slide.map_config.image_coordinates }
+                        : {},
                 });
             } else if (slide.basemap_id === 'none') {
                 TmMap.setBasemap(null, true); // no background
