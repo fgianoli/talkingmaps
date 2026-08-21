@@ -5,7 +5,11 @@
     "title": "Numeri e mappe: gli effetti narrativi",
     "description": "Dimostrazione dei tre effetti narrativi: numeri chiave animati, transizioni del testo e confronto immagini prima/dopo.",
     "theme": {},
-    "settings": { "theme": "dark", "navigation_mode": "guided" }
+    "settings": {
+      "theme": "dark",
+      "navigation_mode": "guided"
+    },
+    "cover_image": "/img/demo/cover-numeri.svg"
   },
   "slides": [
     {
@@ -13,9 +17,14 @@
       "title": "Raccontare con i numeri",
       "narrative": "<h1>Raccontare con i numeri</h1><p>Una data story si apre quasi sempre con le cifre che colpiscono. Scorri per vederle salire da zero.</p><p><em>I valori di questa storia sono di esempio: servono solo a mostrare come funzionano gli effetti.</em></p>",
       "position": 0,
-      "map_center": { "lng": 12.5674, "lat": 41.8719 },
+      "map_center": {
+        "lng": 12.5674,
+        "lat": 41.8719
+      },
       "map_zoom": 4.5,
-      "style_overrides": { "transition": "reveal-words" }
+      "style_overrides": {
+        "transition": "reveal-words"
+      }
     },
     {
       "layout": "text-only",
@@ -28,10 +37,38 @@
         "text_align": "left",
         "stats": {
           "items": [
-            { "value": 332, "label": "Superficie", "suffix": " mln km²", "prefix": "", "decimals": 0, "desc": "Valore di esempio" },
-            { "value": 65, "label": "Quota interessata", "suffix": "%", "prefix": "", "decimals": 0, "desc": "" },
-            { "value": 3.4, "label": "Impatto stimato", "prefix": "€", "suffix": " mld", "decimals": 1, "desc": "" },
-            { "value": 34, "label": "Aree monitorate", "prefix": "", "suffix": "", "decimals": 0, "desc": "" }
+            {
+              "value": 332,
+              "label": "Superficie",
+              "suffix": " mln km²",
+              "prefix": "",
+              "decimals": 0,
+              "desc": "Valore di esempio"
+            },
+            {
+              "value": 65,
+              "label": "Quota interessata",
+              "suffix": "%",
+              "prefix": "",
+              "decimals": 0,
+              "desc": ""
+            },
+            {
+              "value": 3.4,
+              "label": "Impatto stimato",
+              "prefix": "€",
+              "suffix": " mld",
+              "decimals": 1,
+              "desc": ""
+            },
+            {
+              "value": 34,
+              "label": "Aree monitorate",
+              "prefix": "",
+              "suffix": "",
+              "decimals": 0,
+              "desc": ""
+            }
           ],
           "columns": 4,
           "duration": 1800
@@ -61,17 +98,25 @@
       "title": "A cosa serve",
       "narrative": "<h2>A cosa serve</h2><p>Due date satellitari sulla stessa area. Un sito prima e dopo un intervento. Una fotografia storica accanto a una attuale.</p><p>Il confronto affiancato costringe l'occhio a cercare la differenza, e la trova da solo: è più efficace di qualsiasi didascalia che la descriva.</p>",
       "position": 3,
-      "style_overrides": { "transition": "stagger", "card_style": "card" }
+      "style_overrides": {
+        "transition": "stagger",
+        "card_style": "card"
+      }
     },
     {
       "layout": "side-left",
       "title": "E la mappa",
       "narrative": "<h2>E la mappa</h2><p>Gli effetti si combinano con tutto il resto: la camera si sposta per slide, i layer si accendono e si spengono, i grafici stanno dentro al testo.</p><p>Questa slide usa la transizione a cascata: titolo e paragrafi entrano uno dopo l'altro.</p>",
       "position": 4,
-      "map_center": { "lng": 9.1900, "lat": 45.4642 },
+      "map_center": {
+        "lng": 9.19,
+        "lat": 45.4642
+      },
       "map_zoom": 11,
       "map_animation": "flyTo",
-      "style_overrides": { "transition": "stagger" }
+      "style_overrides": {
+        "transition": "stagger"
+      }
     }
   ],
   "layers": []

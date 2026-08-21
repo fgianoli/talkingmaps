@@ -315,6 +315,10 @@ const StoryViewer = {
         container.innerHTML = '';
         // Remove fixed positioning classes — we use per-slide layout now
         container.className = 'viewer-narrative-scroll';
+        // The container is reused between stories and keeps its scroll offset, so a
+        // new story opened after reading part of another one started at whatever
+        // slide sat at that pixel position instead of at the beginning.
+        container.scrollTop = 0;
 
         this._slides.forEach((slide, idx) => {
             const layout = slide.layout || 'side-left';

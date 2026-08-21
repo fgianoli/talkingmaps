@@ -5,7 +5,11 @@
     "title": "La mappa dentro il testo",
     "description": "Parole cliccabili che muovono la mappa e mini-mappe inserite nel paragrafo. Mostra hotspot e express map.",
     "theme": {},
-    "settings": { "theme": "light", "navigation_mode": "guided" }
+    "settings": {
+      "theme": "light",
+      "navigation_mode": "guided"
+    },
+    "cover_image": "/img/demo/cover-mappa-testo.svg"
   },
   "slides": [
     {
@@ -13,26 +17,57 @@
       "title": "La mappa dentro il testo",
       "narrative": "<h1>La mappa dentro il testo</h1><p>Di solito il testo sta da una parte e la mappa dall'altra, e il lettore fa la spola. Si può fare diversamente: rendere la mappa una cosa che si tocca leggendo.</p>",
       "position": 0,
-      "map_center": { "lng": 12.4964, "lat": 41.9028 },
+      "map_center": {
+        "lng": 12.4964,
+        "lat": 41.9028
+      },
       "map_zoom": 11,
-      "style_overrides": { "transition": "reveal-words" }
+      "style_overrides": {
+        "transition": "reveal-words"
+      }
     },
     {
       "layout": "side-left",
       "title": "Parole che muovono la mappa",
       "narrative": "<h2>Parole che muovono la mappa</h2><p>Roma antica non era un centro solo. Il potere stava al <a href=\"#\" class=\"tm-map-link\" data-tm-link=\"marker:{{foro}}\" style=\"color:#4f6df5;text-decoration:underline;cursor:pointer\">Foro</a>, gli spettacoli al <a href=\"#\" class=\"tm-map-link\" data-tm-link=\"marker:{{colosseo}}\" style=\"color:#4f6df5;text-decoration:underline;cursor:pointer\">Colosseo</a>, e il culto si concentrava al <a href=\"#\" class=\"tm-map-link\" data-tm-link=\"marker:{{pantheon}}\" style=\"color:#4f6df5;text-decoration:underline;cursor:pointer\">Pantheon</a>.</p><p>Prova a premere uno di quei tre nomi: la mappa ci va, e tu non hai lasciato la frase.</p><p><em>Nell'editor si seleziona una parola e si preme l'icona del segnaposto nella barra della narrativa.</em></p>",
       "position": 1,
-      "map_center": { "lng": 12.4869, "lat": 41.8925 },
+      "map_center": {
+        "lng": 12.4869,
+        "lat": 41.8925
+      },
       "map_zoom": 14,
       "map_animation": "flyTo",
-      "style_overrides": { "transition": "stagger" },
+      "style_overrides": {
+        "transition": "stagger"
+      },
       "markers": [
-        { "key": "foro", "lng": 12.4853, "lat": 41.8925, "title": "Foro Romano",
-          "popup_content": "<p>Il centro politico della città antica.</p>", "icon": "bi-bank|md|pin", "color": "#8c6d1f" },
-        { "key": "colosseo", "lng": 12.4922, "lat": 41.8902, "title": "Colosseo",
-          "popup_content": "<p>Anfiteatro Flavio, inaugurato nel 80 d.C.</p>", "icon": "bi-circle|md|pin", "color": "#c1440e" },
-        { "key": "pantheon", "lng": 12.4768, "lat": 41.8986, "title": "Pantheon",
-          "popup_content": "<p>La cupola in calcestruzzo non armata più grande del mondo.</p>", "icon": "bi-record-circle|md|pin", "color": "#1f6f8c" }
+        {
+          "key": "foro",
+          "lng": 12.4853,
+          "lat": 41.8925,
+          "title": "Foro Romano",
+          "popup_content": "<p>Il centro politico della città antica.</p>",
+          "icon": "bi-bank|md|pin",
+          "color": "#8c6d1f"
+        },
+        {
+          "key": "colosseo",
+          "lng": 12.4922,
+          "lat": 41.8902,
+          "title": "Colosseo",
+          "popup_content": "<p>Anfiteatro Flavio, inaugurato nel 80 d.C.</p>",
+          "icon": "bi-circle|md|pin",
+          "color": "#c1440e"
+        },
+        {
+          "key": "pantheon",
+          "lng": 12.4768,
+          "lat": 41.8986,
+          "title": "Pantheon",
+          "popup_content": "<p>La cupola in calcestruzzo non armata più grande del mondo.</p>",
+          "icon": "bi-record-circle|md|pin",
+          "color": "#1f6f8c"
+        }
       ]
     },
     {
@@ -40,17 +75,24 @@
       "title": "Mappe dentro il paragrafo",
       "narrative": "<h2>Mappe dentro il paragrafo</h2><p>A volte non serve spostare la mappa principale: serve una mappina lì, accanto alla frase che la nomina. Questa è Ostia Antica, il porto fluviale di Roma, a venticinque chilometri dal Foro.</p><div class=\"express-map\" data-lat=\"41.7554\" data-lng=\"12.2911\" data-zoom=\"14\" data-marker=\"true\" data-size=\"medium\"></div><p>È una mappa vera e navigabile, ma sta nel flusso del testo come starebbe una fotografia. Nell'editor si inserisce con l'icona della puntina.</p>",
       "position": 2,
-      "style_overrides": { "transition": "stagger" }
+      "style_overrides": {
+        "transition": "stagger"
+      }
     },
     {
       "layout": "side-right",
       "title": "Perché conta",
       "narrative": "<h2>Perché conta</h2><p>Un lettore che deve cercare da solo sulla mappa il posto che hai appena nominato, spesso non lo cerca. Se invece il nome è la cosa che si preme, ci arriva senza pensarci.</p><p>Vale soprattutto per i luoghi che il lettore non conosce: è la differenza fra citarli e mostrarli.</p>",
       "position": 3,
-      "map_center": { "lng": 12.2911, "lat": 41.7554 },
+      "map_center": {
+        "lng": 12.2911,
+        "lat": 41.7554
+      },
       "map_zoom": 13,
       "map_animation": "cinematic",
-      "style_overrides": { "transition": "stagger" }
+      "style_overrides": {
+        "transition": "stagger"
+      }
     }
   ],
   "layers": []

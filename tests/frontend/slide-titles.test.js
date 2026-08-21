@@ -92,5 +92,14 @@ check('a heading further down still counts as the same title',
 console.log('\nThe title survives where it is actually needed');
 check('slide.title untouched on the model', V._slides[0].title === "Un giro d'Italia");
 
+// The narrative container is reused between stories and keeps its scroll offset, so
+// opening a second story after reading part of a first one started partway in — at
+// whichever slide happened to sit at that pixel position.
+console.log('\nBuilding a narrative resets the scroll position');
+const narrative = w.document.getElementById('viewer-narrative');
+narrative.scrollTop = 1400;
+V._buildNarrative();
+check('a rebuild returns the container to the top', narrative.scrollTop === 0, String(narrative.scrollTop));
+
 console.log('\n' + (failures ? failures + ' FAILURE(S)' : 'ALL SLIDE TITLE CHECKS PASSED'));
 process.exit(failures ? 1 : 0);

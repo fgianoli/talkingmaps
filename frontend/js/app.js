@@ -949,8 +949,20 @@ const App = {
                     'a','ul','ol','li','blockquote','pre','code','img','table','thead','tbody',
                     'tr','th','td','hr','span','div','figure','figcaption','sup','sub','small'],
                 ALLOWED_ATTR: ['href','src','alt','title','class','style','target','width','height',
-                    'colspan','rowspan'],
+                    'colspan','rowspan',
+                    // The narrative editor writes these, and two features read them
+                    // back at render time: hotspot links that drive the map, and
+                    // express maps embedded in the text. Stripping every data-*
+                    // attribute silently disabled both — the markup survived, the
+                    // information it carried did not.
+                    'data-tm-link','data-lat','data-lng','data-zoom','data-marker','data-size'],
+                // Still off as a blanket permission: only the attributes above pass
                 ALLOW_DATA_ATTR: false,
+                // A hotspot target reads "marker:42", and the colon makes DOMPurify
+                // treat the value as a URI with an unknown scheme and drop it. The
+                // attribute never reaches a URL — the viewer splits it on the colon
+                // and looks the id up in the story it already loaded.
+                ADD_URI_SAFE_ATTR: ['data-tm-link'],
             });
         }
         return html;

@@ -91,8 +91,8 @@ async def _seed_one(conn, data: dict, author_id: int) -> str | None:
     story = data.get("story", {})
     res = await conn.execute(
         text(
-            """INSERT INTO stories (slug, title, description, author_id, status, visibility, theme, settings)
-               VALUES (:slug, :title, :desc, :author, 'published', 'public',
+            """INSERT INTO stories (slug, title, description, cover_image, author_id, status, visibility, theme, settings)
+               VALUES (:slug, :title, :desc, :cover, :author, 'published', 'public',
                        CAST(:theme AS jsonb), CAST(:settings AS jsonb))
                RETURNING id"""
         ),
@@ -100,6 +100,7 @@ async def _seed_one(conn, data: dict, author_id: int) -> str | None:
             "slug": slug,
             "title": story.get("title", slug),
             "desc": story.get("description", ""),
+            "cover": story.get("cover_image"),
             "author": author_id,
             "theme": json.dumps(story.get("theme", {})),
             "settings": json.dumps(story.get("settings", {})),

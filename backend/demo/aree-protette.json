@@ -8,7 +8,8 @@
     "settings": {
       "theme": "light",
       "navigation_mode": "guided"
-    }
+    },
+    "cover_image": "/img/demo/cover-aree.svg"
   },
   "layers": [
     {
