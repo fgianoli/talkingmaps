@@ -3,7 +3,9 @@
 A fresh installation shows an empty dashboard, which says nothing about what the
 tool can do. These seeds create a handful of published, public stories that
 exercise the features worth showing: cinematic camera moves between stops, the
-animated key figures and before/after comparison, and temporal playback of a layer.
+animated key figures and before/after comparison, temporal playback of a layer, the
+3D globe, an image explored as a map, narrative text that drives the map, and a
+story built on a real open dataset imported from a CKAN portal.
 
 The stories live as JSON under ``backend/demo`` so they can be edited without
 touching Python, and each carries a ``demo_slug`` that makes seeding idempotent: a
@@ -114,6 +116,11 @@ async def _seed_one(conn, data: dict, author_id: int) -> str | None:
             {"sid": story_id, "lid": layer_id, "pos": position},
         )
 
+    # Two passes over the slides: the narrative can link to a marker, but the marker
+    # ids only exist once the markers are inserted, so the text is patched afterwards.
+    marker_key_to_id: dict[str, int] = {}
+    narrative_fixups: list[tuple[int, str]] = []
+
     for index, slide in enumerate(data.get("slides", [])):
         markers = slide.get("markers", [])
         res = await conn.execute(
@@ -145,10 +152,11 @@ async def _seed_one(conn, data: dict, author_id: int) -> str | None:
         slide_id = res.fetchone()[0]
 
         for marker in markers:
-            await conn.execute(
+            res = await conn.execute(
                 text(
                     """INSERT INTO markers (slide_id, geom, title, popup_content, icon, color)
-                       VALUES (:sid, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326), :title, :popup, :icon, :color)"""
+                       VALUES (:sid, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326), :title, :popup, :icon, :color)
+                       RETURNING id"""
                 ),
                 {
                     "sid": slide_id,
@@ -160,6 +168,22 @@ async def _seed_one(conn, data: dict, author_id: int) -> str | None:
                     "color": marker.get("color", "#4f6df5"),
                 },
             )
+            if marker.get("key"):
+                marker_key_to_id[marker["key"]] = res.fetchone()[0]
+
+        if "{{" in (slide.get("narrative") or ""):
+            narrative_fixups.append((slide_id, slide["narrative"]))
+
+    # Resolve the {{key}} placeholders now that the marker ids are known. A seed
+    # writes data-tm-link="marker:{{foro}}" because it cannot know the id in advance.
+    for slide_id, narrative in narrative_fixups:
+        resolved = narrative
+        for key, marker_id in marker_key_to_id.items():
+            resolved = resolved.replace("{{" + key + "}}", str(marker_id))
+        await conn.execute(
+            text("UPDATE slides SET narrative = :n WHERE id = :id"),
+            {"n": resolved, "id": slide_id},
+        )
 
     return slug
 

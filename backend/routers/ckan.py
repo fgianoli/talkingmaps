@@ -45,6 +45,55 @@ KNOWN_PORTALS = {
 }
 
 
+def _reproject_geojson(geojson: dict) -> dict:
+    """Bring a FeatureCollection to EPSG:4326 if it declares another CRS.
+
+    Italian portals routinely publish in EPSG:3003 or 32632. MapLibre expects
+    lon/lat, so importing one of those without transforming produced a layer whose
+    features sat far outside the world and rendered nowhere — with nothing to say
+    why. Shapefile upload already reprojects; this brings CKAN import in line.
+    """
+    crs = geojson.get("crs")
+    if not isinstance(crs, dict):
+        return geojson  # no declaration means WGS84 per the GeoJSON spec
+
+    name = str(crs.get("properties", {}).get("name", ""))
+    if not name or "4326" in name or "CRS84" in name.upper():
+        return geojson
+
+    try:
+        from fiona.transform import transform_geom
+    except ImportError:  # pragma: no cover - dependency is declared
+        return geojson
+
+    # "urn:ogc:def:crs:EPSG::3003" -> "EPSG:3003"
+    code = name.rsplit(":", 1)[-1]
+    if not code.isdigit():
+        return geojson
+    src_crs = f"EPSG:{code}"
+
+    reprojected = []
+    for feature in geojson.get("features", []):
+        geom = feature.get("geometry")
+        if not geom:
+            continue
+        try:
+            feature = {**feature, "geometry": dict(transform_geom(src_crs, "EPSG:4326", geom))}
+        except Exception:
+            continue  # drop what cannot be placed rather than putting it in the sea
+        reprojected.append(feature)
+
+    if not reprojected:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Nessuna geometria convertibile da {src_crs} a WGS84.",
+        )
+
+    out = {k: v for k, v in geojson.items() if k != "crs"}
+    out["features"] = reprojected
+    return out
+
+
 def _parse_ckan_response(resp, portal_url: str) -> dict:
     """Turn a CKAN reply into a dict, or explain why it is not one.
 
@@ -139,11 +188,26 @@ async def get_resource(
     try:
         async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
             resp = await client.get(url)
+            if resp.status_code >= 400:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"La risorsa ha risposto {resp.status_code}. Il link del portale potrebbe essere scaduto.",
+                )
             content_type = resp.headers.get("content-type", "")
 
-            # GeoJSON
-            if "json" in content_type or url.endswith(".geojson") or url.endswith(".json"):
-                return resp.json()
+            # GeoJSON. Portals are unreliable about content-type, so try to parse
+            # anything that is not obviously CSV and fall back on the raw text.
+            looks_json = "json" in content_type or url.endswith((".geojson", ".json"))
+            looks_csv = "csv" in content_type or url.endswith(".csv")
+            if looks_json or not looks_csv:
+                try:
+                    return resp.json()
+                except ValueError:
+                    if looks_json:
+                        raise HTTPException(
+                            status_code=502,
+                            detail=f"La risorsa si dichiara JSON ({content_type}) ma non lo è.",
+                        )
 
             # CSV - parse to JSON
             if "csv" in content_type or url.endswith(".csv"):
@@ -214,10 +278,24 @@ async def import_as_layer(
         # Fetch the data
         async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
             resp = await client.get(url)
+            if resp.status_code >= 400:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"La risorsa ha risposto {resp.status_code}. Il link del portale potrebbe essere scaduto.",
+                )
             content = resp.text
 
         if fmt == "GEOJSON" or "geojson" in url.lower():
-            geojson = json.loads(content)
+            try:
+                geojson = json.loads(content)
+            except ValueError:
+                raise HTTPException(status_code=502, detail="La risorsa non contiene GeoJSON valido")
+            if not isinstance(geojson, dict) or "features" not in geojson:
+                raise HTTPException(
+                    status_code=502,
+                    detail="Il GeoJSON non contiene una FeatureCollection: non può diventare un layer.",
+                )
+            geojson = _reproject_geojson(geojson)
         elif fmt == "CSV" and lat_field and lon_field:
             # Convert CSV to GeoJSON
             lines = content.strip().split("\n")

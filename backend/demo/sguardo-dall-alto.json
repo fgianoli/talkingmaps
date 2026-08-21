@@ -1,0 +1,75 @@
+{
+  "talkingmaps_version": "2.0",
+  "demo_slug": "demo-sguardo-dall-alto",
+  "story": {
+    "title": "Sguardo dall'alto: le Alpi in 3D",
+    "description": "Quattro cime viste sul globo tridimensionale di CesiumJS, con terreno e camera inclinata. Mostra il layout globe-3d.",
+    "theme": {},
+    "settings": { "theme": "dark", "navigation_mode": "guided" }
+  },
+  "slides": [
+    {
+      "layout": "cover",
+      "title": "Sguardo dall'alto",
+      "narrative": "<h1>Sguardo dall'alto</h1><p>Una mappa piatta appiattisce anche la montagna. Sul globo tridimensionale il rilievo torna a essere quello che è: una forma, non una curva di livello.</p><p>Scorri per salire su quattro cime.</p>",
+      "position": 0,
+      "map_center": { "lng": 8.5, "lat": 45.9 },
+      "map_zoom": 6,
+      "style_overrides": { "transition": "reveal-words" }
+    },
+    {
+      "layout": "globe-3d",
+      "title": "Cervino",
+      "narrative": "<h2>Cervino</h2><p>4478 metri, sul confine fra Valtournenche e Zermatt. La piramide che tutti riconoscono è il risultato dell'erosione glaciale su quattro versanti insieme.</p><p>La camera è inclinata di 60 gradi: su una mappa 2D questa slide mostrerebbe un cerchio di curve di livello.</p>",
+      "position": 1,
+      "map_center": { "lng": 7.6586, "lat": 45.9766 },
+      "map_zoom": 13,
+      "map_pitch": 60,
+      "map_bearing": 200,
+      "style_overrides": { "transition": "fade" }
+    },
+    {
+      "layout": "globe-3d",
+      "title": "Monte Bianco",
+      "narrative": "<h2>Monte Bianco</h2><p>4805 metri, il punto più alto delle Alpi. Il massiccio si estende fra Italia e Francia, e la vetta è al centro di una disputa cartografica che dura da due secoli.</p><p>Cambiando <em>bearing</em> la stessa montagna racconta un versante diverso.</p>",
+      "position": 2,
+      "map_center": { "lng": 6.8652, "lat": 45.8326 },
+      "map_zoom": 12.5,
+      "map_pitch": 65,
+      "map_bearing": 120,
+      "style_overrides": { "transition": "fade" }
+    },
+    {
+      "layout": "globe-3d",
+      "title": "Gran Paradiso",
+      "narrative": "<h2>Gran Paradiso</h2><p>4061 metri, l'unico quattromila interamente in territorio italiano. Dà il nome al più antico parco nazionale del paese, istituito nel 1922.</p>",
+      "position": 3,
+      "map_center": { "lng": 7.2668, "lat": 45.5175 },
+      "map_zoom": 12.5,
+      "map_pitch": 55,
+      "map_bearing": 300,
+      "style_overrides": { "transition": "fade" }
+    },
+    {
+      "layout": "globe-3d",
+      "title": "Marmolada",
+      "narrative": "<h2>Marmolada</h2><p>3343 metri, la cima più alta delle Dolomiti. Il ghiacciaio sul versante nord è il più esteso del gruppo e si sta ritirando rapidamente.</p><p>Qui la roccia stratificata rende evidente cosa aggiunga la terza dimensione: la struttura si legge nella forma.</p>",
+      "position": 4,
+      "map_center": { "lng": 11.8517, "lat": 46.4340 },
+      "map_zoom": 13,
+      "map_pitch": 70,
+      "map_bearing": 20,
+      "style_overrides": { "transition": "fade" }
+    },
+    {
+      "layout": "cover",
+      "title": "Torniamo a terra",
+      "narrative": "<h1>Torniamo a terra</h1><p>Il globo 3D è una scelta per slide: la stessa storia può alternare mappe piatte e viste tridimensionali, e il lettore non se ne accorge se non per il fatto che la montagna, a un certo punto, ha una forma.</p>",
+      "position": 5,
+      "map_center": { "lng": 9.5, "lat": 45.9 },
+      "map_zoom": 6,
+      "style_overrides": { "transition": "stagger" }
+    }
+  ],
+  "layers": []
+}

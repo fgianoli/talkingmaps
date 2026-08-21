@@ -1,0 +1,55 @@
+{
+  "talkingmaps_version": "2.0",
+  "demo_slug": "demo-dentro-il-disegno",
+  "story": {
+    "title": "Dentro il disegno: un'immagine navigabile",
+    "description": "Una pianta esplorata come fosse una mappa, con zoom e marker, senza nessuna cartografia sotto. Mostra il layout image-map.",
+    "theme": {},
+    "settings": { "theme": "light", "navigation_mode": "guided" }
+  },
+  "slides": [
+    {
+      "layout": "cover",
+      "title": "Dentro il disegno",
+      "narrative": "<h1>Dentro il disegno</h1><p>Non tutto quello che vale la pena esplorare sta sul globo. Una pianta di scavo, il piano di un museo, un dipinto, una mappa storica: sono superfici con una geografia propria.</p><p><em>La pianta che segue è un disegno schematico creato per questa dimostrazione, non il rilievo di un sito reale.</em></p>",
+      "position": 0,
+      "style_overrides": { "transition": "reveal-words" }
+    },
+    {
+      "layout": "image-map",
+      "title": "La pianta",
+      "narrative": "<h2>La pianta</h2><p>Nessuna cartografia sotto: l'immagine <em>è</em> la mappa. Si ingrandisce, si trascina e si annota con i marker come qualsiasi altra vista.</p><p>Il layout si chiama <strong>immagine navigabile</strong>, e l'unica cosa che serve è l'indirizzo di un'immagine.</p>",
+      "position": 1,
+      "map_center": { "lng": 0, "lat": 0 },
+      "map_zoom": 2,
+      "map_config": { "image_url": "/img/demo/pianta-scavo.svg" },
+      "style_overrides": { "transition": "fade" },
+      "markers": [
+        { "lng": -55, "lat": 22, "title": "Ambiente A1",
+          "popup_content": "<p>Vano d'angolo sul lato ovest.</p>", "icon": "bi-1-circle-fill|md|pin", "color": "#8c6d1f" },
+        { "lng": 0, "lat": 0, "title": "Cortile centrale",
+          "popup_content": "<p>Spazio aperto con vasca al centro.</p>", "icon": "bi-2-circle-fill|md|pin", "color": "#1f6f8c" },
+        { "lng": 62, "lat": 20, "title": "Ambiente C1",
+          "popup_content": "<p>Il vano più ampio del lato est.</p>", "icon": "bi-3-circle-fill|md|pin", "color": "#8c1f3d" }
+      ]
+    },
+    {
+      "layout": "image-map",
+      "title": "Il cortile",
+      "narrative": "<h2>Il cortile</h2><p>Avvicinandosi si leggono i dettagli: la vasca al centro, gli ambienti che vi si affacciano, l'ingresso sul lato sud.</p><p>Lo zoom funziona come su una mappa perché per il motore <em>è</em> una mappa: cambia solo cosa c'è sotto.</p>",
+      "position": 2,
+      "map_center": { "lng": 0, "lat": 0 },
+      "map_zoom": 4,
+      "map_config": { "image_url": "/img/demo/pianta-scavo.svg" },
+      "style_overrides": { "transition": "fade" }
+    },
+    {
+      "layout": "text-only",
+      "title": "A cosa serve",
+      "narrative": "<h2>A cosa serve</h2><p>Un percorso dentro un museo, piano per piano. Una mappa catastale ottocentesca confrontata con l'assetto di oggi. Il dettaglio di un quadro raccontato pennellata per pennellata.</p><p>Sono tutti casi in cui la geografia esiste, ma non ha coordinate: sta dentro l'immagine.</p>",
+      "position": 3,
+      "style_overrides": { "transition": "stagger" }
+    }
+  ],
+  "layers": []
+}
