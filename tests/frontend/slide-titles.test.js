@@ -101,5 +101,18 @@ narrative.scrollTop = 1400;
 V._buildNarrative();
 check('a rebuild returns the container to the top', narrative.scrollTop === 0, String(narrative.scrollTop));
 
+// Every layout that shows a map has to say where its text card goes, or the card
+// spreads across the middle and covers the map. image-map was the one that never
+// did, and its whole point is a drawing you are meant to look at.
+console.log('\nEvery map layout positions its card');
+const cssRaw = read('frontend/css/viewer.css');
+const css = cssRaw.replace(/@media[^{]*{(?:[^{}]|{[^{}]*})*}/g, '');
+const MAP_LAYOUTS = ['side-left', 'side-right', 'center', 'full-map', 'image-map', 'globe-3d', 'potree-3d'];
+for (const layout of MAP_LAYOUTS) {
+    const rule = new RegExp('\\.slide-layout-' + layout + '[\\s,][^{]*\\{[^}]*' +
+        '(width|max-width|position|display|justify-content)', 'm');
+    check(layout + ' has positioning of its own', rule.test(css));
+}
+
 console.log('\n' + (failures ? failures + ' FAILURE(S)' : 'ALL SLIDE TITLE CHECKS PASSED'));
 process.exit(failures ? 1 : 0);

@@ -452,6 +452,31 @@
     border: 1px solid rgba(0,0,0,0.06);
 }
 
+/* ── Navigable image ────────────────────
+   The only map layout with no positioning of its own, so its card stretched across
+   the middle and covered the very drawing the slide exists to show. It now sits to
+   one side like the other map layouts, leaving the image readable beside it. */
+.slide-layout-image-map {
+    justify-content: flex-start;
+}
+
+.slide-layout-image-map .viewer-slide-content {
+    width: 400px;
+    max-width: 38vw;
+}
+
+@media (max-width: 768px) {
+    /* No room to sit beside it on a phone: drop to the bottom and stay narrow */
+    .slide-layout-image-map {
+        align-items: flex-end;
+        justify-content: center;
+    }
+    .slide-layout-image-map .viewer-slide-content {
+        width: 100%;
+        max-width: 100%;
+    }
+}
+
 /* ── Text + Media (side by side) ───── */
 .slide-layout-text-media {
     justify-content: center;
