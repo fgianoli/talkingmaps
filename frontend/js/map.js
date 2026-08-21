@@ -169,7 +169,20 @@ const TmMap = {
     whenReady(callback) {
         if (!this._map) return;
         if (this._map.isStyleLoaded()) { callback(); return; }
-        this._map.once('styledata', () => this.whenReady(callback));
+
+        // Listen with on(), not once(): "styledata" can fire while the style is still
+        // settling, and a one-shot listener that finds isStyleLoaded() still false
+        // would re-arm for an event that may never come again — leaving the callback
+        // stranded. That is what kept the first slide from ever activating.
+        const map = this._map;
+        const attempt = () => {
+            if (!map.isStyleLoaded()) return;
+            map.off('styledata', attempt);
+            map.off('load', attempt);
+            callback();
+        };
+        map.on('styledata', attempt);
+        map.on('load', attempt);
     },
 
     addLayer(layerConfig) {
@@ -178,7 +191,7 @@ const TmMap = {
         // caller adding layers straight after init() would hit "Style is not done
         // loading" and lose them silently. Defer instead of throwing away the layer.
         if (!this._map.isStyleLoaded()) {
-            this._map.once('styledata', () => this.addLayer(layerConfig));
+            this.whenReady(() => this.addLayer(layerConfig));
             return;
         }
         const { id, layer_type, source_config, style_config } = layerConfig;
@@ -390,7 +403,7 @@ const TmMap = {
         // A basemap change rebuilds the style, so the layer can be momentarily absent.
         // Wait for it rather than filtering nothing and showing every feature at once.
         if (!this._map.isStyleLoaded() || !this._map.getLayer(layerId)) {
-            this._map.once('styledata', () => this.setLayerTimeFilter(id, filter));
+            this.whenReady(() => this.setLayerTimeFilter(id, filter));
             return;
         }
 

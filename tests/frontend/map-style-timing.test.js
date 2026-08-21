@@ -29,20 +29,24 @@ const stub = `
 class FakeMap {
     constructor() {
         this._styleLoaded = false;
-        this._handlers = {};
+        this._once = {};
+        this._on = {};
         this.sources = {};
         this.layers = {};
         this.filters = {};
         this.layout = {};
     }
     isStyleLoaded() { return this._styleLoaded; }
-    once(event, cb) { (this._handlers[event] = this._handlers[event] || []).push(cb); }
-    on(event, cb) { this.once(event, cb); }
-    off() {}
+    once(event, cb) { (this._once[event] = this._once[event] || []).push(cb); }
+    on(event, cb) { (this._on[event] = this._on[event] || []).push(cb); }
+    off(event, cb) {
+        this._on[event] = (this._on[event] || []).filter(f => f !== cb);
+        this._once[event] = (this._once[event] || []).filter(f => f !== cb);
+    }
     fire(event) {
-        const list = this._handlers[event] || [];
-        this._handlers[event] = [];
-        list.forEach(cb => cb());
+        const onceList = this._once[event] || [];
+        this._once[event] = [];
+        [...onceList, ...(this._on[event] || [])].forEach(cb => cb());
     }
     finishLoading() { this._styleLoaded = true; this.fire('styledata'); }
     _assertLoaded(what) {
@@ -183,6 +187,24 @@ TmMap._map.layers['layer-7'] = { id: 'layer-7', type: 'circle' };
 TmMap._map.fire('styledata');
 check('and lands once the layer is back', Array.isArray(TmMap._map.getFilter('layer-7')),
     JSON.stringify(TmMap._map.getFilter('layer-7')));
+
+// A styledata that arrives while the style is still settling must not strand the
+// callback. whenReady used a one-shot listener, so when the first event found
+// isStyleLoaded() still false it re-armed for one that never came — and the first
+// slide never activated, leaving its reveal-words title hidden behind its mask.
+console.log('\nwhenReady survives a premature styledata');
+TmMap._map = new w.__FakeMap();
+let ran = 0;
+TmMap.whenReady(() => ran++);
+TmMap._map.fire('styledata');            // style still loading
+check('a premature event does not fire the callback', ran === 0, String(ran));
+TmMap._map.fire('styledata');            // and again, still loading
+check('nor does a second one', ran === 0, String(ran));
+TmMap._map._styleLoaded = true;
+TmMap._map.fire('styledata');
+check('it runs once the style is genuinely ready', ran === 1, String(ran));
+TmMap._map.fire('styledata');
+check('and only once', ran === 1, String(ran));
 
 console.log('\n' + (failures ? failures + ' FAILURE(S)' : 'ALL MAP TIMING CHECKS PASSED'));
 process.exit(failures ? 1 : 0);
