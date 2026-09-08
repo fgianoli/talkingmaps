@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img">
+  <defs>
+    <linearGradient id="gp" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f3d2e"/><stop offset="100%" stop-color="#1f6f5c"/>
+    </linearGradient>
+    <g id="pin">
+      <path d="M0,0 C-13,-18 -20,-27 -20,-38 A20,20 0 0 1 20,-38 C20,-27 13,-18 0,0 Z"/>
+      <circle cx="0" cy="-38" r="7" fill="#0f3d2e"/>
+    </g>
+  </defs>
+  <rect width="1200" height="630" fill="url(#gp)"/>
+
+  <!-- a sketched street grid, so the pins read as sitting on a place -->
+  <g stroke="#ffffff" stroke-opacity="0.13" stroke-width="3">
+    <path d="M0,150 H1200 M0,300 H1200 M0,450 H1200"/>
+    <path d="M220,0 V630 M470,0 V630 M720,0 V630 M970,0 V630"/>
+    <path d="M0,520 C260,470 420,560 700,500 S1050,420 1200,470" stroke-opacity="0.2" fill="none"/>
+  </g>
+
+  <!-- contributions arriving from many hands, in the demo's four categories -->
+  <g>
+    <use href="#pin" transform="translate(320,300)" fill="#ffd479"/>
+    <use href="#pin" transform="translate(520,215)" fill="#7ee3b8"/>
+    <use href="#pin" transform="translate(430,415)" fill="#ff9d7a"/>
+    <use href="#pin" transform="translate(690,340)" fill="#8ec9ff"/>
+    <use href="#pin" transform="translate(870,250)" fill="#ffd479"/>
+    <use href="#pin" transform="translate(790,470)" fill="#7ee3b8"/>
+    <use href="#pin" transform="translate(1010,400)" fill="#ff9d7a"/>
+    <use href="#pin" transform="translate(190,470)" fill="#8ec9ff"/>
+  </g>
+
+  <text x="150" y="140" font-family="Georgia, serif" font-size="66" fill="#ffffff">La mappa la fanno</text>
+  <text x="150" y="212" font-family="Georgia, serif" font-size="66" fill="#7ee3b8">le persone che la abitano</text>
+  <text x="150" y="580" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#ffffff" fill-opacity="0.7">Mappa partecipata &#183; TalkingMaps</text>
+</svg>

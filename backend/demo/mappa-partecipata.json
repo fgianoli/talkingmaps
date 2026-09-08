@@ -1,0 +1,138 @@
+{
+  "talkingmaps_version": "2.0",
+  "demo_slug": "demo-mappa-partecipata",
+  "story": {
+    "title": "La mappa la fanno le persone: una mappa partecipata",
+    "description": "Chi legge può aggiungere punti, foto e racconti sulla mappa, e chi cura la storia decide cosa pubblicare. Mostra la modalità partecipata e la moderazione.",
+    "theme": {},
+    "settings": {
+      "theme": "light",
+      "navigation_mode": "guided",
+      "participatory_enabled": true,
+      "participatory_categories": [
+        "Barriera architettonica",
+        "Verde da curare",
+        "Luogo del cuore",
+        "Illuminazione carente"
+      ]
+    },
+    "cover_image": "/img/demo/cover-partecipata.svg"
+  },
+  "slides": [
+    {
+      "layout": "cover",
+      "title": "La mappa la fanno le persone",
+      "narrative": "<h1>La mappa la fanno le persone</h1><p>Una mappa disegnata da una persona sola racconta quello che quella persona ha visto. Una mappa aperta racconta quello che sa il quartiere: dov'è il gradino che blocca una carrozzina, quale panchina sta all'ombra alle cinque, quale sottopasso nessuno attraversa la sera.</p><p><em>Le segnalazioni di questa storia sono inventate per la dimostrazione. I luoghi di Bologna sono veri, i problemi descritti no: servono solo a mostrare come si legge una mappa partecipata.</em></p>",
+      "position": 0,
+      "style_overrides": {
+        "transition": "reveal-words"
+      }
+    },
+    {
+      "layout": "side-left",
+      "title": "Quello che ha segnalato il quartiere",
+      "narrative": "<h2>Quello che ha segnalato il quartiere</h2><p>Ogni segnaposto sulla mappa è arrivato da un lettore, non da chi ha scritto la storia. Premine uno: dentro ci sono un titolo, un racconto, la categoria e — quando c'è — una foto, un video o una registrazione audio.</p><p>Se hai fatto l'accesso, in basso trovi il pulsante <strong>Contribuisci</strong>: premilo, scegli un punto sulla mappa e compila il modulo. Il tuo contributo parte subito, ma non compare subito: prima passa dalla moderazione.</p>",
+      "position": 1,
+      "map_center": {
+        "lng": 11.3437,
+        "lat": 44.4941
+      },
+      "map_zoom": 14.2,
+      "map_animation": "flyTo",
+      "style_overrides": {
+        "transition": "stagger"
+      }
+    },
+    {
+      "layout": "side-right",
+      "title": "Nessuno pubblica da solo",
+      "narrative": "<h2>Nessuno pubblica da solo</h2><p>Una mappa aperta a tutti, senza filtro, dura poco. Per questo ogni contributo nasce <em>in attesa</em>: lo vede solo chi cura la storia, dal pannello di moderazione, e decide se approvarlo o respingerlo, con una nota che spiega il perché.</p><p>Finché non è approvato, il contributo non esiste per il pubblico: la mappa che vedi qui contiene solo quello che è passato da quella scelta.</p><p><em>Il pannello si apre dalla dashboard, sul menu della storia, alla voce «Moderazione contributi».</em></p>",
+      "position": 2,
+      "map_center": {
+        "lng": 11.3467,
+        "lat": 44.4986
+      },
+      "map_zoom": 15.5,
+      "map_animation": "cinematic",
+      "style_overrides": {
+        "transition": "stagger"
+      }
+    },
+    {
+      "layout": "text-only",
+      "title": "A cosa serve",
+      "narrative": "<h2>A cosa serve</h2><p>Un censimento delle barriere architettoniche fatto da chi le incontra ogni giorno. Una raccolta di memoria di quartiere, dove ogni voce registrata resta attaccata al luogo di cui parla. Il monitoraggio di un fiume, con le foto scattate dagli abitanti dopo ogni piena.</p><p>Sono casi in cui il dato migliore non sta in nessun archivio: ce l'ha in testa chi abita il posto. La mappa serve a raccoglierlo, e la moderazione a renderlo pubblicabile.</p><p>Si attiva dall'editor, nel pannello delle impostazioni della storia: si accende <strong>Modalità partecipata</strong> e si scrivono le categorie fra cui far scegliere. Serve che i lettori abbiano un accesso: un contributo anonimo non si può moderare né attribuire.</p>",
+      "position": 3,
+      "style_overrides": {
+        "transition": "stagger"
+      }
+    }
+  ],
+  "layers": [],
+  "contributions": [
+    {
+      "lng": 11.3465,
+      "lat": 44.4944,
+      "title": "Gradino senza scivolo all'ingresso",
+      "description": "Un solo gradino, ma alto: chi ha una carrozzina o un passeggino deve fare il giro dall'altro lato dell'isolato. Basterebbe una rampa mobile.",
+      "category": "Barriera architettonica",
+      "author_name": "Marta (segnalazione di esempio)"
+    },
+    {
+      "lng": 11.3426,
+      "lat": 44.4938,
+      "title": "Qui suonava mio nonno",
+      "description": "Ogni domenica di settembre, per anni, la banda si metteva in questo angolo della piazza. Ho ancora le fotografie.",
+      "category": "Luogo del cuore",
+      "author_name": "Gianni (segnalazione di esempio)"
+    },
+    {
+      "lng": 11.3467,
+      "lat": 44.4986,
+      "title": "La finestrella sul canale",
+      "description": "Il posto che faccio vedere a chiunque venga a trovarmi. In pochi metri si capisce che sotto la città c'è ancora l'acqua.",
+      "category": "Luogo del cuore",
+      "author_name": "Sofia (segnalazione di esempio)"
+    },
+    {
+      "lng": 11.3446,
+      "lat": 44.5010,
+      "title": "Aiuola lasciata a se stessa",
+      "description": "Le piante ci sono ancora ma nessuno le innaffia da mesi. Un paio di residenti si offrirebbero di curarla.",
+      "category": "Verde da curare",
+      "author_name": "Comitato di quartiere (esempio)"
+    },
+    {
+      "lng": 11.3400,
+      "lat": 44.4959,
+      "title": "Poca luce all'uscita serale",
+      "description": "Dopo le nove il tratto fra il mercato e la strada grande resta al buio: chi torna a piedi preferisce allungare.",
+      "category": "Illuminazione carente",
+      "author_name": "Anna (segnalazione di esempio)"
+    },
+    {
+      "lng": 11.3510,
+      "lat": 44.4965,
+      "title": "Marciapiede troppo stretto",
+      "description": "Con le bici incatenate ai pali resta il passaggio per una persona sola. In due non ci si incrocia.",
+      "category": "Barriera architettonica",
+      "author_name": "Luca (segnalazione di esempio)"
+    },
+    {
+      "lng": 11.3556,
+      "lat": 44.4833,
+      "title": "Gli alberi grandi vanno controllati",
+      "description": "Dopo l'ultimo temporale sono caduti due rami grossi. Sarebbe il caso di una verifica prima dell'inverno.",
+      "category": "Verde da curare",
+      "author_name": "Paolo (segnalazione di esempio)"
+    },
+    {
+      "lng": 11.3428,
+      "lat": 44.5057,
+      "title": "Sottopasso da evitare la sera",
+      "description": "Due lampade su cinque sono spente da settimane. Di giorno non è un problema, la sera lo diventa.",
+      "category": "Illuminazione carente",
+      "author_name": "Federica (segnalazione di esempio)"
+    }
+  ]
+}
