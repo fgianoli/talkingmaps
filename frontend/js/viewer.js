@@ -761,6 +761,7 @@ const StoryViewer = {
         // Re-render contribution markers (participatory)
         if (this._data.story.settings?.participatory_enabled) {
             this._renderContributionMarkers();
+            this._syncContributeButton(slide);
         }
 
         // Drawn features (lines/polygons)
@@ -882,15 +883,27 @@ const StoryViewer = {
         if (!this._map || !this._contributions.length) return;
 
         this._contributions.forEach(c => {
-            if (!c.lng || !c.lat) return;
+            // Test for a usable number, not for truthiness: a point on the
+            // Greenwich meridian or the equator has a legitimate 0 here.
+            const lng = Number(c.lng), lat = Number(c.lat);
+            if (!isFinite(lng) || !isFinite(lat)) return;
 
             const el = document.createElement('div');
             el.className = 'tm-contribution-marker';
             el.innerHTML = '<i class="bi bi-geo-alt-fill"></i>';
-            if (c.category) el.dataset.category = c.category;
+            if (c.category) {
+                el.dataset.category = c.category;
+                el.title = c.category;
+                // Categories are free text chosen by the story's author, so the colour
+                // comes from the category's position in that story's own list rather
+                // than from any fixed set of names.
+                const cats = this._data?.story?.settings?.participatory_categories || [];
+                const i = cats.indexOf(c.category);
+                if (i >= 0) el.classList.add('tm-cat-' + (i % 6));
+            }
 
             const marker = new maplibregl.Marker({ element: el })
-                .setLngLat([c.lng, c.lat])
+                .setLngLat([lng, lat])
                 .setPopup(new maplibregl.Popup({ maxWidth: '320px', offset: 20 })
                     .setHTML(this._buildContributionPopup(c)))
                 .addTo(this._map);
@@ -909,16 +922,24 @@ const StoryViewer = {
             html += `<p>${DOMPurify.sanitize(c.description)}</p>`;
         }
         if (c.media_url) {
+            // This string goes straight to Popup.setHTML(), which does not sanitise,
+            // so every URL that lands in an attribute is escaped here. The full-size
+            // image opens through a plain link rather than an inline onclick: the URL
+            // carries a user-chosen file extension, and spliced into a JS string that
+            // was a way to run script in every reader's browser.
+            const src = App.escHtml(c.thumbnail_url || c.media_url);
+            const full = App.escHtml(c.media_url);
             if (c.media_type === 'image') {
-                html += `<img src="${c.thumbnail_url || c.media_url}" alt="" class="contrib-media-img" onclick="window.open('${c.media_url}','_blank')">`;
+                html += `<a href="${full}" target="_blank" rel="noopener noreferrer">` +
+                        `<img src="${src}" alt="" class="contrib-media-img"></a>`;
             } else if (c.media_type === 'video') {
-                html += `<video src="${c.media_url}" controls class="contrib-media-video"></video>`;
+                html += `<video src="${full}" controls class="contrib-media-video"></video>`;
             } else if (c.media_type === 'audio') {
-                html += `<audio src="${c.media_url}" controls class="contrib-media-audio"></audio>`;
+                html += `<audio src="${full}" controls class="contrib-media-audio"></audio>`;
             }
         }
         if (c.category) {
-            html += `<span class="contrib-category"><i class="bi bi-tag"></i> ${DOMPurify.sanitize(c.category)}</span>`;
+            html += `<span class="contrib-category"><i class="bi bi-tag"></i> ${App.escHtml(c.category)}</span>`;
         }
         html += `<div class="contrib-date"><i class="bi bi-clock"></i> ${new Date(c.created_at).toLocaleDateString()}</div>`;
         html += '</div>';
@@ -927,34 +948,51 @@ const StoryViewer = {
 
     _startContributionMode() {
         if (this._contributionMode) return;
+
+        // On a text-only or cover slide the map is behind an opaque panel, so
+        // "click on the map" would ask for something the reader cannot do.
+        if (!this._map || !this._slideHasMap(this._slides?.[this._currentSlide])) {
+            App.toast(I18n.t('contrib.needs_map'), 'warning');
+            return;
+        }
+
         this._contributionMode = true;
 
         const mapContainer = document.getElementById('viewer-map-container');
-        mapContainer.classList.add('contribution-placing');
+        mapContainer?.classList.add('contribution-placing');
 
         App.toast(I18n.t('contrib.click_map'), 'info');
 
-        // Listen for click on map
-        const clickHandler = (e) => {
+        // One exit path for both outcomes, so neither listener outlives the mode
+        const stop = () => {
             this._contributionMode = false;
-            mapContainer.classList.remove('contribution-placing');
+            mapContainer?.classList.remove('contribution-placing');
             this._map.off('click', clickHandler);
+            document.removeEventListener('keydown', escHandler);
+        };
 
+        const clickHandler = (e) => {
+            stop();
             this._showContributionForm(e.lngLat.lng, e.lngLat.lat);
         };
 
-        this._map.on('click', clickHandler);
-
-        // Cancel on Escape
         const escHandler = (e) => {
-            if (e.key === 'Escape') {
-                this._contributionMode = false;
-                mapContainer.classList.remove('contribution-placing');
-                this._map.off('click', clickHandler);
-                document.removeEventListener('keydown', escHandler);
-            }
+            if (e.key === 'Escape') stop();
         };
+
+        this._map.on('click', clickHandler);
         document.addEventListener('keydown', escHandler);
+    },
+
+    /** Does this slide actually show the map? */
+    _slideHasMap(slide) {
+        return !!slide && this._mapLayouts.includes(slide.layout || 'side-left');
+    },
+
+    /** Hide the contribute button on slides with no reachable map. */
+    _syncContributeButton(slide) {
+        const btn = document.getElementById('tm-contribute-btn');
+        if (btn) btn.style.display = this._slideHasMap(slide) ? '' : 'none';
     },
 
     _showContributionForm(lng, lat) {
@@ -968,7 +1006,7 @@ const StoryViewer = {
                     <label class="form-label">${I18n.t('contrib.category')}</label>
                     <select id="contrib-category" class="form-select form-select-sm">
                         <option value="">—</option>
-                        ${categories.map(c => `<option value="${c}">${c}</option>`).join('')}
+                        ${categories.map(c => `<option value="${App.escHtml(c)}">${App.escHtml(c)}</option>`).join('')}
                     </select>
                 </div>`;
         }

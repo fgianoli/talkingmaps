@@ -1202,6 +1202,16 @@
     transform: scale(1.2);
 }
 
+/* Contributions are grouped by category, so they have to be told apart at a glance.
+   The author writes the category names, so the colour is keyed to the position in
+   the story's own list — six slots, reused beyond that. */
+.tm-contribution-marker.tm-cat-0 { color: #e0a30c; }
+.tm-contribution-marker.tm-cat-1 { color: #1f9d61; }
+.tm-contribution-marker.tm-cat-2 { color: #d1533a; }
+.tm-contribution-marker.tm-cat-3 { color: #2f6fd0; }
+.tm-contribution-marker.tm-cat-4 { color: #8a4fbd; }
+.tm-contribution-marker.tm-cat-5 { color: #0f8f9e; }
+
 .tm-contribution-popup h4 {
     margin: 0 0 6px;
     font-size: 15px;

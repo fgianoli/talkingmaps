@@ -186,6 +186,30 @@ async def _seed_one(conn, data: dict, author_id: int) -> str | None:
             {"n": resolved, "id": slide_id},
         )
 
+    # A participatory demo with no contributions is an empty map and a button, which
+    # shows nothing about how the feature reads. These arrive already approved, and
+    # carry no author_id: they stand for the public, not for the account that seeded
+    # them, so the viewer shows the name written here.
+    for contribution in data.get("contributions", []):
+        await conn.execute(
+            text(
+                """INSERT INTO contributions
+                   (story_id, author_id, author_name, geom, title, description,
+                    category, status)
+                   VALUES (:sid, NULL, :author, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326),
+                           :title, :desc, :category, 'approved')"""
+            ),
+            {
+                "sid": story_id,
+                "author": contribution.get("author_name", ""),
+                "lng": contribution["lng"],
+                "lat": contribution["lat"],
+                "title": contribution.get("title", ""),
+                "desc": contribution.get("description", ""),
+                "category": contribution.get("category"),
+            },
+        )
+
     return slug
 
 

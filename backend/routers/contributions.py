@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db, get_system_db
 from core.security import get_current_user, require_admin
 from core.config import settings
+from core.safe_files import safe_extension
 
 router = APIRouter()
 
@@ -20,6 +21,15 @@ ALLOWED_MEDIA_TYPES = {
     "video/mp4", "video/webm",
     "audio/mpeg", "audio/ogg", "audio/wav",
 }
+
+_EXT_BY_TYPE = {
+    "image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif",
+    "image/webp": ".webp",
+    "video/mp4": ".mp4", "video/webm": ".webm",
+    "audio/mpeg": ".mp3", "audio/ogg": ".ogg", "audio/wav": ".wav",
+}
+
+_ALLOWED_EXTS = set(_EXT_BY_TYPE.values()) | {".jpeg"}
 
 
 class ContributionCreate(BaseModel):
@@ -164,7 +174,11 @@ async def create_contribution(
                 detail=f"File troppo grande (max {upload_limit_mb}MB)",
             )
 
-        ext = os.path.splitext(file.filename)[1].lower() if file.filename else ""
+        # Contributions are the most open upload path in the app — any logged-in
+        # reader can post one — so the extension is sanitised and checked against a
+        # list rather than trusted. It ends up in a served URL and in src="...",
+        # and a raw one carried quotes straight into the reader's page.
+        ext = safe_extension(file.filename, _ALLOWED_EXTS) or _EXT_BY_TYPE.get(file.content_type, "")
         filename = f"{uuid.uuid4().hex}{ext}"
 
         # Determine subdirectory based on content type
