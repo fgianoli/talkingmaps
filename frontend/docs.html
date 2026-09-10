@@ -609,14 +609,20 @@
 <h3>Creating an OAuth client</h3>
 <ol>
     <li>Register a free account at <a href="https://dataspace.copernicus.eu" target="_blank">dataspace.copernicus.eu</a> and confirm the address they email you.</li>
-    <li>Open the Sentinel Hub dashboard — at the time of writing <a href="https://shapps.dataspace.copernicus.eu/dashboard/" target="_blank">shapps.dataspace.copernicus.eu/dashboard</a> — and sign in with the same account.</li>
-    <li>Find <strong>OAuth clients</strong> in your user settings and create a new one. The exact wording of the menu moves around between releases; look for the words <em>OAuth</em> and <em>client</em>.</li>
+    <li>Open <a href="https://shapps.dataspace.copernicus.eu/dashboard/#/account/settings" target="_blank">the dashboard's User Settings</a> and sign in with the same account.</li>
+    <li>Find the <strong>OAuth clients</strong> section and press <strong>Create</strong>.</li>
     <li>Give it a name you will recognise later, such as <code>talkingmaps</code>.</li>
-    <li>Copy both values it gives you: the <strong>client id</strong> and the <strong>client secret</strong>.</li>
+    <li>Choose an expiry date, or <em>Never expire</em>. See the note below before deciding.</li>
+    <li>Leave the <strong>single-page application</strong> option unticked. TalkingMaps keeps the secret on the server, inside the proxy that talks to CDSE, and it never reaches a reader's browser — so this is a confidential client, not an SPA. Ticking it configures the client for the opposite arrangement.</li>
+    <li>Press <strong>Create</strong> again. The <strong>client id</strong> and <strong>client secret</strong> appear; copy both before closing the dialog.</li>
 </ol>
 
 <div class="docs-callout">
-    The secret is shown <strong>once</strong>, when the client is created. If you navigate away without copying it, the client is not broken — but you cannot recover the secret, and you will have to delete it and make another.
+    The secret is shown <strong>once</strong>, in that dialog. If you close it without copying, the client still works but the secret is gone for good — delete it and create another.
+</div>
+
+<div class="docs-callout">
+    <em>Never expire</em> is convenient, but it is a credential that lives forever. If you set a date instead, write it down: when it lapses, stories simply stop loading their imagery, and nothing on screen says why.
 </div>
 
 <h3>Where to put them</h3>
