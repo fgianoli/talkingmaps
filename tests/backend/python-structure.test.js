@@ -31,7 +31,10 @@ function strip(src) {
         if (three === '"""' || three === "'''") {
             const end = src.indexOf(three, i + 3);
             const chunk = src.slice(i, end === -1 ? n : end + 3);
-            out += chunk.replace(/[^\n]/g, ' ');
+            // Leave one marker character behind. A class or function whose entire
+            // body is a docstring is valid Python, and blanking the string outright
+            // made the body look empty.
+            out += 'S' + chunk.slice(1).replace(/[^\n]/g, ' ');
             i = end === -1 ? n : end + 3;
             continue;
         }
@@ -43,7 +46,7 @@ function strip(src) {
                 if (src[j] === '\n') break;
                 j++;
             }
-            out += ' '.repeat(j - i + 1);
+            out += 'S' + ' '.repeat(j - i);
             i = j + 1;
             continue;
         }

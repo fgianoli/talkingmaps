@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_ID: str = ""
     GITHUB_CLIENT_SECRET: str = ""
     CESIUM_ION_TOKEN: str = ""
+    # Development fallback for CDSE. Real deployments leave these empty: each user
+    # registers their own OAuth client and the secret is stored encrypted per user.
+    CDSE_CLIENT_ID: str = ""
+    CDSE_CLIENT_SECRET: str = ""
     DEFAULT_STORAGE_LIMIT_MB: int = 1024  # 1GB default per user
 
     @property
