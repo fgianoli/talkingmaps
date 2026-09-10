@@ -19,7 +19,12 @@ from sqlalchemy import text
 
 logger = logging.getLogger("talkingmaps.migrate")
 
-MIGRATIONS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "migrations")
+_BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MIGRATIONS_DIR = os.path.join(_BACKEND_DIR, "migrations")
+# The two databases have separate schemas and separate histories. Migrations for
+# the system database (users, basemaps, settings) live apart from those for the
+# data database, and each keeps its own schema_migrations table in its own DB.
+SYSTEM_MIGRATIONS_DIR = os.path.join(_BACKEND_DIR, "migrations_system")
 
 _TRACKING_TABLE = """
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -29,10 +34,10 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 """
 
 
-def _migration_files() -> list[str]:
-    if not os.path.isdir(MIGRATIONS_DIR):
+def _migration_files(directory: str) -> list[str]:
+    if not os.path.isdir(directory):
         return []
-    return sorted(f for f in os.listdir(MIGRATIONS_DIR) if f.endswith(".sql"))
+    return sorted(f for f in os.listdir(directory) if f.endswith(".sql"))
 
 
 async def _execute_script(conn, sql: str) -> None:
@@ -53,7 +58,7 @@ async def _execute_script(conn, sql: str) -> None:
         await conn.execute(text(sql))
 
 
-async def run_migrations(engine) -> dict:
+async def run_migrations(engine, directory: str = MIGRATIONS_DIR) -> dict:
     """Apply every migration this database has not seen yet.
 
     Each file runs in its own transaction: one failure does not roll back the
@@ -67,9 +72,9 @@ async def run_migrations(engine) -> dict:
     skipped: list[str] = []
     failed: list[tuple[str, str]] = []
 
-    files = _migration_files()
+    files = _migration_files(directory)
     if not files:
-        logger.warning("No migration files found in %s", MIGRATIONS_DIR)
+        logger.warning("No migration files found in %s", directory)
         return {"applied": applied, "skipped": skipped, "failed": failed}
 
     async with engine.begin() as conn:
@@ -82,7 +87,7 @@ async def run_migrations(engine) -> dict:
             skipped.append(filename)
             continue
 
-        path = os.path.join(MIGRATIONS_DIR, filename)
+        path = os.path.join(directory, filename)
         with open(path, "r", encoding="utf-8") as fh:
             sql = fh.read().strip()
         if not sql:

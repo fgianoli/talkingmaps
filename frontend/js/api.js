@@ -219,6 +219,11 @@ const Api = {
     // ── AI ────────────────────────────
     getAISettings() { return this.get('/api/ai/settings'); },
     updateAISettings(data) { return this.put('/api/ai/settings', data); },
+
+    // ── Copernicus (CDSE), per-user credentials ──
+    getCdseSettings() { return this.get('/api/cdse/settings'); },
+    updateCdseSettings(data) { return this.put('/api/cdse/settings', data); },
+    testCdseCredentials() { return this.post('/api/cdse/test', {}); },
     getAIProviders() { return this.get('/api/ai/providers'); },
     generateText(data) { return this.post('/api/ai/generate', data); },
     generateImage(data) { return this.post('/api/ai/generate-image', data); },

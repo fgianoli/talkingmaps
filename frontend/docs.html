@@ -600,7 +600,7 @@
 <p>The <a href="https://dataspace.copernicus.eu" target="_blank">Copernicus Data Space Ecosystem</a> is the European Union's access point for Sentinel satellite imagery — free, and covering the whole planet every few days since 2015. Work to bring it into TalkingMaps is under way; this section covers the part you can do today, which is obtaining your credentials.</p>
 
 <div class="docs-callout">
-    Only the credential setup below is in place so far. Choosing scenes and adding them as layers is not built yet, so there is nothing in the editor to point at.
+    Credentials and the connection test are in place. Choosing scenes and adding them to a story as layers is not built yet, so there is nothing in the editor to point at.
 </div>
 
 <h3>Why the credentials are yours</h3>
@@ -626,13 +626,22 @@
 </div>
 
 <h3>Where to put them</h3>
-<p>Until the profile field exists, they go in the server's <code>.env</code> file, which is excluded from version control:</p>
-<pre><code>CDSE_CLIENT_ID=...
-CDSE_CLIENT_SECRET=...</code></pre>
-<p>Then restart the backend so it picks them up, and check that they work:</p>
-<pre><code>docker compose up -d backend
-docker compose exec backend python cdse_check.py</code></pre>
-<p>The check asks CDSE for a token and then spends it on a real catalogue search, printing the scenes it finds. It never prints the credentials or the token. A token that decodes correctly but authorises nothing looks exactly like a good one until something tries to use it, which is why the check does not stop at getting one.</p>
+<p>In your own profile: <strong>Dashboard &rarr; Account &rarr; Copernicus (CDSE)</strong>. Paste the client id and the client secret and press Save. The secret is encrypted before it is stored and never comes back to the browser in full — the field shows only its last four characters, and leaving it untouched keeps the stored one.</p>
+<p>Press <strong>Test connection</strong> afterwards. It does not stop at obtaining a token: it spends one on a real catalogue search, because credentials that buy a token but authorise nothing look exactly like working ones until something asks for data.</p>
+
+<div class="docs-callout">
+    Credentials are <strong>per user</strong>, with no shared server-wide pair. That is deliberate: CDSE bills whoever makes the request, so a shared account would charge one organisation for everyone's work, and one person exhausting the quota would stop Copernicus for all the others. A user who has not set credentials simply has no Copernicus.
+</div>
+
+<h3>Moving credentials off the server</h3>
+<p>Earlier setups kept the pair in the server's <code>.env</code> as <code>CDSE_CLIENT_ID</code> and <code>CDSE_CLIENT_SECRET</code>. That is now a development fallback only, used by the command-line check and never by the application. To attach an existing pair to a real account:</p>
+<pre><code>docker compose exec backend python cdse_adopt.py &lt;username&gt;</code></pre>
+<p>It verifies the pair still works before storing it, encrypts the secret against that user, and then tells you to delete both lines from <code>.env</code> and restart the backend. Nothing is printed but what it did.</p>
+
+<h3>Checking from the command line</h3>
+<p>Independently of any account, this exercises the environment pair and prints the scenes it finds:</p>
+<pre><code>docker compose exec backend python cdse_check.py</code></pre>
+<p>It never prints the credentials or the token.</p>
 
 <div class="docs-callout">
     Never paste a client secret into a chat, an issue, or a commit. If one leaks, delete the client in the CDSE dashboard and create another — the id and secret are worthless once the client is gone.

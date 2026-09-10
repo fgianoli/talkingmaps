@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
     storage_used_mb NUMERIC(10,2) DEFAULT 0,
     storage_limit_mb NUMERIC(10,2) DEFAULT 100,
     ai_settings JSONB DEFAULT '{}',
+    cdse_settings JSONB DEFAULT '{}',
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );

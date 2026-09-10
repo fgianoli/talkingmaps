@@ -7,9 +7,9 @@ from sqlalchemy import text
 from core.config import settings as app_settings
 from core.database import engine, engine_system
 from core.security import hash_password
-from core.migrate import run_migrations
+from core.migrate import run_migrations, SYSTEM_MIGRATIONS_DIR
 from core.seed_demo import seed_demo_stories
-from routers import auth, stories, slides, media, layers, basemaps, wms_proxy, wfs_proxy, services, users, symbology, ckan, upload3d, settings as settings_router, ai as ai_router, oauth, geodata, contributions
+from routers import auth, stories, slides, media, layers, basemaps, wms_proxy, wfs_proxy, services, users, symbology, ckan, upload3d, settings as settings_router, ai as ai_router, oauth, geodata, contributions, cdse as cdse_router
 
 
 # Ensure upload directory exists before StaticFiles mount
@@ -36,6 +36,18 @@ async def lifespan(app: FastAPI):
             print(f"[INIT] MIGRATION FAILED {filename}: {err}")
     except Exception as e:
         print(f"[INIT] Migration runner error: {e}")
+
+    # The system database has its own schema and its own history, and until now
+    # nothing migrated it at all: a column added to users after the first start
+    # would never have appeared on a running installation.
+    try:
+        result = await run_migrations(engine_system, SYSTEM_MIGRATIONS_DIR)
+        if result["applied"]:
+            print(f"[INIT] System migrations applied: {', '.join(result['applied'])}")
+        for filename, err in result["failed"]:
+            print(f"[INIT] SYSTEM MIGRATION FAILED {filename}: {err}")
+    except Exception as e:
+        print(f"[INIT] System migration runner error: {e}")
 
     # Create initial admin user if not exists (in system DB)
     admin_id = None
@@ -108,6 +120,7 @@ app.include_router(ai_router.router, prefix="/api/ai", tags=["AI Assistant"])
 app.include_router(oauth.router, prefix="/api/oauth", tags=["OAuth"])
 app.include_router(geodata.router, prefix="/api/geodata", tags=["Geodata (Wikipedia, OSM)"])
 app.include_router(contributions.router, prefix="/api/contributions", tags=["Mappe Partecipate"])
+app.include_router(cdse_router.router, prefix="/api/cdse", tags=["Copernicus (CDSE)"])
 
 
 @app.get("/health")

@@ -524,10 +524,12 @@ const Dashboard = {
 
         let aiSettings = {};
         let providers = {};
+        let cdseSettings = {};
         try {
-            [aiSettings, providers] = await Promise.all([
+            [aiSettings, providers, cdseSettings] = await Promise.all([
                 Api.getAISettings().catch(() => ({})),
                 Api.getAIProviders().catch(() => ({})),
+                Api.getCdseSettings().catch(() => ({})),
             ]);
         } catch {}
 
@@ -702,6 +704,54 @@ const Dashboard = {
                     </div>
                 </div>
 
+                <!-- Copernicus (CDSE) -->
+                <div class="card mt-3" style="background:var(--tm-surface);border:1px solid var(--tm-border);border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.15)">
+                    <div class="card-body" style="padding:20px 24px">
+                        <h6 class="mb-1"><i class="bi bi-globe-europe-africa me-2"></i>${t('cdse.title')}</h6>
+                        <p class="text-muted mb-3" style="font-size:12px">${t('cdse.intro')}</p>
+
+                        <div class="mb-3">
+                            <label class="form-label d-flex align-items-center gap-2">
+                                ${t('cdse.client_id')}
+                                ${cdseSettings.client_id_set ? '<span class="badge bg-success">✓</span>' : '<span class="badge bg-secondary">—</span>'}
+                            </label>
+                            <input type="text" class="form-control" id="cdse-client-id"
+                                   placeholder="sh-…" value="${App.escHtml(cdseSettings.client_id || '')}"
+                                   style="border-radius:10px">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label d-flex align-items-center gap-2">
+                                ${t('cdse.client_secret')}
+                                ${cdseSettings.client_secret_set ? '<span class="badge bg-success">✓</span>' : '<span class="badge bg-secondary">—</span>'}
+                            </label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="cdse-client-secret"
+                                       placeholder="${cdseSettings.client_secret_set ? App.escHtml(cdseSettings.client_secret) : t('account.key_placeholder')}"
+                                       value="" style="border-radius:10px 0 0 10px">
+                                <button class="btn btn-outline-secondary" type="button" onclick="this.previousElementSibling.type = this.previousElementSibling.type === 'password' ? 'text' : 'password'" style="border-radius:0 10px 10px 0">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted">${t('cdse.secret_hint')}</small>
+                        </div>
+
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button class="btn btn-primary" onclick="Dashboard._saveCdseSettings()" style="border-radius:10px">
+                                <i class="bi bi-check-lg"></i> ${t('action.save')}
+                            </button>
+                            <button class="btn btn-outline-secondary" id="cdse-test-btn" onclick="Dashboard._testCdseCredentials()" style="border-radius:10px" ${cdseSettings.client_secret_set ? '' : 'disabled'}>
+                                <i class="bi bi-plug"></i> ${t('cdse.test')}
+                            </button>
+                        </div>
+
+                        <div class="alert mt-3" style="background:rgba(31,111,92,0.12);border:1px solid rgba(31,111,92,0.35);color:var(--tm-text);font-size:12px;border-radius:12px">
+                            <i class="bi bi-info-circle"></i> ${t('cdse.quota_notice')}
+                            <a href="/docs.html#cdse" target="_blank">${t('cdse.how_to')}</a>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Storage -->
                 <div class="card mt-3" style="background:var(--tm-surface);border:1px solid var(--tm-border);border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.15)">
                     <div class="card-body" style="padding:20px 24px">
@@ -801,6 +851,39 @@ const Dashboard = {
             this.loadAccount(); // Refresh to show updated status
         } catch (err) {
             App.toast(err.message, 'danger');
+        }
+    },
+
+    async _saveCdseSettings() {
+        const data = {
+            client_id: document.getElementById('cdse-client-id')?.value || '',
+            client_secret: document.getElementById('cdse-client-secret')?.value || '',
+        };
+        try {
+            await Api.updateCdseSettings(data);
+            App.toast(I18n.t('cdse.saved'), 'success');
+            this.loadAccount();
+        } catch (err) {
+            App.toast(err.message, 'danger');
+        }
+    },
+
+    async _testCdseCredentials() {
+        const btn = document.getElementById('cdse-test-btn');
+        const original = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> ' + I18n.t('cdse.testing');
+        }
+        try {
+            // Deliberately a real catalogue search, not just a token: credentials that
+            // buy a token but authorise nothing look identical until something is asked.
+            const res = await Api.testCdseCredentials();
+            App.toast(res.detail || I18n.t('cdse.test_ok'), 'success');
+        } catch (err) {
+            App.toast(err.message || I18n.t('cdse.test_failed'), 'danger');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = original; }
         }
     },
 
