@@ -132,6 +132,7 @@
             font-size: 11px; font-weight: 600; text-transform: uppercase;
         }
         .docs-badge-new { background: rgba(63,185,80,0.15); color: var(--docs-accent-2); }
+        .docs-badge-wip { background: rgba(210,153,34,0.18); color: #d29922; }
 
         .docs-callout {
             border-left: 4px solid var(--docs-accent);
@@ -190,6 +191,7 @@
     <a href="#symbology">Symbology & Styling</a>
     <a href="#geodata">Wikipedia & OpenStreetMap</a>
     <a href="#opendata">Open Data (CKAN)</a>
+    <a href="#cdse">Copernicus (CDSE)</a>
 
     <h6>Advanced</h6>
     <a href="#globe-3d">3D Globe (Cesium)</a>
@@ -593,6 +595,45 @@
 <div class="docs-callout">
     Requests go out from the server, not the browser, and private addresses are refused — the proxy cannot be pointed at something inside your network.
 </div>
+
+<h2 id="cdse">Copernicus (CDSE) <span class="docs-badge docs-badge-wip">In progress</span></h2>
+<p>The <a href="https://dataspace.copernicus.eu" target="_blank">Copernicus Data Space Ecosystem</a> is the European Union's access point for Sentinel satellite imagery — free, and covering the whole planet every few days since 2015. Work to bring it into TalkingMaps is under way; this section covers the part you can do today, which is obtaining your credentials.</p>
+
+<div class="docs-callout">
+    Only the credential setup below is in place so far. Choosing scenes and adding them as layers is not built yet, so there is nothing in the editor to point at.
+</div>
+
+<h3>Why the credentials are yours</h3>
+<p>CDSE meters use against the account that makes the request, so credentials belong to a person rather than to the server: your searches and your imagery are counted against your own free allowance, not a shared one. Each user registers their own OAuth client, and TalkingMaps stores the secret encrypted, the same way it stores <a href="#ai">AI provider keys</a>.</p>
+
+<h3>Creating an OAuth client</h3>
+<ol>
+    <li>Register a free account at <a href="https://dataspace.copernicus.eu" target="_blank">dataspace.copernicus.eu</a> and confirm the address they email you.</li>
+    <li>Open the Sentinel Hub dashboard — at the time of writing <a href="https://shapps.dataspace.copernicus.eu/dashboard/" target="_blank">shapps.dataspace.copernicus.eu/dashboard</a> — and sign in with the same account.</li>
+    <li>Find <strong>OAuth clients</strong> in your user settings and create a new one. The exact wording of the menu moves around between releases; look for the words <em>OAuth</em> and <em>client</em>.</li>
+    <li>Give it a name you will recognise later, such as <code>talkingmaps</code>.</li>
+    <li>Copy both values it gives you: the <strong>client id</strong> and the <strong>client secret</strong>.</li>
+</ol>
+
+<div class="docs-callout">
+    The secret is shown <strong>once</strong>, when the client is created. If you navigate away without copying it, the client is not broken — but you cannot recover the secret, and you will have to delete it and make another.
+</div>
+
+<h3>Where to put them</h3>
+<p>Until the profile field exists, they go in the server's <code>.env</code> file, which is excluded from version control:</p>
+<pre><code>CDSE_CLIENT_ID=...
+CDSE_CLIENT_SECRET=...</code></pre>
+<p>Then restart the backend so it picks them up, and check that they work:</p>
+<pre><code>docker compose up -d backend
+docker compose exec backend python cdse_check.py</code></pre>
+<p>The check asks CDSE for a token and then spends it on a real catalogue search, printing the scenes it finds. It never prints the credentials or the token. A token that decodes correctly but authorises nothing looks exactly like a good one until something tries to use it, which is why the check does not stop at getting one.</p>
+
+<div class="docs-callout">
+    Never paste a client secret into a chat, an issue, or a commit. If one leaks, delete the client in the CDSE dashboard and create another — the id and secret are worthless once the client is gone.
+</div>
+
+<h3>What it costs</h3>
+<p>CDSE's free tier is generous but finite: imagery requests draw on a monthly allowance, and searching the catalogue is far cheaper than rendering pixels. The consequence worth planning for is that <strong>readers spend the author's allowance</strong>: if a published story fetches satellite tiles live, every visitor's request is billed to whoever wrote the story. A story expecting an audience should freeze its imagery when it is published rather than querying CDSE on every view.</p>
 
 <h2 id="heatmap">Heatmap Layers <span class="docs-badge docs-badge-new">New</span></h2>
 <p>Turn point data into a heatmap visualization to show density patterns.</p>
